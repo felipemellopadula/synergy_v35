@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { 
   MessageSquare, 
   Image as ImageIcon, 
@@ -12,22 +11,18 @@ import {
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfile } from "@/components/UserProfile";
 import { HubButton } from "@/components/HubButton";
-import { ChatInterface } from "@/components/ChatInterface";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
-  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const handleToolClick = (tool: string) => {
     if (tool === 'chat') {
-      setActiveTool('chat');
+      navigate('/chat');
     } else {
       toast.info(`${tool} será implementado em breve!`);
     }
-  };
-
-  const closeChat = () => {
-    setActiveTool(null);
   };
 
   return (
@@ -139,11 +134,6 @@ const Index = () => {
         </div>
       </footer>
 
-      {/* Chat Interface */}
-      <ChatInterface 
-        isOpen={activeTool === 'chat'} 
-        onClose={closeChat}
-      />
     </div>
   );
 };
