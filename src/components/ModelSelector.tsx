@@ -16,25 +16,25 @@ interface Model {
 
 const models: Model[] = [
   // OpenAI Models
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', category: 'premium' },
-  { id: 'gpt-o3', name: 'GPT-o3', provider: 'OpenAI', category: 'premium' },
-  { id: 'gpt-o4', name: 'GPT-o4', provider: 'OpenAI', category: 'premium' },
-  { id: 'o4-mini', name: 'o4 Mini', provider: 'OpenAI', category: 'fast' },
-  { id: '4o-mini', name: '4o Mini', provider: 'OpenAI', category: 'fast' },
+  { id: 'gpt-4.1-2025-04-14', name: 'GPT-4.1', provider: 'OpenAI', category: 'premium' },
+  { id: 'o3-2025-04-16', name: 'o3 (Reasoning)', provider: 'OpenAI', category: 'premium' },
+  { id: 'o4-mini-2025-04-16', name: 'o4 Mini', provider: 'OpenAI', category: 'fast' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', category: 'standard' },
   
   // Anthropic Models
-  { id: 'claude-4-sonnet', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'premium' },
-  { id: 'claude-4-opus', name: 'Claude 4 Opus', provider: 'Anthropic', category: 'premium' },
+  { id: 'claude-opus-4-20250514', name: 'Claude 4 Opus', provider: 'Anthropic', category: 'premium' },
+  { id: 'claude-sonnet-4-20250514', name: 'Claude 4 Sonnet', provider: 'Anthropic', category: 'premium' },
+  { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', category: 'standard' },
+  { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'Anthropic', category: 'fast' },
   
   // xAI Models
-  { id: 'grok-4', name: 'Grok 4', provider: 'xAI', category: 'standard' },
-  { id: 'grok-3', name: 'Grok 3', provider: 'xAI', category: 'standard' },
+  { id: 'grok-beta', name: 'Grok Beta', provider: 'xAI', category: 'standard' },
   
   // Google Models
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', category: 'fast' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', category: 'premium' },
+  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', category: 'fast' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', category: 'standard' },
   
-  // Meta Models
+  // Meta Models (via OpenAI)
   { id: 'llama', name: 'Llama', provider: 'Meta', category: 'standard' },
 ];
 
