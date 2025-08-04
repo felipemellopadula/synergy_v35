@@ -81,8 +81,8 @@ const Chat = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-50 w-full border-b border-border bg-background backdrop-blur-sm">
-        <div className="flex h-16 items-center justify-between px-4 md:px-6">
+      <div className="sticky top-0 z-50 w-full border-b border-border bg-background">
+        <div className="flex h-14 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -94,80 +94,81 @@ const Chat = () => {
               Voltar
             </Button>
             <div className="h-6 w-px bg-border" />
-            <h1 className="text-xl font-semibold text-foreground">AI Chat</h1>
+            <h1 className="text-lg font-semibold text-foreground">AI Chat</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <ModelSelector onModelSelect={setSelectedModel} selectedModel={selectedModel} />
             <ThemeToggle />
-            <UserProfile tokens={10000} />
           </div>
         </div>
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full max-w-4xl mx-auto p-4">
-          <div className="h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center">
-                    <h3 className="text-lg font-medium mb-2">Inicie uma conversa</h3>
-                    <p>Faça uma pergunta para começar a conversar com a IA</p>
-                  </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-[60vh] text-muted-foreground">
+                <div className="text-center">
+                  <h3 className="text-lg font-medium mb-2">Inicie uma conversa</h3>
+                  <p>Faça uma pergunta para começar a conversar com a IA</p>
                 </div>
-              ) : (
-                messages.map((message) => (
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.sender === 'bot' && (
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        AI
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
                   <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      message.sender === 'user'
+                        ? 'bg-primary text-primary-foreground ml-auto'
+                        : 'bg-muted'
+                    }`}
                   >
-                    {message.sender === 'bot' && (
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          AI
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div
-                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                        message.sender === 'user'
-                          ? 'bg-primary text-primary-foreground ml-auto'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      {message.model && message.sender === 'bot' && (
-                        <p className="text-xs opacity-70 mt-1">{message.model}</p>
-                      )}
-                    </div>
-                    {message.sender === 'user' && (
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback>U</AvatarFallback>
-                      </Avatar>
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.model && message.sender === 'bot' && (
+                      <p className="text-xs opacity-70 mt-1">{message.model}</p>
                     )}
                   </div>
-                ))
-              )}
-              {isLoading && (
-                <div className="flex gap-3 justify-start">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      AI
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                      <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                      <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                    </div>
+                  {message.sender === 'user' && (
+                    <Avatar className="h-8 w-8 shrink-0">
+                      <AvatarFallback>U</AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))
+            )}
+            {isLoading && (
+              <div className="flex gap-3 justify-start">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    AI
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-muted rounded-lg px-4 py-2">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-            {/* Message Input */}
+        {/* Message Input - Fixed at bottom */}
+        <div className="border-t border-border bg-background p-4">
+          <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <input
                 type="text"
@@ -175,9 +176,9 @@ const Chat = () => {
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Digite sua mensagem..."
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
-              <Button type="submit" disabled={isLoading || !inputValue.trim()}>
+              <Button type="submit" disabled={isLoading || !inputValue.trim()} size="lg">
                 Enviar
               </Button>
             </form>
