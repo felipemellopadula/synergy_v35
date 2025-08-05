@@ -1,4 +1,4 @@
-import { ArrowLeft, Paperclip, Mic } from "lucide-react";
+import { ArrowLeft, Paperclip, Mic, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef } from "react";
@@ -106,6 +106,75 @@ const Chat = () => {
         description: "Não foi possível transcrever o áudio.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleWebSearch = async () => {
+    if (!inputValue.trim()) {
+      toast({
+        title: "Erro",
+        description: "Digite algo para buscar na web.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const response = await supabase.functions.invoke('web-search', {
+        body: { query: inputValue, numResults: 3 }
+      });
+
+      if (response.data?.results) {
+        const searchResults = response.data.results
+          .map((result: any) => 
+            `${result.title}: ${result.content}`
+          )
+          .join('\n\n');
+        
+        const searchContent = `[Resultados da busca na web para "${inputValue}"]\n\n${searchResults}`;
+        
+        // Add user message
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          content: inputValue,
+          sender: 'user',
+          timestamp: new Date(),
+        };
+
+        // Add search results as bot message
+        const searchMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: searchContent,
+          sender: 'bot',
+          timestamp: new Date(),
+          model: 'Busca Web',
+        };
+
+        setMessages(prev => [...prev, userMessage, searchMessage]);
+        setInputValue('');
+        
+        toast({
+          title: "Busca concluída",
+          description: "Resultados da busca na web encontrados",
+        });
+      } else {
+        toast({
+          title: "Nenhum resultado",
+          description: "Não foram encontrados resultados para sua busca.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Web search error:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível realizar a busca na web.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -294,6 +363,16 @@ const Chat = () => {
                     className={`h-8 w-8 p-0 hover:bg-muted ${isRecording ? 'text-red-500' : ''}`}
                   >
                     <Mic className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleWebSearch}
+                    disabled={isLoading || !inputValue.trim()}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                  >
+                    <Globe className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
