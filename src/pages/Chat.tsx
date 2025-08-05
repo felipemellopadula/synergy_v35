@@ -109,26 +109,6 @@ const Chat = () => {
     }
   };
 
-  const performWebSearch = async (query: string) => {
-    try {
-      const response = await supabase.functions.invoke('web-search', {
-        body: { query, numResults: 3 }
-      });
-
-      if (response.data?.results) {
-        const searchResults = response.data.results
-          .map((result: any) => 
-            `${result.title}: ${result.content}`
-          )
-          .join('\n\n');
-        
-        return `[Resultados da busca na web para "${query}"]\n\n${searchResults}`;
-      }
-    } catch (error) {
-      console.error('Web search error:', error);
-    }
-    return '';
-  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
