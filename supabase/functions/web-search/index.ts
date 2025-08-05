@@ -19,57 +19,67 @@ serve(async (req) => {
 
     console.log('Searching for:', query)
 
-    // Use DuckDuckGo Instant Answer API (free and no API key required)
-    const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
+    // Use a scraping approach to get search results
+    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
     
-    const response = await fetch(searchUrl)
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    })
     
     if (!response.ok) {
       throw new Error(`Search API error: ${response.status}`)
     }
 
-    const data = await response.json()
+    const html = await response.text()
     
-    // Format results
+    // Simple regex to extract search results
     const results = []
+    const titleRegex = /<a.*?class="result__a".*?href="([^"]*)".*?>(.*?)<\/a>/g
+    const snippetRegex = /<a.*?class="result__snippet".*?>(.*?)<\/a>/g
     
-    // Add abstract if available
-    if (data.Abstract) {
-      results.push({
-        title: data.Heading || 'Information',
-        content: data.Abstract,
-        url: data.AbstractURL || '#'
-      })
-    }
-
-    // Add related topics
-    if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-      for (let i = 0; i < Math.min(data.RelatedTopics.length, numResults - results.length); i++) {
-        const topic = data.RelatedTopics[i]
-        if (topic.Text && topic.FirstURL) {
-          results.push({
-            title: topic.Text.split(' - ')[0] || 'Related Topic',
-            content: topic.Text,
-            url: topic.FirstURL
-          })
-        }
+    let titleMatch
+    let snippetMatch
+    let count = 0
+    
+    const titles = []
+    const snippets = []
+    
+    // Extract titles and URLs
+    while ((titleMatch = titleRegex.exec(html)) !== null && count < numResults) {
+      const url = titleMatch[1]
+      const title = titleMatch[2].replace(/<[^>]*>/g, '').trim()
+      if (title && url) {
+        titles.push({ title, url })
+        count++
       }
     }
-
-    // Add definition if available
-    if (data.Definition) {
+    
+    // Extract snippets
+    count = 0
+    while ((snippetMatch = snippetRegex.exec(html)) !== null && count < numResults) {
+      const snippet = snippetMatch[1].replace(/<[^>]*>/g, '').trim()
+      if (snippet) {
+        snippets.push(snippet)
+        count++
+      }
+    }
+    
+    // Combine titles with snippets
+    for (let i = 0; i < Math.min(titles.length, snippets.length, numResults); i++) {
       results.push({
-        title: 'Definition',
-        content: data.Definition,
-        url: data.DefinitionURL || '#'
+        title: titles[i].title,
+        content: snippets[i] || 'Sem descrição disponível',
+        url: titles[i].url
       })
     }
-
-    // If no results, add a fallback search suggestion
+    
+    // If no results found, provide a helpful message
     if (results.length === 0) {
       results.push({
         title: 'Busca realizada',
-        content: `Não foram encontrados resultados específicos para "${query}". Tente reformular sua consulta.`,
+        content: `Não foram encontrados resultados para "${query}". A busca pode estar temporariamente indisponível.`,
         url: '#'
       })
     }
