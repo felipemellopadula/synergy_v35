@@ -1,12 +1,13 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Paperclip, Mic, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ModelSelector } from "@/components/ModelSelector";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfile } from "@/components/UserProfile";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -23,6 +24,125 @@ const Chat = () => {
   const [inputValue, setInputValue] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setAttachedFiles(prev => [...prev, ...files]);
+    
+    // Show files in input
+    const fileNames = files.map(f => f.name).join(', ');
+    setInputValue(prev => prev + (prev ? ' ' : '') + `[Arquivos: ${fileNames}]`);
+    
+    toast({
+      title: "Arquivos anexados",
+      description: `${files.length} arquivo(s) anexado(s)`,
+    });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      
+      toast({
+        title: "Gravando",
+        description: "Fale sua mensagem...",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível acessar o microfone.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      
+      const response = await supabase.functions.invoke('voice-to-text', {
+        body: { audio: base64Audio }
+      });
+
+      if (response.data?.text) {
+        setInputValue(prev => prev + (prev ? ' ' : '') + response.data.text);
+        toast({
+          title: "Transcrição concluída",
+          description: "Áudio convertido para texto",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível transcrever o áudio.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWebSearch = async () => {
+    const query = prompt("Digite sua consulta para busca na web:");
+    if (!query) return;
+
+    setIsLoading(true);
+    try {
+      const response = await supabase.functions.invoke('web-search', {
+        body: { query, numResults: 5 }
+      });
+
+      if (response.data?.results) {
+        const searchResults = response.data.results
+          .map((result: any, index: number) => 
+            `${index + 1}. ${result.title}\n${result.content}\nFonte: ${result.url}`
+          )
+          .join('\n\n');
+        
+        setInputValue(prev => prev + (prev ? '\n\n' : '') + `[Resultados da busca para "${query}"]\n\n${searchResults}`);
+        
+        toast({
+          title: "Busca concluída",
+          description: `${response.data.results.length} resultados encontrados`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível realizar a busca.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +157,7 @@ const Chat = () => {
 
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
+    setAttachedFiles([]);
     setIsLoading(true);
 
     try {
@@ -172,14 +293,53 @@ const Chat = () => {
         <div className="border-t border-border bg-background p-4">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSendMessage} className="flex gap-2">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Digite sua mensagem..."
-                disabled={isLoading}
-                className="flex-1 px-4 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              />
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  disabled={isLoading}
+                  className="w-full pl-4 pr-32 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    multiple
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    className={`h-8 w-8 p-0 hover:bg-muted ${isRecording ? 'text-red-500' : ''}`}
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleWebSearch}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
               <Button type="submit" disabled={isLoading || !inputValue.trim()} size="lg">
                 Enviar
               </Button>
