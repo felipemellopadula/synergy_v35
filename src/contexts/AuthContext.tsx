@@ -84,6 +84,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setTimeout(() => {
             fetchProfile(session.user.id);
           }, 0);
+          
+          // Redirect to dashboard after successful Google auth
+          if (event === 'SIGNED_IN' && window.location.pathname === '/') {
+            window.location.href = '/dashboard';
+          }
         } else {
           setProfile(null);
         }
@@ -124,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (email: string, password: string, name: string, phone?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signUp({
       email,
