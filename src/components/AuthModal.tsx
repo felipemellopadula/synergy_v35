@@ -145,10 +145,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
       toast({
         title: "Cadastro realizado com sucesso!",
-        description: "Verifique seu email para confirmar a conta.",
+        description: "Redirecionando para o dashboard...",
       });
 
       onClose();
+      
+      // Redirect to dashboard after successful signup
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1000);
     } catch (error) {
       toast({
         title: "Erro",
