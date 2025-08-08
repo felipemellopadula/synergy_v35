@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -157,7 +157,7 @@ const SettingsPage = () => {
             <MessageCircle className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
           </div>
-          <Button variant="outline" onClick={() => (window.history.length > 2 ? navigate(-1) : navigate("/"))}>Voltar</Button>
+          <Button asChild variant="outline"><Link to="/" replace>Voltar</Link></Button>
         </div>
       </header>
 
