@@ -84,7 +84,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
 
     try {
-      const { error } = await signIn(signInData.email, signInData.password);
+      const emailNormalized = signInData.email.trim().toLowerCase();
+      const { error } = await signIn(emailNormalized, signInData.password);
 
       if (error) {
         let errorMessage = error.message;
@@ -291,6 +292,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Entrando..." : "Entrar"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                disabled={loading}
+                onClick={async () => {
+                  const email = signInData.email.trim().toLowerCase();
+                  if (!email) {
+                    toast({
+                      title: 'Informe seu email',
+                      description: 'Preencha o campo de email para receber o link.',
+                      variant: 'destructive',
+                    });
+                    return;
+                  }
+                  setLoading(true);
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/dashboard`,
+                  });
+                  setLoading(false);
+                  if (error) {
+                    toast({ title: 'Erro ao enviar link', description: error.message, variant: 'destructive' });
+                  } else {
+                    toast({ title: 'Email enviado', description: 'Verifique sua caixa de entrada para redefinir a senha.' });
+                  }
+                }}
+              >
+                Esqueci minha senha
               </Button>
             </form>
           </TabsContent>

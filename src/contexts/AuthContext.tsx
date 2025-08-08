@@ -53,10 +53,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching profile:', error);
+        return;
+      }
+
+      if (!data) {
+        // Create a default profile if it doesn't exist
+        const defaultProfile = {
+          id: userId,
+          name: (session?.user?.user_metadata?.name as string) || 'Usuário',
+          email: session?.user?.email || '',
+          subscription_type: 'paid' as const,
+          tokens_remaining: 1000000,
+          avatar_url: (session?.user?.user_metadata?.avatar_url as string) || null,
+          phone: (session?.user?.user_metadata?.phone as string) || null,
+        };
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('profiles')
+          .insert(defaultProfile)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating default profile:', insertError);
+          return;
+        }
+
+        setProfile(inserted);
         return;
       }
 
@@ -130,9 +157,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string, name: string, phone?: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
+    const normalizedEmail = email.trim().toLowerCase();
     
     const { error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: redirectUrl,
