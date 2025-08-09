@@ -113,7 +113,177 @@ const Index = () => {
       </header>
 
       <main className="flex-1">
-        {/* Conteúdo da landing (hero, modelos, recursos, planos) será reinserido aqui */}
+        {/* Hero */}
+        <section id="hero" className="border-b border-border bg-gradient-subtle">
+          <div className="container mx-auto px-4 py-16 md:py-24">
+            <div className="grid gap-10 md:grid-cols-2 md:items-center">
+              <div className="space-y-6">
+                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
+                  Synergy AI Hub – Modelos de IA poderosos para todos
+                </h1>
+                <p className="text-lg text-muted-foreground max-w-prose">
+                  Centralize acesso a modelos como GPT, Claude e Gemini com recursos profissionais,
+                  preços simples e um dashboard intuitivo.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button onClick={handlePrimaryCta} className="shadow-glow">
+                    Experimentar agora
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/dashboard')}>
+                    Ver Dashboard
+                  </Button>
+                </div>
+                <ul className="text-sm text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2 pt-4">
+                  <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary"/> Seguro</li>
+                  <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary"/> Rápido</li>
+                  <li className="flex items-center gap-2"><Stars className="h-4 w-4 text-primary"/> Fácil de usar</li>
+                </ul>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
+                    <BrainCircuit className="h-5 w-5 text-primary"/>
+                    <span className="text-sm">GPT/Claude</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
+                    <Globe className="h-5 w-5 text-primary"/>
+                    <span className="text-sm">Web Search</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
+                    <FileText className="h-5 w-5 text-primary"/>
+                    <span className="text-sm">Análise de Docs</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
+                    <Server className="h-5 w-5 text-primary"/>
+                    <span className="text-sm">Infra Escalável</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Soluções / Modelos */}
+        <section id="modelos" className="border-b border-border">
+          <div className="container mx-auto px-4 py-16">
+            <header className="mb-10 max-w-2xl">
+              <h2 className="text-2xl md:text-3xl font-bold">Soluções prontas para uso</h2>
+              <p className="text-muted-foreground mt-2">
+                Conecte-se aos principais modelos e recursos sem complicação.
+              </p>
+            </header>
+            <div className="grid gap-6 md:grid-cols-3">
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5 text-primary"/> Chat Unificado</CardTitle>
+                  <CardDescription>Converse com múltiplos modelos no mesmo lugar.</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/> Ferramentas de Produtividade</CardTitle>
+                  <CardDescription>Resumos, geração de conteúdo, análise de dados e mais.</CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5 text-primary"/> Métricas e Uso</CardTitle>
+                  <CardDescription>Monitore consumo de tokens e desempenho em tempo real.</CardDescription>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Planos */}
+        <section id="planos" className="border-b border-border">
+          <div className="container mx-auto px-4 py-16">
+            <div className="flex items-center justify-between gap-4 mb-8">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold">Planos simples e transparentes</h2>
+                <p className="text-muted-foreground">Escolha o plano ideal. Cancele quando quiser.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">Mensal</span>
+                <Switch checked={annual} onCheckedChange={setAnnual} aria-label="Alternar cobrança anual" />
+                <span className="text-sm font-medium">Anual</span>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Starter */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle>Starter</CardTitle>
+                  <CardDescription>Para indivíduos e pequenos projetos</CardDescription>
+                  <div className="pt-4">
+                    <div className="text-3xl font-bold">
+                      R$ {annual ? "30,00" : "35,00"}
+                      <span className="text-sm font-normal text-muted-foreground"> /mês</span>
+                    </div>
+                  </div>
+                  <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <li>Acesso a modelos básicos de I.A</li>
+                    <li>100.000 tokens por mês</li>
+                    <li>1 solicitação por vez</li>
+                    <li>Análise básica</li>
+                  </ul>
+                  <Button variant="outline" className="mt-6" onClick={() => setShowAuthModal(true)}>
+                    Começar agora
+                  </Button>
+                </CardHeader>
+              </Card>
+
+              {/* Profissional */}
+              <Card className="bg-card border-border ring-1 ring-primary/20">
+                <CardHeader>
+                  <div className="inline-flex self-start -mb-2 translate-y-[-6px] rounded-full bg-primary/10 text-primary text-xs px-3 py-1">
+                    Mais Popular
+                  </div>
+                  <CardTitle>Profissional</CardTitle>
+                  <CardDescription>Para profissionais e pequenas equipes</CardDescription>
+                  <div className="pt-4">
+                    <div className="text-3xl font-bold">
+                      R$ {annual ? "79,99" : "89,99"}
+                      <span className="text-sm font-normal text-muted-foreground"> /mês</span>
+                    </div>
+                  </div>
+                  <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <li>Acesso a todos modelos de I.A</li>
+                    <li>1.000.000 de tokens por mês</li>
+                    <li>Até 5 solicitações ao mesmo tempo</li>
+                    <li>Prioridade no suporte</li>
+                    <li>Análises avançadas</li>
+                  </ul>
+                  <Button className="mt-6" onClick={() => setShowAuthModal(true)}>
+                    Começar teste gratuito
+                  </Button>
+                </CardHeader>
+              </Card>
+
+              {/* Empresarial */}
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle>Empresarial</CardTitle>
+                  <CardDescription>Para organizações com necessidades especiais</CardDescription>
+                  <div className="pt-4">
+                    <div className="text-3xl font-bold">Sob Consulta*</div>
+                  </div>
+                  <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+                    <li>Acesso a todos os modelos</li>
+                    <li>Chamadas ilimitadas</li>
+                    <li>Suporte 24/7</li>
+                    <li>Custom model fine-tuning</li>
+                    <li>Infra dedicada e SLA</li>
+                  </ul>
+                  <Button variant="outline" className="mt-6" onClick={() => setShowAuthModal(true)}>
+                    Entre em contato
+                  </Button>
+                </CardHeader>
+              </Card>
+            </div>
+          </div>
+        </section>
+
         {/* Footer temporariamente dentro do main */}
         <footer id="contato" className="border-t border-border">
           <div className="container mx-auto px-4 py-12">
