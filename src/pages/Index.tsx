@@ -112,58 +112,73 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1">
-        {/* Hero */}
-        <section id="hero" className="border-b border-border bg-gradient-subtle">
-          <div className="container mx-auto px-4 py-16 md:py-24">
-            <div className="grid gap-10 md:grid-cols-2 md:items-center">
-              <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" /> Inovação em Inteligência Artificial
-                </div>
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
-                  Acesso aos melhores modelos de Inteligência Artificial do mundo
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-prose">
-                  Nosso hub de IA combina os melhores modelos de inteligência artificial para potencializar seus projetos de forma simples e eficiente.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button onClick={handlePrimaryCta} className="shadow-glow">
-                    Começar Agora
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/dashboard')}>
-                    Ver Modelos
-                  </Button>
-                </div>
-                <ul className="text-sm text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2 pt-4">
-                  <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary"/> Seguro</li>
-                  <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary"/> Rápido</li>
-                  <li className="flex items-center gap-2"><Stars className="h-4 w-4 text-primary"/> Fácil de usar</li>
-                </ul>
+      const Hero = () => {
+  return (
+    <section className="relative pt-32 pb-20 overflow-hidden">
+      {/* Background graphics */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] rounded-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 blur-3xl opacity-30"></div>
+        <div className="absolute dot-pattern inset-0 opacity-50"></div>
+      </div>
+
+      <div className="container px-4 mx-auto">
+        <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+          <div className="inline-block animate-fade-in">
+            <span className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-sm font-medium rounded-full bg-primary/10 text-primary">
+              <Sparkles size={16} className="animate-pulse" />
+              Inovação em Inteligência Artificial
+            </span>
+          </div>
+
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 animate-slide-down text-balance">
+            Acesso <span className="text-gradient">aos melhores modelos </span>{" "}
+            de Inteligência Artifical{" "}
+            <span className="text-gradient">do mundo</span>
+          </h1>
+
+          <p className="text-lg md:text-xl text-foreground/70 mb-8 max-w-3xl mx-auto animate-slide-up text-balance">
+            Nosso hub de IA combina os melhores modelos de inteligência
+            artificial para potencializar seus projetos de forma simples e
+            eficiente.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 animate-slide-up">
+            <Button size="lg" className="px-8 py-6 text-base font-medium">
+              Começar Agora
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-8 py-6 text-base font-medium"
+            >
+              Ver Modelos
+            </Button>
+          </div>
+
+          <div className="mt-16 flex flex-col items-center animate-fade-in">
+            <p className="text-sm text-foreground/50 mb-4">
+              Empresas que confiam em nosso hub
+            </p>
+            <div className="flex flex-wrap justify-center gap-8 opacity-60">
+              <div className="flex items-center gap-2 h-8">
+                <ThumbsUp size={20} />
+                <span className="text-xl font-bold">Marca Um</span>
               </div>
-              <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <BrainCircuit className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">GPT/Claude</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <Globe className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Web Search</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <FileText className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Análise de Docs</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <Server className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Infra Escalável</span>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 h-8">
+                <TrendingUp size={20} />
+                <span className="text-xl font-bold">Marca Dois</span>
+              </div>
+              <div className="flex items-center gap-2 h-8">
+                <Sparkles size={20} />
+                <span className="text-xl font-bold">Marca Três</span>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </div>
+    </section>
+  );
+};
 
         {/* Principais Modelos de IA */}
         <section id="modelos" className="border-b border-border bg-background">
