@@ -255,9 +255,6 @@ const callDeepSeek = async (message: string, model: string): Promise<string> => 
 const callAPILLM = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('APILLM_API_KEY');
   
-  console.log('APILLM API Key exists:', !!apiKey);
-  console.log('Making request to APILLM with model:', model);
-  
   const response = await fetch('https://api.aimlapi.com/v1/chat/completions', {
     method: 'POST',
     headers: {
