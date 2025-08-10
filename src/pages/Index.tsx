@@ -128,7 +128,7 @@ const Index = () => {
                   Nosso hub de IA combina os melhores modelos de inteligência artificial para potencializar seus projetos de forma simples e eficiente.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button onClick={() => navigate('/planos') className="shadow-glow">
+                  <Button onClick={() => navigate('/planos')} className="shadow-glow">
                     Começar Agora
                   </Button>
                   <Button variant="outline" onClick={() => navigate('/modelos')}>
