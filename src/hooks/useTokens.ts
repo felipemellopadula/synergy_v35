@@ -16,9 +16,11 @@ const MODEL_COSTS = {
   'deepseek-chat': 8000,
   'deepseek-reasoner': 12000,
   // APILLM Models
-  'meta-llama/llama-4-scout': 6000,
-  'mistralai/Mixtral-8x7B-Instruct-v0.1': 5000,
-  'Qwen/Qwen2.5-72B-Instruct': 7000,
+  'llama-3.1-405b-instruct': 10000,
+  'llama-3.1-70b-instruct': 7000,
+  'mixtral-8x22b-instruct': 8000,
+  'mixtral-8x7b-instruct': 5000,
+  'qwen2-72b-instruct': 6000,
 } as const;
 
 export const useTokens = () => {
@@ -131,9 +133,11 @@ export const useTokens = () => {
       'deepseek-chat': 'DeepSeek Chat V3',
       'deepseek-reasoner': 'DeepSeek Reasoner',
       // APILLM Models
-      'meta-llama/llama-4-scout': 'LLaMA 4 Scout 17B',
-      'mistralai/Mixtral-8x7B-Instruct-v0.1': 'Mixtral 8x7b Instruct',
-      'Qwen/Qwen2.5-72B-Instruct': 'Qwen 2.5 72B Chat',
+      'llama-3.1-405b-instruct': 'Llama 3.1 405B Instruct',
+      'llama-3.1-70b-instruct': 'Llama 3.1 70B Instruct',
+      'mixtral-8x22b-instruct': 'Mixtral 8x22B Instruct',
+      'mixtral-8x7b-instruct': 'Mixtral 8x7B Instruct',
+      'qwen2-72b-instruct': 'Qwen 2 72B Instruct',
     };
     
     return displayNames[modelName] || modelName;
