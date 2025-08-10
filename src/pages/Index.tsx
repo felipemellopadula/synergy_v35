@@ -37,6 +37,13 @@ const Index = () => {
     else setShowAuthModal(true);
   };
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   useEffect(() => {
     // Basic SEO for the landing page
     document.title = "Synergy AI Hub – Modelos de IA, Recursos e Planos";
@@ -116,48 +123,39 @@ const Index = () => {
         {/* Hero */}
         <section id="hero" className="border-b border-border bg-gradient-subtle">
           <div className="container mx-auto px-4 py-16 md:py-24">
-            <div className="grid gap-10 md:grid-cols-2 md:items-center">
-              <div className="space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" /> Inovação em Inteligência Artificial
-                </div>
-                <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
-                  Acesso aos melhores modelos de Inteligência Artificial do mundo
-                </h1>
-                <p className="text-lg text-muted-foreground max-w-prose">
-                  Nosso hub de IA combina os melhores modelos de inteligência artificial para potencializar seus projetos de forma simples e eficiente.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button onClick={() => navigate('/planos')} className="shadow-glow">
-                    Começar Agora
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/modelos')}>
-                    Ver Modelos
-                  </Button>
-                </div>
-                <ul className="text-sm text-muted-foreground grid grid-cols-1 sm:grid-cols-3 gap-2 pt-4">
-                  <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary"/> Seguro</li>
-                  <li className="flex items-center gap-2"><Zap className="h-4 w-4 text-primary"/> Rápido</li>
-                  <li className="flex items-center gap-2"><Stars className="h-4 w-4 text-primary"/> Fácil de usar</li>
-                </ul>
+            <div className="max-w-4xl mx-auto text-center space-y-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Inovação em Inteligência Artificial
               </div>
-              <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <BrainCircuit className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">GPT/Claude</span>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground">
+                Acesso <span className="text-primary">aos melhores<br />modelos</span> de Inteligência<br />
+                Artificial <span className="text-primary">do mundo</span>
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Nosso hub de IA combina os melhores modelos de inteligência artificial para potencializar seus projetos de forma simples e eficiente.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button onClick={() => scrollToSection('planos')} className="shadow-glow">
+                  Começar Agora
+                </Button>
+                <Button variant="outline" onClick={() => scrollToSection('modelos')}>
+                  Ver Modelos
+                </Button>
+              </div>
+              <div className="pt-8">
+                <p className="text-sm text-muted-foreground mb-4">Empresas que confiam em nosso hub</p>
+                <div className="flex items-center justify-center gap-8 text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <ThumbsUp className="h-4 w-4" />
+                    <span className="text-sm">Marca Um</span>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <Globe className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Web Search</span>
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    <span className="text-sm">Marca Dois</span>
                   </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <FileText className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Análise de Docs</span>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
-                    <Server className="h-5 w-5 text-primary"/>
-                    <span className="text-sm">Infra Escalável</span>
+                  <div className="flex items-center gap-2">
+                    <Stars className="h-4 w-4" />
+                    <span className="text-sm">Marca Três</span>
                   </div>
                 </div>
               </div>
@@ -183,7 +181,7 @@ const Index = () => {
                   </div>
                   <CardTitle className="text-center">ChatGPT</CardTitle>
                   <CardDescription className="text-center">
-                    Modelo avançado de linguagem da OpenAI para geração de texto, respostas e análise.
+                    Desenvolvido pela OpenAI, o ChatGPT é um modelo avançado de linguagem natural capaz de gerar textos coerentes, responder perguntas e auxiliar em diversas tarefas de escrita e análise.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -195,7 +193,7 @@ const Index = () => {
                   </div>
                   <CardTitle className="text-center">Claude</CardTitle>
                   <CardDescription className="text-center">
-                    Assistente da Anthropic com foco em segurança, precisão e respostas detalhadas.
+                    Criado pela Anthropic, o Claude é um assistente de IA projetado para ser útil, inofensivo e honesto, oferecendo respostas detalhadas e com foco em segurança e precisão.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -207,7 +205,7 @@ const Index = () => {
                   </div>
                   <CardTitle className="text-center">Gemini</CardTitle>
                   <CardDescription className="text-center">
-                    Modelo multimodal do Google para texto, imagem e código com alto desempenho.
+                    Desenvolvido pelo Google, o Gemini é um modelo multimodal de próxima geração, capaz de compreender e processar diferentes tipos de informação, incluindo texto, imagens e código.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -215,11 +213,11 @@ const Index = () => {
               <Card className="bg-card border-border">
                 <CardHeader>
                   <div className="flex items-center justify-center h-12">
-                    <img src="/images/logos/meta.svg" alt="Logo Meta (Llama)" loading="lazy" className="h-8 w-auto" />
+                    <div className="text-4xl font-bold text-primary">∞</div>
                   </div>
                   <CardTitle className="text-center">Llama</CardTitle>
                   <CardDescription className="text-center">
-                    Modelo open-source da Meta para criar aplicações de IA personalizadas.
+                    Criado pela Meta, é um modelo de código aberto que permite aos desenvolvedores criar aplicações de IA personalizadas com acesso a um modelo de linguagem avançado.
                   </CardDescription>
                 </CardHeader>
               </Card>
@@ -237,12 +235,72 @@ const Index = () => {
               </p>
             </header>
             <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary"/> Sinapse Core</CardTitle><CardDescription>Nossa IA proprietária seleciona automaticamente o modelo mais indicado para cada tarefa.</CardDescription></CardHeader></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary"/> Análise de Documentos</CardTitle><CardDescription>Interprete, resuma e avalie informações de PDFs e arquivos Office com facilidade.</CardDescription></CardHeader></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5 text-primary"/> Contextos</CardTitle><CardDescription>Crie contextos que ajudam o chat a responder melhor, elevando a qualidade das respostas.</CardDescription></CardHeader></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5 text-primary"/> Flows</CardTitle><CardDescription>Mentores especializados para aprendizado, brainstorming e produtividade.</CardDescription></CardHeader></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><FolderKanban className="h-5 w-5 text-primary"/> Organize Chats em Pastas</CardTitle><CardDescription>Mantenha conversas organizadas por projetos e equipes.</CardDescription></CardHeader></Card>
-              <Card className="bg-card border-border"><CardHeader><CardTitle className="flex items-center gap-2"><LineChart className="h-5 w-5 text-primary"/> Análise de Dados</CardTitle><CardDescription>Transforme dados em insights visuais com gráficos automáticos.</CardDescription></CardHeader></Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <BrainCircuit className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Sinapse Core</CardTitle>
+                  <CardDescription className="text-center">
+                    Nossa IA proprietária que seleciona automaticamente o modelo mais indicado para cada tarefa. Você não precisa se preocupar com nada e tem a segurança que sempre terá a melhor IA, independente do que estiver fazendo.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <FileText className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Análise de Documentos</CardTitle>
+                  <CardDescription className="text-center">
+                    Analise, interprete, resuma e avalie informações contidas em PDFs ou arquivos Word com facilidade incomparável.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <Layers className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Contextos</CardTitle>
+                  <CardDescription className="text-center">
+                    Crie contextos que expliquem de forma mais detalhada informações que podem ajudar o chat a te responder melhor, melhorando a qualidade das respostas.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <Users className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Flows</CardTitle>
+                  <CardDescription className="text-center">
+                    Tenha um mentor especialista à sua disposição para aprender coisas novas, fazer brainstorming, escrever e-mails, fazer propostas e até mesmo programar.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <FolderKanban className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Organize Chats em Pastas</CardTitle>
+                  <CardDescription className="text-center">
+                    Mantenha suas conversas organizadas, categorize e gerencie seus chats de maneira eficiente em diferentes projetos ou equipes.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <div className="flex items-center justify-center h-12 mb-4">
+                    <LineChart className="h-8 w-8 text-primary"/>
+                  </div>
+                  <CardTitle className="text-center">Análise de Dados</CardTitle>
+                  <CardDescription className="text-center">
+                    Transforme dados em insights visuais. Analise suas planilhas e crie gráficos automaticamente, facilitando a visualização e interpretação dos dados.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
             </div>
           </div>
         </section>
@@ -346,7 +404,7 @@ const Index = () => {
                     <li>Infra dedicada e SLA</li>
                   </ul>
                   <Button variant="outline" className="mt-6" onClick={() => setShowAuthModal(true)}>
-                    Entre em contato
+                    Começar agora
                   </Button>
                 </CardHeader>
               </Card>
