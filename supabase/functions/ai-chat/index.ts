@@ -13,6 +13,7 @@ interface ChatRequest {
     name: string;
     type: string;
     data: string; // base64
+    pdfContent?: string; // extracted PDF text
   }>;
 }
 
@@ -70,7 +71,7 @@ const performWebSearch = async (query: string): Promise<string | null> => {
   }
 }
 
-const callOpenAI = async (message: string, model: string, files?: Array<{name: string; type: string; data: string}>): Promise<ReadableStream> => {
+const callOpenAI = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<ReadableStream> => {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
   
   // Verificar se precisa de busca na web
@@ -158,8 +159,14 @@ const callOpenAI = async (message: string, model: string, files?: Array<{name: s
             url: file.data
           }
         });
+      } else if (file.type.includes('pdf') && file.pdfContent) {
+        // Use extracted PDF content
+        userMessage.content.push({
+          type: 'text',
+          text: `[Conteúdo do PDF: ${file.name}]\n\n${file.pdfContent}`
+        });
       } else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('document')) {
-        // For PDF/Word files, we'll need to extract text first
+        // Fallback for files without extracted content
         userMessage.content.push({
           type: 'text',
           text: `[Arquivo anexado: ${file.name}]\nNota: Análise de documentos PDF/Word ainda não implementada. Por favor, converta para imagem ou texto.`
@@ -204,7 +211,7 @@ const callOpenAI = async (message: string, model: string, files?: Array<{name: s
   return response.body!;
 };
 
-const callAnthropic = async (message: string, model: string, files?: Array<{name: string; type: string; data: string}>): Promise<string> => {
+const callAnthropic = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<string> => {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   
   // Claude models have 200k context window and can output up to 8192 tokens max
@@ -235,6 +242,12 @@ const callAnthropic = async (message: string, model: string, files?: Array<{name
             media_type: file.type,
             data: base64Data
           }
+        });
+      } else if (file.type.includes('pdf') && file.pdfContent) {
+        // Use extracted PDF content
+        content.push({
+          type: 'text',
+          text: `[Conteúdo do PDF: ${file.name}]\n\n${file.pdfContent}`
         });
       } else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('document')) {
         content.push({
@@ -269,7 +282,7 @@ const callAnthropic = async (message: string, model: string, files?: Array<{name
   return data.content[0].text;
 };
 
-const callGoogleAI = async (message: string, model: string, files?: Array<{name: string; type: string; data: string}>): Promise<string> => {
+const callGoogleAI = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<string> => {
   const apiKey = Deno.env.get('GOOGLE_API_KEY');
   
   // Gemini models have up to 2M context window and up to 8192 output tokens
@@ -293,6 +306,11 @@ const callGoogleAI = async (message: string, model: string, files?: Array<{name:
             mimeType: file.type,
             data: base64Data
           }
+        });
+      } else if (file.type.includes('pdf') && file.pdfContent) {
+        // Use extracted PDF content
+        parts.push({
+          text: `[Conteúdo do PDF: ${file.name}]\n\n${file.pdfContent}`
         });
       } else if (file.type.includes('pdf') || file.type.includes('word') || file.type.includes('document')) {
         parts.push({
@@ -327,7 +345,7 @@ const callGoogleAI = async (message: string, model: string, files?: Array<{name:
   return data.candidates[0].content.parts[0].text;
 };
 
-const callXAI = async (message: string, model: string): Promise<string> => {
+const callXAI = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<string> => {
   const apiKey = Deno.env.get('XAI_API_KEY');
   
   console.log('=== XAI/GROK DEBUG ===');
@@ -395,7 +413,7 @@ const callXAI = async (message: string, model: string): Promise<string> => {
   }
 };
 
-const callDeepSeek = async (message: string, model: string): Promise<string> => {
+const callDeepSeek = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<string> => {
   const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
   
   // DeepSeek models can handle up to 8192 output tokens
@@ -433,7 +451,7 @@ const callDeepSeek = async (message: string, model: string): Promise<string> => 
   return data.choices[0].message.content;
 };
 
-const callAPILLM = async (message: string, model: string): Promise<string> => {
+const callAPILLM = async (message: string, model: string, files?: Array<{name: string; type: string; data: string; pdfContent?: string}>): Promise<string> => {
   const apiKey = Deno.env.get('APILLM_API_KEY');
   
   console.log('=== APILLM DEBUG ===');
@@ -557,13 +575,13 @@ serve(async (req) => {
       response = await callGoogleAI(message, model, files);
     } else if (model.includes('grok') || model === 'grok-4-0709' || model === 'grok-3' || model === 'grok-3-mini') {
       console.log('Routing to XAI/Grok');
-      response = await callXAI(message, model);
+      response = await callXAI(message, model, files);
     } else if (model.includes('deepseek')) {
       console.log('Routing to DeepSeek');
-      response = await callDeepSeek(message, model);
+      response = await callDeepSeek(message, model, files);
     } else if (model.includes('Llama-4')) {
       console.log('Routing to APILLM');
-      response = await callAPILLM(message, model);
+      response = await callAPILLM(message, model, files);
     } else {
       console.log('Using default OpenAI model for:', model);
       // Default to OpenAI with streaming for GPT models

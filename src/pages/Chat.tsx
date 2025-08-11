@@ -54,6 +54,7 @@ const Chat = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isWebSearchMode, setIsWebSearchMode] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [processedPdfs, setProcessedPdfs] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -129,7 +130,10 @@ const Chat = () => {
         continue;
       }
 
-      // Process PDF files
+      // Add file to attached files first
+      setAttachedFiles(prev => [...prev, file]);
+
+      // Process PDF files in background
       if (file.type === 'application/pdf') {
         toast({
           title: "Processando PDF",
@@ -145,12 +149,13 @@ const Chat = () => {
               description: result.error || "Não foi possível processar o PDF",
               variant: "destructive",
             });
+            // Remove file from attached files if processing failed
+            setAttachedFiles(prev => prev.filter(f => f !== file));
             continue;
           }
           
-          // Add the PDF content to the input
-          const pdfContent = `[PDF: ${file.name}]\n${result.content}`;
-          setInputValue(prev => prev + (prev ? '\n\n' : '') + pdfContent);
+          // Store processed PDF content
+          setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
           
           toast({
             title: "PDF processado",
@@ -164,10 +169,11 @@ const Chat = () => {
             description: "Erro interno ao processar o PDF",
             variant: "destructive",
           });
+          // Remove file from attached files if processing failed
+          setAttachedFiles(prev => prev.filter(f => f !== file));
         }
       } else {
-        // For non-PDF files, add to attached files
-        setAttachedFiles(prev => [...prev, file]);
+        // For non-PDF files, just show success
         toast({
           title: "Arquivo anexado",
           description: `${file.name} foi anexado`,
@@ -411,6 +417,7 @@ const Chat = () => {
     const currentFiles = [...attachedFiles];
     setInputValue('');
     setAttachedFiles([]);
+    setProcessedPdfs(new Map());
     // If web search mode is active, perform web search instead
     if (isWebSearchMode) {
       await performWebSearch(currentInput);
@@ -421,13 +428,26 @@ const Chat = () => {
     if (!canProceed) {
       return;
     }
-    // Convert files to base64
+    // Convert files to base64 and include PDF content
     const fileData = await Promise.all(
-      currentFiles.map(async (file) => ({
-        name: file.name,
-        type: file.type,
-        data: await fileToBase64(file),
-      }))
+      currentFiles.map(async (file) => {
+        const baseData = {
+          name: file.name,
+          type: file.type,
+          data: await fileToBase64(file),
+        };
+        
+        // If it's a PDF, include the processed content
+        if (file.type === 'application/pdf') {
+          const pdfContent = processedPdfs.get(file.name);
+          return {
+            ...baseData,
+            pdfContent: pdfContent || '',
+          };
+        }
+        
+        return baseData;
+      })
     );
 
     const userMessage: Message = {
@@ -782,7 +802,17 @@ const Chat = () => {
                     <div key={idx} className="bg-muted px-3 py-1 rounded-full text-sm flex items-center gap-2">
                       📎 {file.name}
                       <button
-                        onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                        onClick={() => {
+                          setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
+                          // Also remove from processed PDFs if it's a PDF
+                          if (file.type === 'application/pdf') {
+                            setProcessedPdfs(prev => {
+                              const newMap = new Map(prev);
+                              newMap.delete(file.name);
+                              return newMap;
+                            });
+                          }
+                        }}
                         className="text-red-500 hover:text-red-700 ml-1"
                       >
                         ×
