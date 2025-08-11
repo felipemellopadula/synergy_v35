@@ -74,7 +74,7 @@ const getProviderIcon = (provider: string) => {
 export const ModelSelector = ({ onModelSelect, selectedModel }: ModelSelectorProps) => {
   return (
     <div className="w-full max-w-sm">
-      <Select onValueChange={onModelSelect} value={selectedModel} defaultValue="">
+      <Select onValueChange={onModelSelect} value={selectedModel} defaultValue="Modelos de IA">
         <SelectTrigger className="w-full bg-card border-border">
           <SelectValue placeholder="Modelo de I.A" />
         </SelectTrigger>
