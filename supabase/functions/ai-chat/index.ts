@@ -108,6 +108,14 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
     }
   }
   
+  // Define max tokens based on model
+  let maxTokens = 100000; // GPT-5 can handle up to 100k output tokens
+  if (model.includes('gpt-5-mini')) {
+    maxTokens = 65536; // GPT-5 Mini max output
+  } else if (model.includes('gpt-5-nano')) {
+    maxTokens = 32768; // GPT-5 Nano max output
+  }
+  
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -126,7 +134,7 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
           content: finalMessage
         }
       ],
-      max_completion_tokens: 1000,
+      max_completion_tokens: maxTokens,
       // Remove temperature for GPT-5 models as they only support default (1)
       ...(model.includes('gpt-5') ? {} : { temperature: 0.7 }),
     }),
@@ -144,6 +152,9 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
 const callAnthropic = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   
+  // Claude models have 200k context window and can output up to 8192 tokens max
+  const maxTokens = 8192;
+  
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -153,7 +164,7 @@ const callAnthropic = async (message: string, model: string): Promise<string> =>
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1000,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: message }],
     }),
   });
@@ -171,6 +182,9 @@ const callAnthropic = async (message: string, model: string): Promise<string> =>
 const callGoogleAI = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('GOOGLE_API_KEY');
   
+  // Gemini models have up to 2M context window and up to 8192 output tokens
+  const maxOutputTokens = 8192;
+  
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: {
@@ -179,7 +193,11 @@ const callGoogleAI = async (message: string, model: string): Promise<string> => 
     body: JSON.stringify({
       contents: [{
         parts: [{ text: message }]
-      }]
+      }],
+      generationConfig: {
+        maxOutputTokens: maxOutputTokens,
+        temperature: 0.7
+      }
     }),
   });
 
@@ -195,6 +213,9 @@ const callGoogleAI = async (message: string, model: string): Promise<string> => 
 const callXAI = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('XAI_API_KEY');
   
+  // Grok models have up to 128k context and can output up to 4096 tokens
+  const maxTokens = 4096;
+  
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -206,6 +227,7 @@ const callXAI = async (message: string, model: string): Promise<string> => {
       model,
       stream: false,
       temperature: 0.7,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -220,6 +242,9 @@ const callXAI = async (message: string, model: string): Promise<string> => {
 
 const callDeepSeek = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
+  
+  // DeepSeek models can handle up to 8192 output tokens
+  const maxTokens = 8192;
   
   const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
     method: 'POST',
@@ -239,7 +264,7 @@ const callDeepSeek = async (message: string, model: string): Promise<string> => 
           content: message
         }
       ],
-      max_tokens: 1000,
+      max_tokens: maxTokens,
       temperature: 0.7,
     }),
   });
@@ -275,6 +300,9 @@ const callAPILLM = async (message: string, model: string): Promise<string> => {
   
   console.log('Mapped model name:', apiModel);
   
+  // Llama-4 models can handle up to 4096 output tokens
+  const maxTokens = 4096;
+  
   const requestBody = {
     model: apiModel,
     messages: [
@@ -287,7 +315,7 @@ const callAPILLM = async (message: string, model: string): Promise<string> => {
         content: message
       }
     ],
-    max_tokens: 1000,
+    max_tokens: maxTokens,
     temperature: 0.7,
   };
   
