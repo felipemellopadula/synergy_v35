@@ -278,23 +278,51 @@ const callAPILLM = async (message: string, model: string): Promise<string> => {
   
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
   
-  const response = await fetch('https://api.apillm.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  // Try different possible endpoints for APILLM
+  let response;
+  const endpoints = [
+    'https://api.apillm.com/v1/chat/completions',
+    'https://console.apillm.com/v1/chat/completions', 
+    'https://api.apillm.com/chat/completions'
+  ];
+  
+  let lastError = '';
+  
+  for (const endpoint of endpoints) {
+    console.log('Trying endpoint:', endpoint);
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log(`Endpoint ${endpoint} - Status:`, response.status);
+      
+      if (response.ok) {
+        console.log(`Success with endpoint: ${endpoint}`);
+        break;
+      } else {
+        const errorText = await response.text();
+        console.log(`Endpoint ${endpoint} failed with:`, errorText);
+        lastError = errorText;
+      }
+    } catch (error) {
+      console.log(`Endpoint ${endpoint} error:`, error.message);
+      lastError = error.message;
+    }
+  }
+
+  if (!response || !response.ok) {
+    console.error('All APILLM endpoints failed. Last error:', lastError);
+    throw new Error(`APILLM API error - all endpoints failed. Last error: ${lastError}`);
+  }
 
   console.log('Response status:', response.status);
   console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-  if (!response.ok) {
-    const error = await response.text();
-    console.error('APILLM API error response:', error);
-    throw new Error(`APILLM API error: ${error}`);
-  }
 
   const data = await response.json();
   console.log('APILLM response data:', JSON.stringify(data, null, 2));
