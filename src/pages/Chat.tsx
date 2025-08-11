@@ -100,6 +100,7 @@ const Chat = () => {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
     
     for (const file of files) {
       // Validate file types and sizes
@@ -179,6 +180,11 @@ const Chat = () => {
           description: `${file.name} foi anexado`,
         });
       }
+    }
+    
+    // Reset the input after processing all files to allow re-uploading the same files
+    if (event.target) {
+      event.target.value = '';
     }
   };
 
@@ -418,6 +424,11 @@ const Chat = () => {
     setInputValue('');
     setAttachedFiles([]);
     setProcessedPdfs(new Map());
+    
+    // Reset file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
     // If web search mode is active, perform web search instead
     if (isWebSearchMode) {
       await performWebSearch(currentInput);
