@@ -255,35 +255,49 @@ const callDeepSeek = async (message: string, model: string): Promise<string> => 
 const callAPILLM = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('APILLM_API_KEY');
   
+  console.log('=== APILLM DEBUG ===');
+  console.log('Model requested:', model);
+  console.log('API Key exists:', !!apiKey);
+  console.log('API Key length:', apiKey?.length || 0);
+  
+  const requestBody = {
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é um assistente útil em português. Sempre responda em português.'
+      },
+      {
+        role: 'user',
+        content: message
+      }
+    ],
+    max_tokens: 1000,
+    temperature: 0.7,
+  };
+  
+  console.log('Request body:', JSON.stringify(requestBody, null, 2));
+  
   const response = await fetch('https://api.apillm.com/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: 'Você é um assistente útil em português. Sempre responda em português.'
-        },
-        {
-          role: 'user',
-          content: message
-        }
-      ],
-      max_tokens: 1000,
-      temperature: 0.7,
-    }),
+    body: JSON.stringify(requestBody),
   });
+
+  console.log('Response status:', response.status);
+  console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     const error = await response.text();
+    console.error('APILLM API error response:', error);
     throw new Error(`APILLM API error: ${error}`);
   }
 
   const data = await response.json();
+  console.log('APILLM response data:', JSON.stringify(data, null, 2));
   return data.choices[0].message.content;
 };
 
