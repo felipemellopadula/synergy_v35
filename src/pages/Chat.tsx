@@ -864,7 +864,7 @@ const Chat = () => {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          Grave uma mensagem de até 30 s.
+                          Grave uma mensagem de até 30s
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
