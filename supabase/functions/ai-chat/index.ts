@@ -546,8 +546,8 @@ serve(async (req) => {
     } else if (model.includes('gemini')) {
       console.log('Routing to Google AI');
       response = await callGoogleAI(message, model, files);
-    } else if (model.includes('grok')) {
-      console.log('Routing to XAI');
+    } else if (model.includes('grok') || model === 'grok-beta') {
+      console.log('Routing to XAI/Grok');
       response = await callXAI(message, model);
     } else if (model.includes('deepseek')) {
       console.log('Routing to DeepSeek');
