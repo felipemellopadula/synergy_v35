@@ -86,11 +86,14 @@ export const ModelSelector = ({ onModelSelect, selectedModel }: ModelSelectorPro
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-lg bg-background border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-8 h-8 rounded-md bg-muted/50 border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
                     <img 
                       src={getProviderIcon(model.provider)} 
                       alt={`${model.provider} logo`}
                       className="w-6 h-6 object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
                   </div>
                   <div className="flex flex-col items-start min-w-0">
