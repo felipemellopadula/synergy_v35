@@ -124,9 +124,9 @@ const callOpenAI = async (message: string, model: string, files?: Array<{name: s
   }
   
   // Define max tokens based on model
-  let maxTokens = 100000; // Default for GPT-5 series
+  let maxTokens = 4096; // Safe default for all models
   if (model.includes('gpt-5')) {
-    maxTokens = 100000; // GPT-5 can handle up to 100k output tokens
+    maxTokens = 4096; // Conservative limit for GPT-5 to avoid API errors
   } else if (model.includes('gpt-4.1')) {
     maxTokens = 16384; // GPT-4.1 series max output
   } else if (model.includes('o4-mini')) {
@@ -207,7 +207,7 @@ const callOpenAI = async (message: string, model: string, files?: Array<{name: s
         reasoning_effort: 'medium',
         include_reasoning: true 
       } : {}),
-      // Remove temperature for newer models
+      // Remove temperature for newer models to avoid API errors
       ...(model.includes('gpt-5') || model.includes('o4') ? {} : { temperature: 0.7 }),
     }),
   });
