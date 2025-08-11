@@ -76,7 +76,7 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-5-mini',
       messages: [
         {
           role: 'system',
@@ -87,7 +87,7 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
           content: message
         }
       ],
-      max_tokens: 10,
+      max_completion_tokens: 10,
       temperature: 0,
     }),
   });
@@ -126,7 +126,7 @@ const callOpenAI = async (message: string, model: string): Promise<string> => {
           content: finalMessage
         }
       ],
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
       temperature: 0.7,
     }),
   });
