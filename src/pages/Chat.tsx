@@ -354,127 +354,47 @@ const Chat = () => {
     setMessages(messagesAfterUser);
     setIsLoading(true);
 
-    // Create streaming bot message
-    const streamingBotMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      content: '',
-      sender: 'bot',
-      timestamp: new Date(),
-      model: selectedModel,
-      isStreaming: true,
-    };
-    
-    const messagesWithStreaming = [...messagesAfterUser, streamingBotMessage];
-    setMessages(messagesWithStreaming);
-
     try {
-      const response = await fetch(`https://hcrbnxybgklhqujbfdpx.supabase.co/functions/v1/ai-chat`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', {
+        body: {
           message: currentInput,
           model: selectedModel,
-          stream: true,
-        }),
+        },
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
       
-      if (contentType?.includes('text/plain')) {
-        // Handle streaming response
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        let accumulatedContent = '';
-        let reasoning = '';
+      if (fnError) {
+        throw fnError;
+      }
+      
+      const data = fnData as any;
+      let content = '';
+      let reasoning = '';
 
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const jsonStr = line.slice(6);
-                if (jsonStr === '[DONE]') continue;
-                
-                try {
-                  const parsed = JSON.parse(jsonStr);
-                  const delta = parsed.choices?.[0]?.delta;
-                  
-                  if (delta?.content) {
-                    accumulatedContent += delta.content;
-                    
-                    // Update streaming message
-                    setMessages(prev => prev.map(msg => 
-                      msg.id === streamingBotMessage.id 
-                        ? { ...msg, content: accumulatedContent }
-                        : msg
-                    ));
-                  }
-
-                  if (delta?.reasoning) {
-                    reasoning += delta.reasoning;
-                  }
-                } catch (parseError) {
-                  console.log('Parse error for chunk:', jsonStr);
-                }
-              }
-            }
-          }
+      if (typeof data.response === 'string') {
+        try {
+          const parsed = JSON.parse(data.response);
+          content = parsed.content || data.response;
+          reasoning = parsed.reasoning || '';
+        } catch {
+          content = data.response;
         }
-
-        // Final message with complete content
-        const finalBotMessage: Message = {
-          ...streamingBotMessage,
-          content: accumulatedContent || 'Desculpe, não consegui processar sua mensagem.',
-          reasoning: reasoning || undefined,
-          isStreaming: false,
-        };
-
-        const finalMessages = [...messagesAfterUser, finalBotMessage];
-        setMessages(finalMessages);
-        await upsertConversation(finalMessages);
-
       } else {
-        // Handle non-streaming response (fallback)
-        const data = await response.json();
-        let content = '';
-        let reasoning = '';
-
-        if (typeof data.response === 'string') {
-          try {
-            const parsed = JSON.parse(data.response);
-            content = parsed.content || data.response;
-            reasoning = parsed.reasoning || '';
-          } catch {
-            content = data.response;
-          }
-        } else {
-          content = data.response || 'Desculpe, não consegui processar sua mensagem.';
-        }
-
-        const finalBotMessage: Message = {
-          ...streamingBotMessage,
-          content,
-          reasoning: reasoning || undefined,
-          isStreaming: false,
-        };
-
-        const finalMessages = [...messagesAfterUser, finalBotMessage];
-        setMessages(finalMessages);
-        await upsertConversation(finalMessages);
+        content = data.response || 'Desculpe, não consegui processar sua mensagem.';
       }
 
+      const botMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content,
+        sender: 'bot',
+        timestamp: new Date(),
+        model: selectedModel,
+        reasoning: reasoning || undefined,
+      };
+      
+      const finalMessages = [...messagesAfterUser, botMessage];
+      setMessages(finalMessages);
+      await upsertConversation(finalMessages);
+      
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -483,8 +403,7 @@ const Chat = () => {
         variant: "destructive",
       });
       
-      // Remove streaming message and persist at least the user question
-      setMessages(messagesAfterUser);
+      // Persist at least the user question
       await upsertConversation(messagesAfterUser);
     } finally {
       setIsLoading(false);
