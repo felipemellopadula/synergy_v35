@@ -331,31 +331,69 @@ const callGoogleAI = async (message: string, model: string, files?: Array<{name:
 const callXAI = async (message: string, model: string): Promise<string> => {
   const apiKey = Deno.env.get('XAI_API_KEY');
   
+  console.log('=== XAI/GROK DEBUG ===');
+  console.log('Model requested:', model);
+  console.log('API Key exists:', !!apiKey);
+  console.log('API Key first 10 chars:', apiKey?.substring(0, 10) || 'none');
+  
+  if (!apiKey) {
+    throw new Error('XAI API key not found');
+  }
+  
   // Grok models have up to 128k context and can output up to 4096 tokens
   const maxTokens = 4096;
   
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messages: [{ role: 'user', content: message }],
-      model,
-      stream: false,
-      temperature: 0.7,
-      max_tokens: maxTokens,
-    }),
-  });
+  const requestBody = {
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é um assistente útil em português. Sempre responda em português.'
+      },
+      {
+        role: 'user', 
+        content: message
+      }
+    ],
+    model,
+    stream: false,
+    temperature: 0.7,
+    max_tokens: maxTokens,
+  };
+  
+  console.log('Request body:', JSON.stringify(requestBody, null, 2));
+  
+  try {
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`xAI API error: ${error}`);
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('XAI API error response:', errorText);
+      throw new Error(`xAI API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('XAI response data:', JSON.stringify(data, null, 2));
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Invalid response structure:', data);
+      throw new Error('Invalid response structure from xAI API');
+    }
+    
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error('Error calling XAI:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 };
 
 const callDeepSeek = async (message: string, model: string): Promise<string> => {
