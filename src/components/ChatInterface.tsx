@@ -40,6 +40,18 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
     setInputValue("");
     setIsLoading(true);
 
+    // Create a temporary message for streaming
+    const botMessageId = crypto.randomUUID();
+    const tempBotMessage: Message = {
+      id: botMessageId,
+      content: '',
+      sender: 'bot',
+      timestamp: new Date(),
+      model: selectedModel,
+    };
+    
+    setMessages(prev => [...prev, tempBotMessage]);
+
     try {
       const response = await fetch('https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/ai-chat', {
         method: 'POST',
@@ -58,17 +70,64 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         throw new Error('Failed to get AI response');
       }
 
-      const data = await response.json();
-      
-      const botMessage: Message = {
-        id: crypto.randomUUID(),
-        content: data.response,
-        sender: 'bot',
-        timestamp: new Date(),
-        model: selectedModel,
-      };
-      
-      setMessages(prev => [...prev, botMessage]);
+      // Check if response is streaming (for OpenAI models) or regular JSON
+      const contentType = response.headers.get('content-type');
+      const isStreaming = contentType?.includes('text/event-stream');
+
+      if (isStreaming) {
+        // Handle streaming response
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedContent = '';
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.slice(6);
+                if (data === '[DONE]') break;
+                
+                try {
+                  const parsed = JSON.parse(data);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  
+                  if (delta) {
+                    accumulatedContent += delta;
+                    
+                    // Update the bot message with accumulated content
+                    setMessages(prev => 
+                      prev.map(msg => 
+                        msg.id === botMessageId 
+                          ? { ...msg, content: accumulatedContent }
+                          : msg
+                      )
+                    );
+                  }
+                } catch (e) {
+                  // Skip invalid JSON
+                }
+              }
+            }
+          }
+        }
+      } else {
+        // Handle regular JSON response (non-OpenAI models)
+        const data = await response.json();
+        
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === botMessageId 
+              ? { ...msg, content: data.response }
+              : msg
+          )
+        );
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
@@ -78,7 +137,11 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         timestamp: new Date(),
         model: selectedModel,
       };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      // Remove the temporary message and add error message
+      setMessages(prev => 
+        prev.filter(msg => msg.id !== botMessageId).concat(errorMessage)
+      );
     } finally {
       setIsLoading(false);
     }
