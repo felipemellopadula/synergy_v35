@@ -61,7 +61,7 @@ const getCategoryColor = (category: Model['category']) => {
 const getProviderIcon = (provider: string) => {
   const iconMap: Record<string, string> = {
     'OpenAI': '/images/logos/openai.svg',
-    'Anthropic': '/images/logos/anthropic.svg', 
+    'Anthropic': '/images/logos/anthropic.svg',
     'Google': '/images/logos/google.svg',
     'DeepSeek': '/images/logos/deepseek.svg',
     'xAI': '/images/logos/xai.svg',
@@ -74,9 +74,9 @@ const getProviderIcon = (provider: string) => {
 export const ModelSelector = ({ onModelSelect, selectedModel }: ModelSelectorProps) => {
   return (
     <div className="w-full max-w-sm">
-      <Select onValueChange={onModelSelect} value={selectedModel} defaultValue="Modelos de IA">
+      <Select onValueChange={onModelSelect} value={selectedModel}>
         <SelectTrigger className="w-full bg-card border-border">
-          <SelectValue placeholder="Modelo de I.A" />
+          <SelectValue placeholder="Modelos de IA" />
         </SelectTrigger>
         <SelectContent className="bg-popover border-border max-h-60">
           {Object.entries(modelsByProvider).map(([provider, models]) => (
@@ -85,16 +85,16 @@ export const ModelSelector = ({ onModelSelect, selectedModel }: ModelSelectorPro
                 {provider}
               </div>
               {models.map((model) => (
-                <SelectItem 
-                  key={model.id} 
+                <SelectItem
+                  key={model.id}
                   value={model.id}
                   className="cursor-pointer hover:bg-accent pl-6"
                 >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center space-x-3">
                       <div className="w-6 h-6 rounded-md bg-muted/50 border border-border flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <img 
-                          src={getProviderIcon(model.provider)} 
+                        <img
+                          src={getProviderIcon(model.provider)}
                           alt={`${model.provider} logo`}
                           className="w-4 h-4 object-contain"
                           onError={(e) => {
@@ -106,8 +106,8 @@ export const ModelSelector = ({ onModelSelect, selectedModel }: ModelSelectorPro
                         <span className="font-medium text-sm truncate">{model.name}</span>
                       </div>
                     </div>
-                    <Badge 
-                      variant="secondary" 
+                    <Badge
+                      variant="secondary"
                       className={`ml-2 text-xs flex-shrink-0 ${getCategoryColor(model.category)}`}
                     >
                       {model.category}
