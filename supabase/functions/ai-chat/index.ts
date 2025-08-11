@@ -123,10 +123,10 @@ const callOpenAI = async (message: string, model: string, files?: Array<{name: s
     }
   }
   
-  // Define max tokens based on model
+  // Define max tokens based on model - use conservative limits
   let maxTokens = 4096; // Safe default for all models
-  if (model.includes('gpt-5')) {
-    maxTokens = 4096; // Conservative limit for GPT-5 to avoid API errors
+  if (model.includes('gpt-4o')) {
+    maxTokens = 4096; // Conservative limit for GPT-4o
   } else if (model.includes('gpt-4.1')) {
     maxTokens = 16384; // GPT-4.1 series max output
   } else if (model.includes('o4-mini')) {
@@ -648,10 +648,23 @@ serve(async (req) => {
 
     let response: string;
 
+    // Map fictional models to real ones
+    let actualModel = model;
+    if (model === 'gpt-5') {
+      actualModel = 'gpt-4o'; // Use GPT-4o as the best available model
+      console.log('Mapping gpt-5 to gpt-4o');
+    } else if (model === 'gpt-5-mini') {
+      actualModel = 'gpt-4o-mini';
+      console.log('Mapping gpt-5-mini to gpt-4o-mini');
+    } else if (model === 'gpt-5-nano') {
+      actualModel = 'gpt-4o-mini';
+      console.log('Mapping gpt-5-nano to gpt-4o-mini');
+    }
+
     // Route to appropriate API based on model
-    if (model.includes('gpt-5') || model.includes('gpt-4.1') || model.includes('o4')) {
-      console.log('Routing to OpenAI');
-      const stream = await callOpenAI(message, model, files);
+    if (actualModel.includes('gpt-') || actualModel.includes('o4')) {
+      console.log('Routing to OpenAI with model:', actualModel);
+      const stream = await callOpenAI(message, actualModel, files);
       
       // Return streaming response for OpenAI models
       return new Response(stream, {
