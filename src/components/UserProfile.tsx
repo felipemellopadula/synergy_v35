@@ -19,6 +19,7 @@ interface UserProfileProps {
 const UserProfile = ({ tokens }: UserProfileProps) => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const avatarSrc = (profile?.avatar_url || (user?.user_metadata?.avatar_url as string) || (user?.user_metadata?.picture as string) || '') as string;
 
   if (!user || !profile) {
     return null;
@@ -33,7 +34,7 @@ const UserProfile = ({ tokens }: UserProfileProps) => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex items-center gap-2 px-2">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={profile.avatar_url || ''} />
+            <AvatarImage src={avatarSrc} />
             <AvatarFallback>
               <User className="h-4 w-4" />
             </AvatarFallback>
@@ -49,7 +50,7 @@ const UserProfile = ({ tokens }: UserProfileProps) => {
       <DropdownMenuContent align="end" className="w-56">
         <div className="flex items-center gap-2 p-2">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={profile.avatar_url || ''} />
+            <AvatarImage src={avatarSrc} />
             <AvatarFallback>
               <User className="h-5 w-5" />
             </AvatarFallback>

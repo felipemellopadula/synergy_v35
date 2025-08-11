@@ -47,6 +47,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Helper: derive best possible name from OAuth metadata
+  const deriveNameFromMetadata = (u?: User | null) => {
+    const md: any = u?.user_metadata || {};
+    const name = md.name || md.full_name || [md.given_name, md.family_name].filter(Boolean).join(' ');
+    return name || 'Usuário';
+  };
+
+  // Helper: extract avatar URL from Google/Supabase metadata
+  const extractAvatarFromUser = (u?: User | null): string | null => {
+    if (!u) return null;
+    const md: any = u.user_metadata || {};
+    const identities: any[] = (u as any).identities || [];
+    const googleIdentity = identities.find((i: any) => i.provider === 'google');
+    const fromIdentity = googleIdentity?.identity_data?.avatar_url || googleIdentity?.identity_data?.picture;
+    return md.avatar_url || md.picture || fromIdentity || null;
+  };
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -64,11 +81,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Create a default profile if it doesn't exist
         const defaultProfile = {
           id: userId,
-          name: (session?.user?.user_metadata?.name as string) || 'Usuário',
+          name: deriveNameFromMetadata(session?.user),
           email: session?.user?.email || '',
           subscription_type: 'paid' as const,
           tokens_remaining: 1000000,
-          avatar_url: (session?.user?.user_metadata?.avatar_url as string) || null,
+          avatar_url: extractAvatarFromUser(session?.user),
           phone: (session?.user?.user_metadata?.phone as string) || null,
         };
 
@@ -87,7 +104,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      setProfile(data);
+      // If profile exists, backfill name/avatar from OAuth metadata when missing
+      const desiredName = deriveNameFromMetadata(session?.user);
+      const desiredAvatar = extractAvatarFromUser(session?.user);
+      const updates: Partial<Profile> = {};
+      if ((!data.avatar_url || data.avatar_url.length === 0) && desiredAvatar) {
+        updates.avatar_url = desiredAvatar;
+      }
+      if ((!data.name || data.name === 'Usuário') && desiredName) {
+        updates.name = desiredName;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        const { data: updated, error: updateError } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId)
+          .select('*')
+          .single();
+        if (updateError) {
+          console.error('Error updating profile with OAuth metadata:', updateError);
+          setProfile(data);
+        } else if (updated) {
+          setProfile(updated);
+        } else {
+          setProfile(data);
+        }
+      } else {
+        setProfile(data);
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
