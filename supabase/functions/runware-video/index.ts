@@ -67,7 +67,7 @@ serve(async (req) => {
           taskUUID,
           model: resolvedModel,
           positivePrompt,
-          duration: 5, // Força 5 segundos para o Seedance
+          duration,
           width,
           height,
           fps: 24,
