@@ -11,15 +11,21 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Download, Link2, Share2, VideoIcon, RotateCcw, Upload, Play, Pause, Maximize } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+
 const RESOLUTIONS = [
   { id: "16:9-480p", label: "16:9 (Wide / Landscape) - 480p", w: 864, h: 480 },
 ];
-const DURATIONS = [5,10];
+
+const DURATIONS = [5, 10];
+
 const FORMATS = ["mp4", "webm", "mov"];
+
 const MAX_VIDEOS = 12;
+
 const SavedVideo = ({ url }: { url: string }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
   const togglePlay = () => {
     if (videoRef.current) {
       if (isPlaying) {
@@ -30,6 +36,7 @@ const SavedVideo = ({ url }: { url: string }) => {
       setIsPlaying(!isPlaying);
     }
   };
+
   const handleDownload = () => {
     const a = document.createElement('a');
     a.href = url;
@@ -38,11 +45,13 @@ const SavedVideo = ({ url }: { url: string }) => {
     a.click();
     a.remove();
   };
+
   const goFullscreen = () => {
     if (videoRef.current?.requestFullscreen) {
       videoRef.current.requestFullscreen();
     }
   };
+
   return (
     <div className="relative aspect-video border border-border rounded-md overflow-hidden group">
       <video
@@ -69,6 +78,7 @@ const SavedVideo = ({ url }: { url: string }) => {
     </div>
   );
 };
+
 const VideoPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -86,12 +96,14 @@ const VideoPage = () => {
   const [uploadingStart, setUploadingStart] = useState(false);
   const [uploadingEnd, setUploadingEnd] = useState(false);
   const [savedVideos, setSavedVideos] = useState<string[]>([]);
+
   useEffect(() => {
     const stored = localStorage.getItem('savedVideos');
     if (stored) {
       setSavedVideos(JSON.parse(stored));
     }
   }, []);
+
   useEffect(() => {
     if (videoUrl) {
       setSavedVideos(prev => {
@@ -101,6 +113,7 @@ const VideoPage = () => {
       });
     }
   }, [videoUrl]);
+
   useEffect(() => {
     document.title = "Gerar Vídeo com IA | Synergy AI";
     const desc = "Crie vídeos com Seedance 1.0 Lite. Escolha resolução, duração e referências.";
@@ -119,8 +132,10 @@ const VideoPage = () => {
     }
     link.href = `${window.location.origin}/video`;
   }, []);
+
   const res = useMemo(() => RESOLUTIONS.find(r => r.id === resolution)!, [resolution]);
   const modelId = "bytedance:1@1";
+
   const uploadImage = async (file: File, isStart: boolean) => {
     const setter = isStart ? setUploadingStart : setUploadingEnd;
     const urlSetter = isStart ? setFrameStartUrl : setFrameEndUrl;
@@ -137,10 +152,15 @@ const VideoPage = () => {
       setter(false);
     }
   };
+
   const startGeneration = async () => {
     setIsSubmitting(true);
     setVideoUrl(null);
     setTaskUUID(null);
+
+    // Adicionado para depuração: Verifique o valor da duração antes de enviar.
+    console.log("Enviando vídeo com duração de:", duration, "segundos");
+
     try {
       const payload = {
         action: 'start',
@@ -155,7 +175,6 @@ const VideoPage = () => {
         includeCost: true,
         providerSettings: { bytedance: { cameraFixed } },
         deliveryMethod: "async",
-        taskType: "videoInference",
         frameStartUrl: frameStartUrl || undefined,
         frameEndUrl: frameEndUrl || undefined,
       };
@@ -171,6 +190,7 @@ const VideoPage = () => {
       setIsSubmitting(false);
     }
   };
+
   const beginPolling = (uuid: string) => {
     if (pollRef.current) {
       window.clearTimeout(pollRef.current);
@@ -198,9 +218,11 @@ const VideoPage = () => {
     };
     pollRef.current = window.setTimeout(() => poll(0), 2000) as unknown as number;
   };
+
   useEffect(() => () => {
     if (pollRef.current) window.clearTimeout(pollRef.current);
   }, []);
+
   const handleDownload = (url: string) => {
     const a = document.createElement('a');
     a.href = url;
@@ -209,6 +231,7 @@ const VideoPage = () => {
     a.click();
     a.remove();
   };
+
   const handleShare = async (url: string) => {
     if ((navigator as any).share) {
       try {
@@ -219,6 +242,7 @@ const VideoPage = () => {
       toast({ title: 'Link copiado', description: 'URL do vídeo copiada para a área de transferência.' });
     }
   };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
@@ -235,8 +259,8 @@ const VideoPage = () => {
       </header>
       <main className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {/* PAINEL DE CONTROLE */}
-          <Card className="lg:col-span-1 lg:row-span-2 order-2 lg:order-1">
+          
+          <Card className="order-2 lg:col-span-1 lg:row-span-2">
             <CardContent className="space-y-6 pt-6">
               <div>
                 <Label htmlFor="prompt">Descrição (prompt)</Label>
@@ -311,8 +335,8 @@ const VideoPage = () => {
               </Button>
             </CardContent>
           </Card>
-          {/* PLAYER DE VÍDEO */}
-          <Card className="lg:col-span-2 order-1 lg:order-2 lg:row-span-1">
+
+          <Card className="order-1 lg:col-span-2">
             <CardContent className="pt-6">
               {videoUrl ? (
                 <div className="space-y-4">
@@ -344,8 +368,8 @@ const VideoPage = () => {
               )}
             </CardContent>
           </Card>
-          {/* HISTÓRICO DE VÍDEOS */}
-          <div className="lg:col-span-2 order-3 lg:order-3">
+
+          <div className="order-3 lg:col-span-2">
             <h2 className="text-xl font-bold mb-4">Vídeos Salvos</h2>
             {savedVideos.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -357,9 +381,11 @@ const VideoPage = () => {
                 <p className="text-muted-foreground">Nenhum vídeo salvo no histórico.</p>
             )}
           </div>
+
         </div>
       </main>
     </div>
   );
 };
+
 export default VideoPage;
