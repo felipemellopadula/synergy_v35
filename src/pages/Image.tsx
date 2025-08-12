@@ -1,12 +1,3 @@
-Entendido! Agora o painel de controle do usuário vai se estender por quase toda a largura da página, eliminando aquele espaço à direita, enquanto a área de imagem e o histórico abaixo mantêm a excelente disposição que já tinham.
-
-Para isso, retirei o painel de controle do grid inferior e o coloquei em sua própria seção, acima de tudo. Isso permite que ele tenha uma largura independente do conteúdo abaixo.
-
-Aqui está o código final ajustado.
-
-Código Completo com Painel de Controle Largo
-TypeScript
-
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
