@@ -255,8 +255,8 @@ const VideoPage = () => {
         </div>
       </header>
       <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          <Card className="lg:col-start-2">
+        <div className="space-y-8 max-w-6xl mx-auto">
+          <Card>
             <CardContent className="pt-6">
               {videoUrl ? (
                 <div className="space-y-4">
@@ -288,7 +288,7 @@ const VideoPage = () => {
               )}
             </CardContent>
           </Card>
-          <Card className="lg:col-start-1">
+          <Card>
             <CardContent className="space-y-6 pt-6">
               <div>
                 <Label htmlFor="prompt">Descrição (prompt)</Label>
