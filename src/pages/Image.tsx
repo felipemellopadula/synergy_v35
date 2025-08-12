@@ -22,7 +22,8 @@ const MODELS = [
   { id: "gpt-image-1", label: "ChatGPT Image (gpt-image-1)" },
 ];
 
-const MAX_IMAGES = 12;
+const MAX_IMAGES = 10;
+const STORAGE_KEY = 'synergy_ai_images';
 
 const ImagePage = () => {
   const navigate = useNavigate();
@@ -54,6 +55,28 @@ const ImagePage = () => {
     }
     link.href = `${window.location.origin}/image`;
   }, []);
+
+  // Load saved images from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as GeneratedImage[];
+        setImages(parsed.slice(0, MAX_IMAGES));
+      }
+    } catch (err) {
+      console.warn("Falha ao carregar imagens salvas", err);
+    }
+  }, []);
+
+  // Persist images to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(images.slice(0, MAX_IMAGES)));
+    } catch (err) {
+      console.warn("Falha ao salvar imagens", err);
+    }
+  }, [images]);
 
   const generate = async () => {
     if (!prompt.trim()) {
