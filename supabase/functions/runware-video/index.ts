@@ -67,16 +67,25 @@ serve(async (req) => {
           taskUUID,
           model: resolvedModel,
           positivePrompt,
-          duration: duration === 6 ? 5 : (duration === 8 ? 10 : duration), // Ajusta durações inválidas
+          duration: 5, // Força 5 segundos para o Seedance
           width,
           height,
           fps: 24,
           numberResults,
-          outputType: "URL",
-          outputFormat,
+          outputFormat: "mp4", // Força mp4 minúsculo
+          includeCost: true,
           deliveryMethod: "async",
         },
       ];
+
+      // Adiciona configurações específicas do provider para bytedance
+      if (resolvedModel.includes('bytedance')) {
+        tasks[1].providerSettings = {
+          bytedance: {
+            cameraFixed: false
+          }
+        };
+      }
 
       console.log("[runware-video] start -> resolvedModel", resolvedModel);
       console.log("[runware-video] start -> tasks:", tasks);
