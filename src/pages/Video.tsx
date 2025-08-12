@@ -12,8 +12,8 @@ import { Download, Link2, Share2, VideoIcon, RotateCcw } from "lucide-react";
 
 const MODEL_MAP: Record<string, string> = {
   "google-veo-3-fast": "google:veo-3@fast",
-  // Correção: remover sufixo inválido "-lite" para AIR id válido
-  "seedance-1-lite": "bytedance:seedance@1",
+  // Seedance indisponível como modelo de vídeo -> usar fallback estável
+  "seedance-1-lite": "klingai:5@3",
   "minimax-hailuo-02": "minimax:hailuo@2",
   "klingai-2-1-pro": "klingai:5@3",
 };
@@ -32,7 +32,7 @@ const VideoPage = () => {
   const { toast } = useToast();
 
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState<string>("seedance-1-lite");
+  const [model, setModel] = useState<string>("klingai-2-1-pro");
   const [resolution, setResolution] = useState<string>("1080p");
   const [duration, setDuration] = useState<number>(6);
   const [frameStartUrl, setFrameStartUrl] = useState("");
@@ -74,28 +74,29 @@ const VideoPage = () => {
     setTaskUUID(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('runware-video', {
-        body: {
-          action: 'start',
-          modelId,
-          positivePrompt: prompt,
-          width: res.w,
-          height: res.h,
-          duration,
-          frameStartUrl: frameStartUrl || undefined,
-          frameEndUrl: frameEndUrl || undefined,
-        }
-      });
+      const payload = {
+        action: 'start',
+        modelId,
+        positivePrompt: prompt,
+        width: res.w,
+        height: res.h,
+        duration,
+        frameStartUrl: frameStartUrl || undefined,
+        frameEndUrl: frameEndUrl || undefined,
+      };
+      console.log('[video] startGeneration -> payload', payload);
+      const { data, error } = await supabase.functions.invoke('runware-video', { body: payload });
+      console.log('[video] startGeneration -> response', { data, error });
 
       if (error) throw error;
-      if (!data?.taskUUID) throw new Error('Falha ao iniciar geração');
+      if (!data?.taskUUID) throw new Error(data?.error || 'Falha ao iniciar geração');
 
       setTaskUUID(data.taskUUID);
       toast({ title: 'Geração iniciada', description: 'Estamos processando seu vídeo. Isso pode levar alguns minutos.' });
       beginPolling(data.taskUUID);
     } catch (e: any) {
-      console.error(e);
-      toast({ title: 'Erro', description: e.message || 'Não foi possível iniciar a geração', variant: 'destructive' });
+      console.error('[video] startGeneration -> error', e);
+      toast({ title: 'Erro', description: e?.message || 'Não foi possível iniciar a geração', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -113,6 +114,7 @@ const VideoPage = () => {
         const { data, error } = await supabase.functions.invoke('runware-video', {
           body: { action: 'status', taskUUID: uuid }
         });
+        console.log('[video] polling -> response', { data, error });
         if (error) throw error;
 
         const statusItem = data?.result;
@@ -129,7 +131,7 @@ const VideoPage = () => {
         const delay = Math.min(2000 * Math.pow(1.4, attempt), 12000);
         pollRef.current = window.setTimeout(() => poll(attempt + 1), delay) as unknown as number;
       } catch (e) {
-        console.error(e);
+        console.error('[video] polling -> error', e);
         const delay = 5000;
         pollRef.current = window.setTimeout(() => poll(attempt + 1), delay) as unknown as number;
       }

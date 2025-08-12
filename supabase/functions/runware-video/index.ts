@@ -29,6 +29,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const action = body.action as "start" | "status";
+    console.log("[runware-video] Incoming action:", action, { hasPrompt: !!body?.positivePrompt, width: body?.width, height: body?.height, modelId: body?.modelId, taskUUID: body?.taskUUID });
 
     const API_URL = "https://api.runware.ai/v1";
 
@@ -47,16 +48,15 @@ serve(async (req) => {
       } = body;
 
       const ALLOWED_MODELS = new Set([
-        "bytedance:seedance@1",
         "google:veo-3@fast",
         "minimax:hailuo@2",
         "klingai:5@3",
       ]);
       const normalizeModel = (input?: string): string => {
         if (typeof input === "string" && ALLOWED_MODELS.has(input)) return input;
-        if (input?.startsWith("bytedance:seedance")) return "bytedance:seedance@1";
+        if (input?.startsWith("bytedance:seedance")) return "klingai:5@3"; // Seedance indisponível para vídeo: usar fallback confiável
         if (input?.startsWith("google:veo-3")) return "google:veo-3@fast";
-        if (input?.startsWith("minimax:hailuo")) return "minimax:hailuo@2";
+        if (input?.startsWith("minimax")) return "minimax:hailuo@2";
         if (input?.startsWith("klingai")) return "klingai:5@3";
         return "klingai:5@3";
       };
@@ -90,6 +90,9 @@ serve(async (req) => {
         },
       ];
 
+      console.log("[runware-video] start -> tasks:", tasks);
+
+
       const frameImages: any[] = [];
       if (frameStartUrl) frameImages.push({ inputImage: frameStartUrl, frame: "first" });
       if (frameEndUrl) frameImages.push({ inputImage: frameEndUrl, frame: "last" });
@@ -103,14 +106,24 @@ serve(async (req) => {
         body: JSON.stringify(tasks),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(async (e) => {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("[runware-video] start -> JSON parse error:", e, text);
+        throw new Error("Invalid JSON from Runware (start)");
+      });
+
+      console.log("[runware-video] start -> response:", res.status, json);
+
 
       if (!res.ok || json.errors) {
-        return new Response(JSON.stringify({ error: json.errors?.[0]?.message || "Runware error", details: json }), {
+        const message = json.errors?.[0]?.message || json.error || `Runware error (${res.status})`;
+        console.error("[runware-video] start -> error:", message, json);
+        return new Response(JSON.stringify({ error: message, details: json, status: res.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
         });
       }
+
 
       return new Response(JSON.stringify({ taskUUID, ack: json.data?.[0] || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -132,15 +145,25 @@ serve(async (req) => {
         { taskType: "getResponse", taskUUID },
       ];
 
+      console.log("[runware-video] status -> tasks:", tasks);
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(tasks),
       });
-      const json = await res.json();
+      const json = await res.json().catch(async (e) => {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("[runware-video] status -> JSON parse error:", e, text);
+        throw new Error("Invalid JSON from Runware (status)");
+      });
 
-      if (!res.ok) {
-        return new Response(JSON.stringify({ error: json.errors?.[0]?.message || "Runware error", details: json }), {
+      console.log("[runware-video] status -> response:", res.status, json);
+
+      if (!res.ok || json.errors) {
+        const message = json.errors?.[0]?.message || json.error || `Runware error (${res.status})`;
+        console.error("[runware-video] status -> error:", message, json);
+        return new Response(JSON.stringify({ error: message, details: json, status: res.status }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 500,
         });
@@ -163,7 +186,8 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("runware-video function error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message || "Unexpected error" }), {
+    const message = (err as Error)?.message || "Unexpected error";
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
