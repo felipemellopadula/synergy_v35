@@ -1,4 +1,4 @@
-import { ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PdfProcessor } from "@/utils/PdfProcessor";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 interface Message {
   id: string;
   content: string;
@@ -606,14 +606,40 @@ const Chat = () => {
             </Button>
             <div className="h-6 w-px bg-border" />
             <h1 className="text-lg font-semibold text-foreground">Synergy Chat</h1>
-            <Button variant="outline" size="sm" className="ml-2" onClick={createNewConversation}>
+            <Button variant="outline" size="sm" className="ml-2 hidden md:inline-flex" onClick={createNewConversation}>
               <Plus className="h-4 w-4 mr-1" /> Novo chat
             </Button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <ModelSelector onModelSelect={handleModelSelect} selectedModel={selectedModel} />
             <ThemeToggle />
             <UserProfile />
+          </div>
+          <div className="md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Abrir menu">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-72 sm:w-80">
+                <SheetHeader>
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
+                <div className="mt-4 space-y-4">
+                  <Button className="w-full" onClick={createNewConversation}>
+                    <Plus className="h-4 w-4 mr-2" /> Novo chat
+                  </Button>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">Modelo</div>
+                    <ModelSelector onModelSelect={handleModelSelect} selectedModel={selectedModel} />
+                  </div>
+                  <div>
+                    <UserProfile />
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
