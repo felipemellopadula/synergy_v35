@@ -20,7 +20,7 @@ const SIZES = [
 ];
 
 const MODELS = [
-  { id: "runware:100@1", label: "Runware (runware:100@1)" },
+  { id: "GPT_IMAGE_1", label: "GPT Image 1 (Runware)" },
 ];
 
 const QUALITIES = [
