@@ -53,7 +53,7 @@ const SavedVideo = ({ url }: { url: string }) => {
   };
 
   return (
-    <div className="relative aspect-video border border-border rounded-md overflow-hidden group">
+    <div className="relative aspect-video border border-border rounded-md overflow-hidden group cursor-pointer">
       <video
         ref={videoRef}
         src={url}
@@ -61,6 +61,7 @@ const SavedVideo = ({ url }: { url: string }) => {
         loop
         muted
         playsInline
+        onClick={togglePlay}
       />
       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
         <div className="flex gap-2">
@@ -158,9 +159,6 @@ const VideoPage = () => {
     setVideoUrl(null);
     setTaskUUID(null);
 
-    // Adicionado para depuração: Verifique o valor da duração antes de enviar.
-    console.log("Enviando vídeo com duração de:", duration, "segundos");
-
     try {
       const payload = {
         action: 'start',
@@ -239,11 +237,11 @@ const VideoPage = () => {
 
       URL.revokeObjectURL(objectUrl);
     } catch (e) {
-      // Fallback: abre em nova aba caso o servidor bloqueie CORS
       toast({ title: 'Não foi possível baixar automaticamente', description: 'Abrindo em nova aba. Use “Salvar como...” para baixar.' });
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
+  
   const handleShare = async (url: string) => {
     if ((navigator as any).share) {
       try {
@@ -328,27 +326,27 @@ const VideoPage = () => {
                   </label>
                   <Input type="file" accept="image/*" className="hidden" id="start-upload" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], true)} />
                   <Input placeholder="Ou cole a URL aqui" value={frameStartUrl} onChange={(e) => setFrameStartUrl(e.target.value)} className="mt-2" />
-{uploadingStart && <p className="text-sm text-muted-foreground mt-1">Enviando...</p>}
-{frameStartUrl && (
-  <div className="mt-2 inline-block relative">
-    <img
-      src={frameStartUrl}
-      alt="Prévia do frame inicial"
-      className="w-16 h-16 rounded border border-border object-cover"
-      loading="lazy"
-    />
-    <Button
-      type="button"
-      size="icon"
-      variant="ghost"
-      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background/80 hover:bg-accent"
-      onClick={() => setFrameStartUrl("")}
-      aria-label="Remover frame inicial"
-    >
-      <X className="h-4 w-4" />
-    </Button>
-  </div>
-)}
+                  {uploadingStart && <p className="text-sm text-muted-foreground mt-1">Enviando...</p>}
+                  {frameStartUrl && (
+                    <div className="mt-2 inline-block relative">
+                      <img
+                        src={frameStartUrl}
+                        alt="Prévia do frame inicial"
+                        className="w-16 h-16 rounded border border-border object-cover"
+                        loading="lazy"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background/80 hover:bg-accent"
+                        onClick={() => setFrameStartUrl("")}
+                        aria-label="Remover frame inicial"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Frame Final (opcional)</Label>
