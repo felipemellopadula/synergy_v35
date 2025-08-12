@@ -47,7 +47,7 @@ const ImagePage = () => {
 
   useEffect(() => {
     document.title = "Gerar Imagens com IA | Synergy AI";
-    const desc = "Crie imagens com o modelo gpt-image-1 da OpenAI. Escolha a resolução e faça download ou compartilhe.";
+    const desc = "Crie imagens com a API Runware. Escolha a resolução e faça download ou compartilhe.";
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -109,7 +109,7 @@ const ImagePage = () => {
 
       const body: any = {
         taskType: selectedFile ? "imageVariation" : "imageInference", // Assume "imageVariation" for image input
-        model: "openai:1@1",
+        model: "runware:100@1",
         positivePrompt: prompt,
         height: sizeInfo.h,
         width: sizeInfo.w,
@@ -127,9 +127,19 @@ const ImagePage = () => {
 
       const { data, error } = await supabase.functions.invoke('generate-image', { body });
       if (error) throw error;
-      const b64 = data?.image as string | undefined; // Adjust based on response
+      const b64 = (data as any)?.image as string | undefined;
       if (!b64) throw new Error('Falha ao gerar a imagem');
-      const dataUrl = `data:image/png;base64,${b64}`;
+      const format = ((data as any)?.format as string | undefined)?.toLowerCase();
+      let mime = 'image/png';
+      if (format === 'webp') mime = 'image/webp';
+      else if (format === 'jpeg' || format === 'jpg') mime = 'image/jpeg';
+      else if (format === 'png') mime = 'image/png';
+      else if (!format && typeof (data as any)?.url === 'string') {
+        const u = (data as any).url as string;
+        if (u.endsWith('.webp')) mime = 'image/webp';
+        else if (u.endsWith('.jpg') || u.endsWith('.jpeg')) mime = 'image/jpeg';
+      }
+      const dataUrl = `data:${mime};base64,${b64}`;
       const img: GeneratedImage = {
         id: `${Date.now()}`,
         prompt,
@@ -229,7 +239,7 @@ const ImagePage = () => {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                As imagens são geradas usando o modelo OpenAI gpt-image-1. Tamanhos suportados: 1024x1024, 1536x1024, 1024x1536.
+                As imagens são geradas usando a API Runware. Tamanhos suportados: 1024x1024, 1536x1024, 1024x1536.
               </p>
             </CardContent>
           </Card>
