@@ -255,40 +255,8 @@ const VideoPage = () => {
         </div>
       </header>
       <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8 max-w-6xl mx-auto">
-          <Card>
-            <CardContent className="pt-6">
-              {videoUrl ? (
-                <div className="space-y-4">
-                  <video controls className="w-full rounded-md border border-border" src={videoUrl} />
-                  <div className="flex gap-3 flex-wrap">
-                    <Button onClick={() => handleDownload(videoUrl)}><Download className="h-4 w-4 mr-2" /> Baixar</Button>
-                    <Button variant="outline" onClick={() => handleShare(videoUrl)}><Share2 className="h-4 w-4 mr-2" /> Compartilhar</Button>
-                    <Button variant="outline" asChild>
-                      <a href={videoUrl} target="_blank" rel="noreferrer">
-                        <Link2 className="h-4 w-4 mr-2" /> Abrir em nova aba
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              ) : taskUUID ? (
-                <div className="h-full min-h-[300px] grid place-items-center text-center text-muted-foreground">
-                  <div>
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
-                    <p>Processando</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-full min-h-[300px] grid place-items-center text-center text-muted-foreground">
-                  <div>
-                    <VideoIcon className="h-10 w-10 mx-auto mb-2" />
-                    <p>Nenhum vídeo gerado ainda. Preencha os campos e clique em "Gerar Vídeo".</p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
+        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <Card className="lg:col-span-1 lg:row-span-2">
             <CardContent className="space-y-6 pt-6">
               <div>
                 <Label htmlFor="prompt">Descrição (prompt)</Label>
@@ -381,13 +349,45 @@ const VideoPage = () => {
               </Button>
             </CardContent>
           </Card>
-        </div>
-        <div className="mt-8 max-w-6xl mx-auto">
-          <h2 className="text-xl font-bold mb-4">Vídeos Salvos</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {savedVideos.map((url, index) => (
-              <SavedVideo key={index} url={url} />
-            ))}
+          <Card className="lg:col-span-2">
+            <CardContent className="pt-6">
+              {videoUrl ? (
+                <div className="space-y-4">
+                  <video controls className="w-full rounded-md border border-border" src={videoUrl} />
+                  <div className="flex gap-3 flex-wrap">
+                    <Button onClick={() => handleDownload(videoUrl)}><Download className="h-4 w-4 mr-2" /> Baixar</Button>
+                    <Button variant="outline" onClick={() => handleShare(videoUrl)}><Share2 className="h-4 w-4 mr-2" /> Compartilhar</Button>
+                    <Button variant="outline" asChild>
+                      <a href={videoUrl} target="_blank" rel="noreferrer">
+                        <Link2 className="h-4 w-4 mr-2" /> Abrir em nova aba
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              ) : taskUUID ? (
+                <div className="h-full min-h-[300px] grid place-items-center text-center text-muted-foreground">
+                  <div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p>Processando</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full min-h-[300px] grid place-items-center text-center text-muted-foreground">
+                  <div>
+                    <VideoIcon className="h-10 w-10 mx-auto mb-2" />
+                    <p>Nenhum vídeo gerado ainda. Preencha os campos e clique em "Gerar Vídeo".</p>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <div className="lg:col-span-2 lg:col-start-2">
+            <h2 className="text-xl font-bold mb-4">Vídeos Salvos</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {savedVideos.map((url, index) => (
+                <SavedVideo key={index} url={url} />
+              ))}
+            </div>
           </div>
         </div>
       </main>
