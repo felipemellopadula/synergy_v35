@@ -780,9 +780,9 @@ const Chat = () => {
                                   description: "Resposta copiada para a área de transferência.",
                                 });
                               }}
-                              className="h-7 px-2 text-xs"
+                              className="group h-7 px-2 text-xs hover:bg-muted hover-scale transition-colors"
                             >
-                              <Copy className="h-3 w-3 mr-1" />
+                              <Copy className="h-3 w-3 mr-1 transition-transform group-hover:scale-110" />
                               Copiar
                             </Button>
                           </div>
