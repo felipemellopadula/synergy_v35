@@ -13,9 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { downloadImage, shareImage, GeneratedImage } from "@/utils/imageUtils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
-// --- NOVAS CONFIGURAÇÕES (baseado no seu código que funciona) ---
-
-// 1. Unificamos as configurações de Qualidade e Tamanho em um só lugar.
+// As configurações de modelo e qualidade permanecem as mesmas
 const QUALITY_SETTINGS = [
   { id: "standard", label: "Padrão (1024x1024)", width: 1024, height: 1024, steps: 15 },
   { id: "landscape", label: "Paisagem (1536x1024)", width: 1536, height: 1024, steps: 15 },
@@ -23,19 +21,9 @@ const QUALITY_SETTINGS = [
   { id: "fast", label: "Rápido (512x512)", width: 512, height: 512, steps: 10 },
 ];
 
-// 2. Modelo único conforme solicitado.
 const MODELS = [
   { id: "openai:1@1", label: "GPT Image 1" },
 ];
-
-// 3. Configurações base para o modelo. Estes são os parâmetros que a API da Runware espera.
-const MODEL_CONFIG = {
-  model: MODELS[0].id,
-  cfgScale: 10.0,
-  sampler: "DPM++ SDE Karras",
-  negativePrompt: "texto, palavras, letras, marca d'água, assinatura, logo, baixa qualidade, borrado, distorcido, deformado, feio, poucos detalhes, composição ruim, anatomia ruim, desfigurado, cartoon, etiqueta, números, escrita",
-  clip_skip: 2,
-};
 
 const MAX_IMAGES = 10;
 const STORAGE_KEY = 'synergy_ai_images';
@@ -45,20 +33,16 @@ const ImagePage = () => {
   const { toast } = useToast();
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState<string>(MODELS[0].id);
-  // O estado de 'quality' agora controla tamanho e steps
   const [quality, setQuality] = useState<string>(QUALITY_SETTINGS[0].id);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const storageErrorShown = useRef(false);
   
-  // Hook para encontrar as informações da qualidade/tamanho selecionado
   const selectedQualityInfo = useMemo(() => QUALITY_SETTINGS.find(q => q.id === quality)!, [quality]);
 
-  // Efeitos de SEO e localStorage permanecem os mesmos...
   useEffect(() => {
     document.title = "Gerar Imagens com IA | Synergy AI";
-    // ... restante do código de SEO
   }, []);
 
   useEffect(() => {
@@ -74,14 +58,13 @@ const ImagePage = () => {
 
   useEffect(() => {
     try {
-      const payload = JSON.stringify(images.slice(0, MAX_IMAGES));
-      localStorage.setItem(STORAGE_KEY, payload);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(images.slice(0, MAX_IMAGES)));
     } catch (err) {
       console.warn("Falha ao salvar imagens no localStorage:", err);
       if (!storageErrorShown.current) {
         toast({
           title: "Armazenamento local cheio",
-          description: "Não foi possível salvar as imagens localmente. Elas continuarão disponíveis nesta sessão.",
+          description: "Não foi possível salvar as imagens localmente.",
           variant: "destructive",
         });
         storageErrorShown.current = true;
@@ -107,52 +90,47 @@ const ImagePage = () => {
         const reader = new FileReader();
         reader.readAsDataURL(selectedFile);
         await new Promise<void>((resolve, reject) => {
-            reader.onload = () => resolve();
-            reader.onerror = (error) => reject(error);
+          reader.onload = () => resolve();
+          reader.onerror = (error) => reject(error);
         });
         inputImageBase64 = (reader.result as string).split(',')[1];
       }
 
       const taskUUID = crypto.randomUUID();
 
-// --- CRIAÇÃO DO BODY CORRIGIDO ---
-// 4. Montamos o `body` com a estrutura que a Edge Function espera.
-const body: any = {
-  model,
-  positivePrompt: prompt,
-  width: selectedQualityInfo.width,
-  height: selectedQualityInfo.height,
-  numberResults: 1,
-  outputFormat: "PNG",
-  ...(inputImageBase64 ? { inputImage: inputImageBase64, strength: 0.8 } : {}),
-};
+      const body: any = {
+        model,
+        positivePrompt: prompt,
+        width: selectedQualityInfo.width,
+        height: selectedQualityInfo.height,
+        numberResults: 1,
+        outputFormat: "PNG",
+        ...(inputImageBase64 ? { inputImage: inputImageBase64, strength: 0.8 } : {}),
+      };
 
-      // A chamada para a função Supabase permanece a mesma
       const { data, error } = await supabase.functions.invoke('generate-image', { body });
       if (error) throw error;
 
-// Monta data URI a partir do retorno da Edge Function
-const base64 = data?.image as string | undefined;
-const format = (data?.format as string | undefined) || 'webp';
-const imageDataURI = base64 ? `data:image/${format};base64,${base64}` : undefined;
-if (!imageDataURI) throw new Error('A API não retornou uma imagem. Verifique o log da função Supabase.');
+      const base64 = data?.image as string | undefined;
+      const format = (data?.format as string | undefined) || 'webp';
+      const imageDataURI = base64 ? `data:image/${format};base64,${base64}` : undefined;
+      if (!imageDataURI) throw new Error('A API não retornou uma imagem. Verifique o log da função Supabase.');
 
-const img: GeneratedImage = {
-  id: taskUUID,
-  prompt,
-  originalPrompt: prompt,
-  detailedPrompt: prompt,
-  url: imageDataURI,
-  timestamp: new Date().toISOString(),
-  quality: quality,
-  width: selectedQualityInfo.width,
-  height: selectedQualityInfo.height,
-  model: model,
-};
+      const img: GeneratedImage = {
+        id: taskUUID,
+        prompt,
+        originalPrompt: prompt,
+        url: imageDataURI,
+        timestamp: new Date().toISOString(),
+        quality: quality,
+        width: selectedQualityInfo.width,
+        height: selectedQualityInfo.height,
+        model: model,
+      };
 
       setImages(prev => [img, ...prev].slice(0, MAX_IMAGES));
       toast({ title: 'Imagem gerada', description: 'Sua imagem está pronta!' });
-      setSelectedFile(null); // Limpa o arquivo após o uso
+      setSelectedFile(null);
     } catch (e: any) {
       console.error(e);
       toast({ title: 'Erro ao gerar', description: e?.message || 'Tente novamente.', variant: "destructive" });
@@ -164,14 +142,13 @@ const img: GeneratedImage = {
   const handleDownload = (img: GeneratedImage) => downloadImage(img, toast);
   const handleShare = (img: GeneratedImage) => shareImage(img, toast);
 
-  // --- JSX ATUALIZADO ---
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <ImageIcon className="h-7 w-7 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">Synergy Image</h1>
+            <h1 className="text-2xl font-bold text-foreground">Synergy Imagem</h1>
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -183,11 +160,10 @@ const img: GeneratedImage = {
         <section className="max-w-5xl mx-auto mb-8">
           <Card>
             <CardContent className="pt-6 space-y-4">
-              {/* 5. Layout do grid ajustado para remover o select de resolução */}
               <div className="grid lg:grid-cols-12 gap-4 items-end">
                 <div className="lg:col-span-6">
                   <Label htmlFor="prompt">Descreva o que você quer ver</Label>
-                  <Textarea id="prompt" placeholder="Ex: retrato fotorealista de um astronauta com nebulosas ao fundo..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
+                  <Textarea id="prompt" placeholder="Ex: retrato fotorealista de um astronauta..." value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} />
                 </div>
                 <div className="lg:col-span-2">
                   <Label>Modelo</Label>
@@ -200,7 +176,6 @@ const img: GeneratedImage = {
                     </SelectContent>
                   </Select>
                 </div>
-                {/* 6. O select de "Qualidade" agora controla também o tamanho */}
                 <div className="lg:col-span-2">
                   <Label>Qualidade/Tamanho</Label>
                   <Select value={quality} onValueChange={setQuality}>
@@ -229,45 +204,68 @@ const img: GeneratedImage = {
           </Card>
         </section>
         
-        {/* A seção de exibição de imagens permanece a mesma */}
-        {images.length > 0 && (
-          <section className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="col-span-1">
-              <CardContent className="p-0">
-                <img src={images[0].url} alt={`Imagem gerada: ${images[0].prompt}`} className="w-full h-auto object-cover rounded-t-lg" loading="lazy" />
-                <div className="p-4 flex items-center justify-between gap-2">
-                  <Button variant="outline" className="gap-2" onClick={() => handleDownload(images[0])}>
-                    <Download className="h-4 w-4" /> Baixar
-                  </Button>
-                  <Button variant="outline" className="gap-2" onClick={() => handleShare(images[0])}>
-                    <Share2 className="h-4 w-4" /> Compartilhar
-                  </Button>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="gap-2">
-                        <ZoomIn className="h-4 w-4" /> Ampliar
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl">
-                      <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
-                    </DialogContent>
-                  </Dialog>
+        {/* --- NOVA ESTRUTURA DE LAYOUT DAS IMAGENS --- */}
+        <section className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
+          
+          {/* Coluna da Esquerda (Imagem Principal ou Loading) */}
+          <div className="lg:col-span-3">
+            <Card className="w-full h-full min-h-[512px] flex items-center justify-center">
+              {isGenerating ? (
+                // Estado de Carregamento
+                <div className="flex flex-col items-center gap-4 text-muted-foreground">
+                  <svg className="animate-spin h-10 w-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span className="text-lg font-medium">Processando...</span>
                 </div>
-              </CardContent>
+              ) : images.length > 0 ? (
+                // Exibe a imagem mais recente
+                <CardContent className="p-0">
+                  <img src={images[0].url} alt={`Imagem gerada: ${images[0].prompt}`} className="w-full h-auto object-cover rounded-t-lg" loading="eager" />
+                  <div className="p-4 flex items-center justify-between gap-2 border-t">
+                    <Button variant="outline" className="gap-2 flex-1" onClick={() => handleDownload(images[0])}>
+                      <Download className="h-4 w-4" /> Baixar
+                    </Button>
+                    <Button variant="outline" className="gap-2 flex-1" onClick={() => handleShare(images[0])}>
+                      <Share2 className="h-4 w-4" /> Compartilhar
+                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="gap-2 flex-1">
+                          <ZoomIn className="h-4 w-4" /> Ampliar
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl">
+                        <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </CardContent>
+              ) : (
+                // Placeholder inicial
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <ImageIcon className="h-12 w-12" />
+                    <span className="text-lg font-medium">Sua imagem aparecerá aqui</span>
+                </div>
+              )}
             </Card>
-            
-            <div className="col-span-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          </div>
+
+          {/* Coluna da Direita (Histórico) */}
+          <div className="lg:col-span-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {images.slice(1).map((img) => (
                 <Dialog key={img.id}>
-                  <Card className="relative group overflow-hidden rounded-lg">
+                  <Card className="relative group overflow-hidden rounded-lg aspect-square">
                     <DialogTrigger asChild>
                       <img src={img.url} alt={`Imagem gerada: ${img.prompt}`} className="w-full h-full object-cover cursor-pointer transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                     </DialogTrigger>
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-center gap-1">
-                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); handleDownload(img); }}>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-1 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-8 w-8" onClick={(e) => { e.stopPropagation(); handleDownload(img); }}>
                             <Download className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={(e) => { e.stopPropagation(); handleShare(img); }}>
+                        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 h-8 w-8" onClick={(e) => { e.stopPropagation(); handleShare(img); }}>
                             <Share2 className="h-4 w-4" />
                         </Button>
                     </div>
@@ -278,8 +276,8 @@ const img: GeneratedImage = {
                 </Dialog>
               ))}
             </div>
-          </section>
-        )}
+          </div>
+        </section>
       </main>
     </div>
   );
