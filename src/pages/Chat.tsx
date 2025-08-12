@@ -609,28 +609,6 @@ const Chat = () => {
             <Button variant="outline" size="sm" className="ml-2" onClick={createNewConversation}>
               <Plus className="h-4 w-4 mr-1" /> Novo chat
             </Button>
-            {currentConversationId && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const conv = conversations.find(c => c.id === currentConversationId);
-                    if (conv) toggleFavoriteConversation(conv);
-                  }}
-                  className="ml-1"
-                >
-                  <Star className={`h-4 w-4 ${conversations.find(c => c.id === currentConversationId)?.is_favorite ? 'text-yellow-500' : ''}`} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteConversation(currentConversationId)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
           </div>
           <div className="flex items-center gap-3">
             <ModelSelector onModelSelect={handleModelSelect} selectedModel={selectedModel} />
@@ -663,7 +641,12 @@ const Chat = () => {
               >
                 <span className="truncate text-sm">{c.title}</span>
                 <span className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-yellow-500" />
+                  <button
+                    className="h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
+                    onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                  >
+                    <Star className="h-4 w-4 text-yellow-500" />
+                  </button>
                   <button 
                     className="h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
                     onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
