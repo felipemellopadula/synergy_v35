@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PdfProcessor } from "@/utils/PdfProcessor";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 interface Message {
   id: string;
   content: string;
@@ -627,12 +627,80 @@ const Chat = () => {
                   <SheetTitle>Menu</SheetTitle>
                 </SheetHeader>
                 <div className="mt-4 space-y-4">
-                  <Button className="w-full" onClick={createNewConversation}>
-                    <Plus className="h-4 w-4 mr-2" /> Novo chat
-                  </Button>
+                  <SheetClose asChild>
+                    <Button className="w-full" onClick={createNewConversation}>
+                      <Plus className="h-4 w-4 mr-2" /> Novo chat
+                    </Button>
+                  </SheetClose>
                   <div>
                     <div className="text-sm text-muted-foreground mb-2">Modelo</div>
                     <ModelSelector onModelSelect={handleModelSelect} selectedModel={selectedModel} />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">Histórico</div>
+                    <div className="mb-3">
+                      <input
+                        placeholder="Pesquisar conversas..."
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                        onChange={() => {}}
+                      />
+                    </div>
+                    <ScrollArea className="max-h-[60vh] pr-2">
+                      {conversations.filter(c => c.is_favorite).length === 0 && (
+                        <div className="px-1 py-2 text-xs text-muted-foreground">Nenhum favorito</div>
+                      )}
+                      {conversations.filter(c => c.is_favorite).map((c) => (
+                        <SheetClose asChild key={c.id}>
+                          <button
+                            onClick={() => openConversation(c)}
+                            className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
+                          >
+                            <span className="truncate text-sm">{c.title}</span>
+                            <span className="flex items-center gap-2">
+                              <button
+                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded hover-scale"
+                                onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                              >
+                                <Star className="h-4 w-4 text-yellow-500 transition-opacity group-hover:opacity-0" />
+                                <Star className="h-4 w-4 text-yellow-500 absolute inset-0 opacity-0 group-hover:opacity-100" fill="currentColor" strokeWidth={0} />
+                              </button>
+                              <button 
+                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded hover-scale" 
+                                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                              >
+                                <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
+                              </button>
+                            </span>
+                          </button>
+                        </SheetClose>
+                      ))}
+                      <div className="px-1 pt-3 pb-2 text-xs text-muted-foreground">Recentes</div>
+                      {conversations.filter(c => !c.is_favorite).map((c) => (
+                        <SheetClose asChild key={c.id}>
+                          <button
+                            onClick={() => openConversation(c)}
+                            className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
+                          >
+                            <span className="truncate text-sm">{c.title}</span>
+                            <span className="flex items-center gap-2">
+                              <button
+                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded hover-scale"
+                                onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                              >
+                                <Star className={`h-4 w-4 transition-opacity group-hover:opacity-0 ${c.is_favorite ? 'text-yellow-500' : ''}`} />
+                                <Star className="h-4 w-4 absolute inset-0 opacity-0 group-hover:opacity-100 text-yellow-500" fill="currentColor" strokeWidth={0} />
+                              </button>
+                              <button 
+                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded hover-scale" 
+                                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                              >
+                                <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
+                              </button>
+                            </span>
+                          </button>
+                        </SheetClose>
+                      ))}
+                    </ScrollArea>
                   </div>
                   <div>
                     <UserProfile />
