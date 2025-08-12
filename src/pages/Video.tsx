@@ -243,44 +243,53 @@ const VideoPage = () => {
   };
   
   const handleShare = async (url: string, promptText: string) => {
-    const shareData = {
-      title: "Vídeo Gerado por IA",
-      text: promptText || "Veja este vídeo que criei!",
-      url: url,
-    };
+    const title = "Vídeo Gerado por IA";
+    const text = (promptText || "Veja este vídeo que criei!").slice(0, 280);
 
     try {
-        // A API navigator.share é a que abre o menu nativo do sistema
-        if (navigator.share) {
-            await navigator.share(shareData);
-        } else {
-            // Se a API não estiver disponível, copia o link
-            await navigator.clipboard.writeText(url);
-            toast({
-                title: "Link Copiado",
-                description: "O link do vídeo foi copiado para a área de transferência.",
-                variant: "default",
-            });
+      // Tenta compartilhar como arquivo (Web Share Level 2) para abrir o share nativo do SO
+      const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+      if (res.ok) {
+        const blob = await res.blob();
+        const extGuess = (blob.type?.split('/')?.[1] || '').split(';')[0] || (outputFormat || 'mp4');
+        const file = new File([blob], `synergy-video-${Date.now()}.${extGuess}`, { type: blob.type || `video/${outputFormat || 'mp4'}` });
+        const canShareFiles = (navigator as any).canShare?.({ files: [file] });
+        if (canShareFiles) {
+          await (navigator as any).share({ title, text, files: [file] });
+          return;
         }
+      }
+
+      // Fallback: compartilhar apenas a URL (ainda abre o share sheet quando suportado)
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+
+      // Último recurso: copiar o link
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: 'Link Copiado',
+        description: 'O link do vídeo foi copiado para a área de transferência.',
+        variant: 'default',
+      });
     } catch (error) {
-        console.error("Erro ao partilhar:", error);
-        // Se ocorrer um erro (ex: usuário cancelou o compartilhamento), não faz nada
-        // ou, se preferir, pode-se copiar o link como fallback
-        try {
-            await navigator.clipboard.writeText(url);
-            toast({
-                title: "Link Copiado",
-                description: "Ocorreu um erro ao tentar partilhar, mas o link foi copiado.",
-                variant: "default",
-            });
-        } catch (copyError) {
-            console.error("Erro ao copiar o link:", copyError);
-            toast({
-                title: "Erro",
-                description: "Não foi possível partilhar ou copiar o link.",
-                variant: "destructive",
-            });
-        }
+      console.error('Erro ao partilhar:', error);
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: 'Link Copiado',
+          description: 'Não foi possível abrir o compartilhamento, mas copiamos o link para você.',
+          variant: 'default',
+        });
+      } catch (copyError) {
+        console.error('Erro ao copiar o link:', copyError);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível partilhar ou copiar o link.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
