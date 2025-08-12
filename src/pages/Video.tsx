@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Link2, Share2, VideoIcon, RotateCcw, Upload, Play, Pause, Maximize } from "lucide-react";
+import { Download, Link2, Share2, VideoIcon, RotateCcw, Upload, Play, Pause, Maximize, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 const RESOLUTIONS = [
@@ -316,7 +316,27 @@ const VideoPage = () => {
                   </label>
                   <Input type="file" accept="image/*" className="hidden" id="start-upload" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], true)} />
                   <Input placeholder="Ou cole a URL aqui" value={frameStartUrl} onChange={(e) => setFrameStartUrl(e.target.value)} className="mt-2" />
-                  {uploadingStart && <p className="text-sm text-muted-foreground mt-1">Enviando...</p>}
+{uploadingStart && <p className="text-sm text-muted-foreground mt-1">Enviando...</p>}
+{frameStartUrl && (
+  <div className="mt-2 inline-block relative">
+    <img
+      src={frameStartUrl}
+      alt="Prévia do frame inicial"
+      className="w-16 h-16 rounded border border-border object-cover"
+      loading="lazy"
+    />
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background/80 hover:bg-accent"
+      onClick={() => setFrameStartUrl("")}
+      aria-label="Remover frame inicial"
+    >
+      <X className="h-4 w-4" />
+    </Button>
+  </div>
+)}
                 </div>
                 <div>
                   <Label>Frame Final (opcional)</Label>
@@ -327,6 +347,26 @@ const VideoPage = () => {
                   <Input type="file" accept="image/*" className="hidden" id="end-upload" onChange={(e) => e.target.files?.[0] && uploadImage(e.target.files[0], false)} />
                   <Input placeholder="Ou cole a URL aqui" value={frameEndUrl} onChange={(e) => setFrameEndUrl(e.target.value)} className="mt-2" />
                   {uploadingEnd && <p className="text-sm text-muted-foreground mt-1">Enviando...</p>}
+                  {frameEndUrl && (
+                    <div className="mt-2 inline-block relative">
+                      <img
+                        src={frameEndUrl}
+                        alt="Prévia do frame final"
+                        className="w-16 h-16 rounded border border-border object-cover"
+                        loading="lazy"
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-background/80 hover:bg-accent"
+                        onClick={() => setFrameEndUrl("")}
+                        aria-label="Remover frame final"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
               <Button className="w-full" onClick={startGeneration} disabled={isSubmitting || !prompt}>
