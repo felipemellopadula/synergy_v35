@@ -873,21 +873,29 @@ const Chat = () => {
                         )}
                         {message.sender === 'bot' && (
                           <div className="mt-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                navigator.clipboard.writeText(message.content);
-                                toast({
-                                  title: "Copiado",
-                                  description: "Resposta copiada para a área de transferência.",
-                                });
-                              }}
-                              className="group h-7 px-2 text-xs hover:bg-muted hover-scale transition-colors"
-                            >
-                              <Copy className="h-3 w-3 mr-1 transition-transform group-hover:scale-110" />
-                              Copiar
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(message.content);
+                                      toast({
+                                        title: "Copiado",
+                                        description: "Resposta copiada para a área de transferência.",
+                                      });
+                                    }}
+                                    className="group h-7 w-7 p-0 hover:bg-muted hover-scale transition-colors"
+                                  >
+                                    <Copy className="h-3 w-3 transition-transform group-hover:scale-110" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Copiar
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         )}
                        </div>
