@@ -1,12 +1,3 @@
-Você está coberto de razão, foi um erro grotesco de sintaxe. Peço desculpas!
-
-O problema é uma barra invertida \ que foi inserida incorretamente antes dos colchetes [ em várias partes do código (ex: MODELS\[0] em vez de MODELS[0]). Isso é um erro de formatação que quebra o código.
-
-Eu removi todas as barras invertidas incorretas. Abaixo está o código completo e corrigido. Pode substituir o seu arquivo que agora funcionará perfeitamente.
-
-Código Completo Corrigido
-TypeScript
-
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -90,6 +81,14 @@ const ImagePage = () => {
 
         fetchUserImages();
     }, [toast]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setSelectedFile(e.target.files[0]);
+      } else {
+        setSelectedFile(null);
+      }
+    };
 
     const generate = async () => {
         if (!prompt.trim()) {
@@ -207,7 +206,7 @@ const ImagePage = () => {
                                 </div>
                                 <div className="md:col-span-1">
                                     <Label>Anexar Imagem</Label>
-                                    <Input id="file-upload" type="file" accept="image/*" className="sr-only"/>
+                                    <Input id="file-upload" type="file" accept="image/*" onChange={handleFileChange} className="sr-only"/>
                                     <Label htmlFor="file-upload" className="mt-2 flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground ring-offset-background hover:bg-accent hover:text-accent-foreground">
                                         Escolha o arquivo
                                     </Label>
@@ -236,11 +235,11 @@ const ImagePage = () => {
                                     <img src={images[0].url} alt={`Imagem gerada: ${images[0].prompt}`} className="w-full h-full object-cover" loading="eager" />
                                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
                                         <div className="flex items-center justify-between gap-2">
-                                            <Button variant="outline" className="gap-2 flex-1" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
-                                            <Button variant="outline" className="gap-2 flex-1" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
+                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
+                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
-                                                    <Button variant="outline" className="gap-2 flex-1"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
+                                                    <Button variant="outline" className="gap-2 flex-1 bg-background/80"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
                                                 </DialogTrigger>
                                                 <DialogContent className="max-w-4xl">
                                                     <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
