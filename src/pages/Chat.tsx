@@ -920,100 +920,102 @@ const Chat = () => {
           <div className="border-t border-border bg-background p-4">
             <div className="max-w-4xl mx-auto">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                {/* Unified layout for all devices - Mobile/iPad/Desktop */}
-                <div className="flex w-full gap-2">
-                  {/* Plus button with attachments menu */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 w-10 p-0 hover:bg-muted rounded-full shrink-0"
+                {/* Unified layout for all devices - Plus button inside input */}
+                <div className="flex-1 relative">
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    multiple
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                  />
+                  
+                  {/* Plus button with attachments menu - inside input */}
+                  <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-muted rounded-full"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent 
+                        side="top" 
+                        align="start" 
+                        className="mb-2 bg-background border border-border shadow-lg z-50 min-w-[180px]"
                       >
-                        <Plus className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent 
-                      side="top" 
-                      align="start" 
-                      className="mb-2 bg-background border border-border shadow-lg z-50 min-w-[180px]"
-                    >
-                      <DropdownMenuItem 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                        <span>Anexar arquivo</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={toggleWebSearchMode}
-                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
-                      >
-                        <Globe className="h-4 w-4" />
-                        <span>{isWebSearchMode ? 'Desativar busca web' : 'Buscar na web'}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      multiple
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                    />
-                  </DropdownMenu>
+                        <DropdownMenuItem 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                          <span>Anexar arquivo</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={toggleWebSearchMode}
+                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
+                        >
+                          <Globe className="h-4 w-4" />
+                          <span>{isWebSearchMode ? 'Desativar busca web' : 'Buscar na web'}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
 
-                  {/* Input area with auto-resize */}
-                  <div className="flex-1 relative">
-                    <Textarea
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa"}
-                      disabled={isLoading}
-                      className="w-full pl-4 pr-20 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[44px] max-h-32"
-                      rows={1}
-                      style={{
-                        height: 'auto',
-                        minHeight: '44px'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                      }}
-                    />
+                  {/* Textarea with padding for buttons */}
+                  <Textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa"}
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-20 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[44px] max-h-32"
+                    rows={1}
+                    style={{
+                      height: 'auto',
+                      minHeight: '44px'
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+                    }}
+                  />
+                  
+                  {/* Right side buttons - Mic and Send */}
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={isRecording ? stopRecording : startRecording}
+                            className={`h-8 w-8 p-0 hover:bg-muted rounded-full ${isRecording ? 'text-red-500' : ''}`}
+                          >
+                            <Mic className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Grave uma mensagem de até 30s
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     
-                    {/* Right side buttons - Mic and Send */}
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={isRecording ? stopRecording : startRecording}
-                              className={`h-8 w-8 p-0 hover:bg-muted rounded-full ${isRecording ? 'text-red-500' : ''}`}
-                            >
-                              <Mic className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Grave uma mensagem de até 30s
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      
-                      <Button 
-                        type="submit" 
-                        disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)}
-                        size="sm"
-                        className="h-8 w-8 p-0 rounded-full"
-                      >
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)}
+                      size="sm"
+                      className="h-8 w-8 p-0 rounded-full"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </form>
