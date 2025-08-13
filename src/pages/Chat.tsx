@@ -995,14 +995,44 @@ const Chat = () => {
                     </TooltipProvider>
                   </div>
                 </div>
-                <Button type="submit" disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)} size="lg" className="hidden md:inline-flex">
+                <Button type="submit" disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)} size="lg" className="hidden lg:inline-flex">
                   Enviar
                 </Button>
 
                 {/* Mobile/iPad version - New layout */}
-                <div className="flex md:hidden w-full gap-2">
+                <div className="flex lg:hidden w-full gap-2">
                   {/* Plus button with attachments menu */}
-                  <div className="relative">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 w-10 p-0 hover:bg-muted rounded-full shrink-0"
+                      >
+                        <Plus className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent 
+                      side="top" 
+                      align="start" 
+                      className="mb-2 bg-background border border-border shadow-lg z-50 min-w-[180px]"
+                    >
+                      <DropdownMenuItem 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
+                      >
+                        <Paperclip className="h-4 w-4" />
+                        <span>Anexar arquivo</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={toggleWebSearchMode}
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
+                      >
+                        <Globe className="h-4 w-4" />
+                        <span>{isWebSearchMode ? 'Desativar busca web' : 'Buscar na web'}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1011,45 +1041,7 @@ const Chat = () => {
                       multiple
                       accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
                     />
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const attachButton = document.getElementById('attach-menu');
-                              if (attachButton) {
-                                attachButton.click();
-                              }
-                            }}
-                            className="h-10 w-10 p-0 hover:bg-muted rounded-full"
-                          >
-                            <Plus className="h-5 w-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Anexos e busca web
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button id="attach-menu" className="hidden"></button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="top" align="start" className="mb-2">
-                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                          <Paperclip className="h-4 w-4 mr-2" />
-                          Anexar arquivo
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={toggleWebSearchMode}>
-                          <Globe className="h-4 w-4 mr-2" />
-                          {isWebSearchMode ? 'Desativar busca web' : 'Buscar na web'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  </DropdownMenu>
 
                   {/* Input area with auto-resize */}
                   <div className="flex-1 relative">
