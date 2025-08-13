@@ -32,35 +32,44 @@ const ImagePage = () => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [prompt, setPrompt] = useState("");
-    const [model, setModel] = useState(MODELS\[0].id);
-    const [quality, setQuality] = useState(QUALITY_SETTINGS\[0].id);
+    const [model, setModel] = useState(MODELS[0].id);
+    const [quality, setQuality] = useState(QUALITY_SETTINGS[0].id);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [images, setImages] = useState<GeneratedImage[]>([]);
+    // --- NOVO ESTADO PARA CONTROLAR O CARREGAMENTO INICIAL ---
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const selectedQualityInfo = useMemo(() => QUALITY_SETTINGS.find(q => q.id === quality)!, [quality]);
 
     useEffect(() => {
         document.title = "Gerar Imagens com IA | Synergy AI";
     }, []);
 
+    // --- LÓGICA DE BUSCA DE HISTÓRICO CORRIGIDA ---
     useEffect(() => {
         const fetchUserImages = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                console.log("Usuário não logado, não é possível buscar histórico.");
+            // Primeiro, espera a confirmação da sessão do usuário
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            // Se não houver sessão (usuário não logado), para o carregamento e não mostra erro.
+            if (!session?.user) {
+                console.log("Usuário não logado. O histórico não será carregado.");
+                setIsLoadingHistory(false);
                 return;
             }
 
+            // Agora que temos certeza que o usuário existe, buscamos os dados.
             const { data, error } = await supabase
                 .from('generated_images')
                 .select('*')
-                .eq('user_id', user.id)
+                .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false })
                 .limit(MAX_IMAGES_TO_FETCH);
 
             if (error) {
                 console.error("Erro ao buscar histórico:", error);
+                // Só mostra o erro se a falha for do banco, não por falta de login
                 toast({ title: "Erro", description: "Não foi possível carregar seu histórico.", variant: "destructive" });
             } else if (data) {
                 const formattedImages = data.map(dbImg => ({
@@ -73,18 +82,20 @@ const ImagePage = () => {
                     quality: dbImg.quality || 'standard',
                     width: dbImg.width || 1024,
                     height: dbImg.height || 1024,
-                    model: dbImg.model || MODELS\[0].id,
+                    model: dbImg.model || MODELS[0].id,
                 }));
                 setImages(formattedImages);
             }
+            // Finaliza o estado de carregamento
+            setIsLoadingHistory(false);
         };
 
         fetchUserImages();
     }, [toast]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files\[0]) {
-        setSelectedFile(e.target.files\[0]);
+      if (e.target.files && e.target.files[0]) {
+        setSelectedFile(e.target.files[0]);
       } else {
         setSelectedFile(null);
       }
@@ -233,39 +244,43 @@ const ImagePage = () => {
                             ) : images.length > 0 ? (
                                 <div className="w-full">
                                     <div className="aspect-square relative">
-                                        <img src={images\[0].url} alt={`Imagem gerada: ${images\[0].prompt}`} className="w-full h-full object-cover" loading="eager" />
-                                        {/* Botões sobrepostos em telas maiores (sm e acima) */}
+                                        <img src={images[0].url} alt={`Imagem gerada: ${images[0].prompt}`} className="w-full h-full object-cover" loading="eager" />
                                         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent hidden sm:flex items-center justify-between gap-2">
-                                            <Button variant="outline" className="gap-2 flex-1 bg-purple-500 text-white" onClick={() => handleDownload(images\[0])}><Download className="h-4 w-4" /> Baixar</Button>
-                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleShare(images\[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
+                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
+                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
                                                     <Button variant="outline" className="gap-2 flex-1 bg-background/80"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
                                                 </DialogTrigger>
                                                 <DialogContent className="max-w-4xl">
-                                                    <img src={images\[0].url} alt={`Imagem ampliada: ${images\[0].prompt}`} className="w-full h-auto" />
+                                                    <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
                                                 </DialogContent>
                                             </Dialog>
                                         </div>
                                     </div>
-                                    {/* Botões abaixo da imagem apenas em telas pequenas (mobile) */}
                                     <div className="sm:hidden flex flex-col items-stretch gap-2 p-4 border-t">
-                                        <Button variant="outline" className="gap-2 w-full bg-purple-500 text-white" onClick={() => handleDownload(images\[0])}><Download className="h-4 w-4" /> Baixar</Button>
-                                        <Button variant="outline" className="gap-2 w-full" onClick={() => handleShare(images\[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
+                                        <Button variant="outline" className="gap-2 w-full" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
+                                        <Button variant="outline" className="gap-2 w-full" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
                                         <Dialog>
                                             <DialogTrigger asChild>
                                                 <Button variant="outline" className="gap-2 w-full"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
                                             </DialogTrigger>
                                             <DialogContent className="max-w-4xl">
-                                                <img src={images\[0].url} alt={`Imagem ampliada: ${images\[0].prompt}`} className="w-full h-auto" />
+                                                <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
                                             </DialogContent>
                                         </Dialog>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center gap-2 text-muted-foreground aspect-square w-full justify-center">
-                                    <ImageIcon className="h-12 w-12" />
-                                    <span className="text-lg font-medium">Sua imagem aparecerá aqui</span>
+                                    {isLoadingHistory ? (
+                                      <Loader2 className="h-10 w-10 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <ImageIcon className="h-12 w-12" />
+                                        <span className="text-lg font-medium">Sua imagem aparecerá aqui</span>
+                                      </>
+                                    )}
                                 </div>
                             )}
                         </Card>
@@ -274,7 +289,7 @@ const ImagePage = () => {
                     <div className="lg:col-span-2">
                         <div className="grid grid-cols-3 gap-3">
                             {Array.from({ length: 9 }).map((_, index) => {
-                                const img = images\[index + 1];
+                                const img = images[index + 1];
                                 if (img) {
                                     return (
                                         <Dialog key={img.id}>
