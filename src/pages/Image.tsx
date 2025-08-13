@@ -1,12 +1,3 @@
-Peço desculpas novamente. O mesmo erro de formatação aconteceu, inserindo uma barra invertida \ onde não deveria.
-
-O problema está em linhas como MODELS\[0], que deveriam ser apenas MODELS[0].
-
-Abaixo está o código 100% limpo e corrigido, sem o erro de sintaxe. Pode substituir seu arquivo por este.
-
-Código Completo Corrigido
-TypeScript
-
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -233,7 +224,7 @@ const ImagePage = () => {
 
                 <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
                     <div className="lg:col-span-3">
-                        <Card className="w-full rounded-lg sm:aspect-square flex flex-col sm:flex-row items-center justify-center overflow-hidden relative bg-muted">
+                        <Card className="w-full rounded-lg sm:aspect-square flex flex-col items-center justify-center overflow-hidden relative bg-muted">
                             {isGenerating ? (
                                 <div className="flex flex-col items-center gap-4 text-muted-foreground aspect-square w-full justify-center">
                                     <Loader2 className="h-10 w-10 animate-spin" />
@@ -272,7 +263,7 @@ const ImagePage = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <div className="flex flex-col items-center gap-2 text-muted-foreground aspect-square w-full justify-center">
                                     <ImageIcon className="h-12 w-12" />
                                     <span className="text-lg font-medium">Sua imagem aparecerá aqui</span>
                                 </div>
