@@ -17,9 +17,6 @@ import {
   ShieldCheck,
   Globe,
   Server,
-  Plus,
-  Search,
-  Image,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,8 +24,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -83,67 +78,6 @@ const Index = () => {
   }
   return (
     <div className="min-h-screen bg-background text-foreground flex">
-      {/* Sidebar */}
-      <aside className="hidden md:block w-64 border-r border-border bg-background/80 backdrop-blur flex-shrink-0 overflow-y-auto">
-        <div className="p-4">
-          <Button variant="outline" className="w-full mb-4">
-            <Plus className="h-4 w-4 mr-2" /> Novo chat
-          </Button>
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Buscar em chats" />
-          </div>
-          <div className="space-y-2 mb-4">
-            <Button variant="ghost" className="w-full justify-start">
-              <Image className="h-4 w-4 mr-2" /> Galeria
-            </Button>
-          </div>
-          <ScrollArea className="h-[calc(100vh-200px)]">
-            <nav className="space-y-1">
-              <Button variant="ghost" className="w-full justify-start text-left">
-                Sora
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left">
-                GPTs
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left">
-                Chat Português
-              </Button>
-              <div className="px-3 py-2 text-xs text-muted-foreground">Chats</div>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Diagnóstico e tratamento ave
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Imagem para clínica de golfe
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Faculdade Medicina Veterinária ...
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Criar imagem de pessoas
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Erro MPE1500 CPF irregular
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Criar imagem descrição
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Imagens para oficinas de canto
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Oficinas de voz coral
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Melhorar pontuação mensagem
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-left truncate">
-                Alessandra Vaz Cardoso
-              </Button>
-            </nav>
-          </ScrollArea>
-        </div>
-      </aside>
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
