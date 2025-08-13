@@ -1,4 +1,4 @@
-import { ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown } from "lucide-react";
+Pensou por 1m 3sjsximport { ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose 
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
+
 interface Message {
   id: string;
   content: string;
@@ -109,13 +110,11 @@ const Chat = () => {
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
     if (!chatContainer) return;
-
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = chatContainer;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollToBottom(!isNearBottom && messages.length > 0);
     };
-
     chatContainer.addEventListener('scroll', handleScroll);
     return () => chatContainer.removeEventListener('scroll', handleScroll);
   }, [messages.length]);
@@ -148,35 +147,27 @@ const Chat = () => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
-    
     for (const file of files) {
       // Validate file types and sizes
-      const isValidType = file.type.startsWith('image/') || 
-                         file.type.includes('pdf') || 
-                         file.type.includes('word') || 
-                         file.type.includes('document') ||
-                         file.name.endsWith('.doc') ||
-                         file.name.endsWith('.docx');
-      
+      const isValidType = file.type.startsWith('image/') ||
+        file.type.includes('pdf') ||
+        file.type.includes('word') ||
+        file.type.includes('document') ||
+        file.name.endsWith('.doc') ||
+        file.name.endsWith('.docx');
       const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB limit for PDFs
-      
       if (!isValidType) {
         continue;
       }
-      
       if (!isValidSize) {
         continue;
       }
-
       // Add file to attached files first
       setAttachedFiles(prev => [...prev, file]);
-
       // Process PDF files in background
       if (file.type === 'application/pdf') {
-        
         try {
           const result = await PdfProcessor.processPdf(file);
-          
           if (result.success) {
             setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
           } else {
@@ -186,7 +177,6 @@ const Chat = () => {
               variant: "destructive",
             });
           }
-          
         } catch (error) {
           console.error('Erro ao processar PDF:', error);
           toast({
@@ -195,10 +185,8 @@ const Chat = () => {
             variant: "destructive",
           });
         }
-      } else {
       }
     }
-    
     // Reset the input after processing all files to allow re-uploading the same files
     if (event.target) {
       event.target.value = '';
@@ -221,7 +209,6 @@ const Chat = () => {
       };
       mediaRecorder.start();
       setIsRecording(true);
-
       // Enforce max 30s recording
       if (recordingTimeoutRef.current) {
         clearTimeout(recordingTimeoutRef.current);
@@ -232,7 +219,6 @@ const Chat = () => {
           setIsRecording(false);
         }
       }, 30000);
-     
       toast({
         title: "Gravando",
         description: "Fale sua mensagem...",
@@ -261,13 +247,11 @@ const Chat = () => {
     try {
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-     
       const response = await supabase.functions.invoke('voice-to-text', {
         body: { audio: base64Audio }
       });
       if (response.data?.text) {
         setInputValue(prev => prev + (prev ? ' ' : '') + response.data.text);
-
       }
     } catch (error) {
       toast({
@@ -278,7 +262,6 @@ const Chat = () => {
     }
   };
 
-  // Helpers to serialize/deserialize messages
   const toSerializable = (msgs: Message[]) => msgs.map(m => ({
     id: m.id,
     content: m.content,
@@ -343,7 +326,6 @@ const Chat = () => {
         if (shouldRename && finalMessages.some(m => m.sender === 'user')) {
           updatePayload.title = deriveTitle(finalMessages);
         }
-
         const { data, error } = await supabase
           .from('chat_conversations')
           .update(updatePayload)
@@ -398,8 +380,6 @@ const Chat = () => {
   const performWebSearch = async (query: string) => {
     try {
       setIsLoading(true);
-
-      // Add user message and a loading status message to the chat immediately
       const base = messages;
       const baseTime = Date.now();
       const userMessage: Message = {
@@ -417,12 +397,9 @@ const Chat = () => {
         model: 'Busca Web',
       };
       setMessages([...base, userMessage, loadingMessage]);
-
-      // Perform web search
       const response = await supabase.functions.invoke('web-search', {
         body: { query, numResults: 3 }
       });
-
       let searchContent = 'Sem resultados.';
       if (response.data?.results) {
         const searchResults = response.data.results
@@ -430,8 +407,6 @@ const Chat = () => {
           .join('\n\n');
         searchContent = `[Resultados da busca na web para "${query}"]\n\n${searchResults}`;
       }
-
-      // Replace the loading message with the actual results
       const searchMessage: Message = {
         id: loadingId,
         content: searchContent,
@@ -439,12 +414,10 @@ const Chat = () => {
         timestamp: new Date(),
         model: 'Busca Web',
       };
-
       const withLoading = [...base, userMessage, loadingMessage];
       const finalMessages = withLoading.map(m => (m.id === loadingId ? searchMessage : m));
       setMessages(finalMessages);
       await upsertConversation(finalMessages);
-
       toast({
         title: 'Busca concluída',
         description: response.data?.results ? 'Resultados da busca na web encontrados' : 'Nenhum resultado encontrado.',
@@ -465,28 +438,22 @@ const Chat = () => {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if ((!inputValue.trim() && attachedFiles.length === 0) || isLoading) return;
-    
     const currentInput = inputValue;
     const currentFiles = [...attachedFiles];
     setInputValue('');
     setAttachedFiles([]);
     setProcessedPdfs(new Map());
-    
-    // Reset file input to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    // If web search mode is active, perform web search instead
     if (isWebSearchMode) {
       await performWebSearch(currentInput);
       return;
     }
-    // Check and consume tokens before sending message
     const canProceed = await consumeTokens(selectedModel, currentInput);
     if (!canProceed) {
       return;
     }
-    // Convert files to base64 and include PDF content
     const fileData = await Promise.all(
       currentFiles.map(async (file) => {
         const baseData = {
@@ -494,23 +461,16 @@ const Chat = () => {
           type: file.type,
           data: await fileToBase64(file),
         };
-        
-        // If it's a PDF, include the processed content
         if (file.type === 'application/pdf') {
           const pdfContent = processedPdfs.get(file.name);
-          console.log(`PDF ${file.name} has content:`, !!pdfContent, 'length:', pdfContent?.length || 0);
           return {
             ...baseData,
             pdfContent: pdfContent || '',
           };
         }
-        
         return baseData;
       })
     );
-
-    console.log('Sending files to AI:', fileData.map(f => ({ name: f.name, type: f.type, hasPdfContent: !!(f as any).pdfContent })));
-
     const userMessage: Message = {
       id: Date.now().toString(),
       content: currentInput,
@@ -518,11 +478,9 @@ const Chat = () => {
       timestamp: new Date(),
       files: currentFiles.length > 0 ? currentFiles.map(f => ({ name: f.name, type: f.type })) : undefined,
     };
-    const base = messages;
-    const messagesAfterUser = [...base, userMessage];
+    const messagesAfterUser = [...messages, userMessage];
     setMessages(messagesAfterUser);
     setIsLoading(true);
-
     try {
       const internalModel = selectedModel === 'synergy-ia' ? 'gpt-4o-mini' : selectedModel;
       const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', {
@@ -532,15 +490,10 @@ const Chat = () => {
           files: fileData.length > 0 ? fileData : undefined,
         },
       });
-      
-      if (fnError) {
-        throw fnError;
-      }
-      
+      if (fnError) throw fnError;
       const data = fnData as any;
       let content = '';
       let reasoning = '';
-
       if (typeof data.response === 'string') {
         try {
           const parsed = JSON.parse(data.response);
@@ -552,7 +505,6 @@ const Chat = () => {
       } else {
         content = data.response || 'Desculpe, não consegui processar sua mensagem.';
       }
-
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         content,
@@ -561,11 +513,9 @@ const Chat = () => {
         model: selectedModel,
         reasoning: reasoning || undefined,
       };
-      
       const finalMessages = [...messagesAfterUser, botMessage];
       setMessages(finalMessages);
       await upsertConversation(finalMessages);
-      
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -573,8 +523,6 @@ const Chat = () => {
         description: "Não foi possível enviar a mensagem. Tente novamente.",
         variant: "destructive",
       });
-      
-      // Persist at least the user question
       await upsertConversation(messagesAfterUser);
     } finally {
       setIsLoading(false);
@@ -583,26 +531,16 @@ const Chat = () => {
 
   const handleModelSelect = async (newModel: string) => {
     if (newModel === selectedModel) return;
-
-    // Persist the current conversation if it has content
-    try {
-      if (messages.length > 0) {
-        await upsertConversation(messages);
-      }
-    } catch (e) {
-      console.error('Erro ao salvar conversa atual antes de trocar o modelo:', e);
+    if (messages.length > 0) {
+      await upsertConversation(messages);
     }
-
-    // Reset UI state and start fresh
     setSelectedModel(newModel);
+    setMessages([]);
     setInputValue('');
     setAttachedFiles([]);
     setProcessedPdfs(new Map());
     setExpandedReasoning({});
     setIsWebSearchMode(false);
-    setMessages([]);
-
-    // Create and persist a brand-new empty conversation
     setCurrentConversationId(null);
     try {
       const { data, error } = await supabase
@@ -614,7 +552,6 @@ const Chat = () => {
         })
         .select('*')
         .single();
-
       if (error) {
         console.error('Erro ao criar nova conversa ao trocar de modelo:', error);
       } else if (data) {
@@ -632,12 +569,7 @@ const Chat = () => {
       <div className="sticky top-0 z-50 w-full border-b border-border bg-background">
         <div className="flex h-16 items-center justify-between px-4 md:px-6 py-1">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 hover:bg-muted"
-            >
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2 hover:bg-muted">
               <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
@@ -677,34 +609,18 @@ const Chat = () => {
                   <div>
                     <div className="text-sm text-muted-foreground mb-2">Histórico</div>
                     <div className="mb-3">
-                      <input
-                        placeholder="Pesquisar conversas..."
-                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-                        onChange={() => {}}
-                      />
+                      <input placeholder="Pesquisar conversas..." className="w-full h-9 rounded-md border bg-background px-3 text-sm" onChange={() => { }} />
                     </div>
                     <ScrollArea className="max-h-[60vh] pr-2">
-                      {conversations.filter(c => c.is_favorite).length === 0 && (
-                        <div className="px-1 py-2 text-xs text-muted-foreground">Nenhum favorito</div>
-                      )}
                       {conversations.filter(c => c.is_favorite).map((c) => (
                         <SheetClose asChild key={c.id}>
-                          <button
-                            onClick={() => openConversation(c)}
-                            className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-                          >
+                          <button onClick={() => openConversation(c)} className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}>
                             <span className="truncate text-sm">{c.title}</span>
                             <span className="flex items-center gap-2">
-                               <button
-                                 className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                                 onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
-                               >
-                                 <Star className="h-4 w-4 transition-colors transform-none text-yellow-500" fill="currentColor" strokeWidth={0} />
-                               </button>
-                              <button 
-                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                              >
+                              <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}>
+                                <Star className="h-4 w-4 transition-colors transform-none text-yellow-500" fill="currentColor" strokeWidth={0} />
+                              </button>
+                              <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}>
                                 <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
                               </button>
                             </span>
@@ -714,26 +630,13 @@ const Chat = () => {
                       <div className="px-1 pt-3 pb-2 text-xs text-muted-foreground">Recentes</div>
                       {conversations.filter(c => !c.is_favorite).map((c) => (
                         <SheetClose asChild key={c.id}>
-                          <button
-                            onClick={() => openConversation(c)}
-                            className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-                          >
+                          <button onClick={() => openConversation(c)} className={`w-full text-left px-2 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}>
                             <span className="truncate text-sm">{c.title}</span>
                             <span className="flex items-center gap-2">
-                               <button
-                                 className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                                 onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
-                               >
-                                  <Star
-                                    className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`}
-                                    fill={c.is_favorite ? 'currentColor' : 'none'}
-                                    strokeWidth={c.is_favorite ? 0 : 2}
-                                  />
-                               </button>
-                              <button 
-                                className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                                onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                              >
+                              <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}>
+                                <Star className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`} fill={c.is_favorite ? 'currentColor' : 'none'} strokeWidth={c.is_favorite ? 0 : 2} />
+                              </button>
+                              <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}>
                                 <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
                               </button>
                             </span>
@@ -751,42 +654,28 @@ const Chat = () => {
           </div>
         </div>
       </div>
-      {/* Body */}
-      <div className="flex-1 flex">
+      {/* Main Body (Sidebar + Chat Area) */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Conversations Sidebar */}
         <aside className="w-72 border-r border-border bg-background hidden md:flex md:flex-col">
           <div className="flex flex-col h-full">
             <div className="p-3 border-b border-border shrink-0">
-              <input
-                placeholder="Pesquisar conversas..."
-                className="w-full h-9 rounded-md border bg-background px-3 text-sm"
-                onChange={() => {}}
-              />
+              <input placeholder="Pesquisar conversas..." className="w-full h-9 rounded-md border bg-background px-3 text-sm" onChange={() => { }} />
             </div>
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 pr-2">
               <div className="p-3">
                 <div className="pb-2 text-xs text-muted-foreground">Favoritos</div>
                 {conversations.filter(c => c.is_favorite).length === 0 && (
                   <div className="py-2 text-xs text-muted-foreground">Nenhum favorito</div>
                 )}
                 {conversations.filter(c => c.is_favorite).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => openConversation(c)}
-                    className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-                  >
+                  <button key={c.id} onClick={() => openConversation(c)} className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}>
                     <span className="truncate text-sm">{c.title}</span>
                     <span className="flex items-center gap-2">
-                      <button
-                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                        onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
-                      >
+                      <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}>
                         <Star className="h-4 w-4 transition-colors transform-none text-yellow-500" fill="currentColor" strokeWidth={0} />
                       </button>
-                      <button 
-                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                        onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                      >
+                      <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}>
                         <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
                       </button>
                     </span>
@@ -794,27 +683,13 @@ const Chat = () => {
                 ))}
                 <div className="pt-3 pb-2 text-xs text-muted-foreground">Recentes</div>
                 {conversations.filter(c => !c.is_favorite).map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => openConversation(c)}
-                    className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-                  >
+                  <button key={c.id} onClick={() => openConversation(c)} className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}>
                     <span className="truncate text-sm">{c.title}</span>
                     <span className="flex items-center gap-2">
-                      <button
-                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                        onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
-                      >
-                        <Star
-                          className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`}
-                          fill={c.is_favorite ? 'currentColor' : 'none'}
-                          strokeWidth={c.is_favorite ? 0 : 2}
-                        />
+                      <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}>
+                        <Star className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`} fill={c.is_favorite ? 'currentColor' : 'none'} strokeWidth={c.is_favorite ? 0 : 2} />
                       </button>
-                      <button 
-                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                        onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                      >
+                      <button className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}>
                         <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
                       </button>
                     </span>
@@ -826,7 +701,6 @@ const Chat = () => {
         </aside>
         {/* Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          {/* Chat Messages */}
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto p-4 space-y-4">
               {messages.length === 0 ? (
@@ -839,125 +713,65 @@ const Chat = () => {
                 </div>
               ) : (
                 messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
+                  <div key={message.id} className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     {message.sender === 'bot' && (
                       <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          AI
-                        </AvatarFallback>
+                        <AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback>
                       </Avatar>
                     )}
-                     <div
-                      className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                        message.sender === 'user'
-                          ? 'bg-primary text-primary-foreground ml-auto'
-                          : 'bg-muted'
-                      }`}
-                    >
-                       <div className="space-y-2">
-                         {message.files && message.sender === 'user' && (
-                           <div className="mb-2 flex flex-wrap gap-2">
-                             {message.files.map((file, idx) => (
-                               <div key={idx} className="bg-background/50 px-3 py-1 rounded-full text-xs">
-                                 📎 {file.name}
-                               </div>
-                             ))}
-                           </div>
-                         )}
-                         {message.reasoning && message.sender === 'bot' && (
-                           <div className="border-b border-border pb-2">
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => setExpandedReasoning(prev => ({
-                                 ...prev,
-                                 [message.id]: !prev[message.id]
-                               }))}
-                               className="h-auto p-1 text-xs opacity-70 hover:opacity-100"
-                             >
-                               {expandedReasoning[message.id] ? (
-                                 <>
-                                   <ChevronUp className="h-3 w-3 mr-1" />
-                                   Ocultar raciocínio
-                                 </>
-                               ) : (
-                                 <>
-                                   <ChevronDown className="h-3 w-3 mr-1" />
-                                   Mostrar raciocínio
-                                 </>
-                               )}
-                             </Button>
-                             {expandedReasoning[message.id] && (
-                               <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap">
-                                 {message.reasoning}
-                               </div>
-                             )}
-                           </div>
-                         )}
-                           <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
-                             <ReactMarkdown 
-                               remarkPlugins={[remarkGfm]}
-                               components={{
-                                 h1: ({node, ...props}) => <h1 className="font-bold text-lg mb-3 mt-4 first:mt-0 text-foreground" {...props} />,
-                                 h2: ({node, ...props}) => <h2 className="font-bold text-base mb-2 mt-4 first:mt-0 text-foreground" {...props} />,
-                                 h3: ({node, ...props}) => <h3 className="font-bold text-sm mb-2 mt-3 first:mt-0 text-foreground" {...props} />,
-                                 h4: ({node, ...props}) => <h4 className="font-bold text-sm mb-2 mt-3 first:mt-0 text-foreground" {...props} />,
-                                 h5: ({node, ...props}) => <h5 className="font-bold text-sm mb-2 mt-3 first:mt-0 text-foreground" {...props} />,
-                                 h6: ({node, ...props}) => <h6 className="font-bold text-sm mb-2 mt-3 first:mt-0 text-foreground" {...props} />,
-                                 strong: ({node, ...props}) => <strong className="font-bold text-foreground" {...props} />,
-                                 em: ({node, ...props}) => <em className="italic text-foreground" {...props} />,
-                                 ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-3 space-y-1 text-foreground" {...props} />,
-                                 ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-3 space-y-1 text-foreground" {...props} />,
-                                 li: ({node, ...props}) => <li className="text-foreground" {...props} />,
-                                 p: ({node, ...props}) => <p className="mb-2 text-foreground leading-relaxed" {...props} />,
-                                 blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-border pl-4 my-3 italic text-foreground" {...props} />,
-                                  code: ({node, ...props}) => 
-                                      <code className="bg-muted px-1 py-0.5 rounded text-sm font-mono text-foreground" {...props} />,
-                                 pre: ({node, ...props}) => <pre className="bg-muted p-3 rounded text-sm font-mono text-foreground overflow-x-auto mb-3" {...props} />,
-                               }}
-                             >
-                               {message.content}
-                             </ReactMarkdown>
-                            {message.isStreaming && (
-                              <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />
-                            )}
+                    <div className={`max-w-[80%] rounded-lg px-4 py-2 ${message.sender === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted'}`}>
+                      <div className="space-y-2">
+                        {message.files && message.sender === 'user' && (
+                          <div className="mb-2 flex flex-wrap gap-2">
+                            {message.files.map((file, idx) => (
+                              <div key={idx} className="bg-background/50 px-3 py-1 rounded-full text-xs">
+                                📎 {file.name}
+                              </div>
+                            ))}
                           </div>
+                        )}
+                        {message.reasoning && message.sender === 'bot' && (
+                          <div className="border-b border-border pb-2">
+                            <Button variant="ghost" size="sm" onClick={() => setExpandedReasoning(prev => ({ ...prev, [message.id]: !prev[message.id] }))} className="h-auto p-1 text-xs opacity-70 hover:opacity-100">
+                              {expandedReasoning[message.id] ? (<><ChevronUp className="h-3 w-3 mr-1" /> Ocultar raciocínio</>) : (<><ChevronDown className="h-3 w-3 mr-1" /> Mostrar raciocínio</>)}
+                            </Button>
+                            {expandedReasoning[message.id] && (<div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap">{message.reasoning}</div>)}
+                          </div>
+                        )}
+                        <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              h1: ({ node, ...props }) => <h1 className="font-bold text-lg mb-3 mt-4 first:mt-0 text-foreground" {...props} />,
+                              h2: ({ node, ...props }) => <h2 className="font-bold text-base mb-2 mt-4 first:mt-0 text-foreground" {...props} />,
+                              h3: ({ node, ...props }) => <h3 className="font-bold text-sm mb-2 mt-3 first:mt-0 text-foreground" {...props} />,
+                              p: ({ node, ...props }) => <p className="mb-2 text-foreground leading-relaxed" {...props} />,
+                              ul: ({ node, ...props }) => <ul className="list-disc pl-6 mb-3 space-y-1 text-foreground" {...props} />,
+                              ol: ({ node, ...props }) => <ol className="list-decimal pl-6 mb-3 space-y-1 text-foreground" {...props} />,
+                              code: ({ node, ...props }) => <code className="bg-muted px-1 py-0.5 rounded text-sm font-mono text-foreground" {...props} />,
+                              pre: ({ node, ...props }) => <pre className="bg-muted p-3 rounded text-sm font-mono text-foreground overflow-x-auto mb-3" {...props} />,
+                            }}
+                          >{message.content}</ReactMarkdown>
+                          {message.isStreaming && (<span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />)}
+                        </div>
                         {message.model && message.sender === 'bot' && (
-                          <p className="text-xs opacity-70 mt-1">
-                            {getModelDisplayName(message.model)} • {getTokenCost(message.model).toLocaleString()} tokens
-                          </p>
+                          <p className="text-xs opacity-70 mt-1">{getModelDisplayName(message.model)} • {getTokenCost(message.model).toLocaleString()} tokens</p>
                         )}
                         {message.sender === 'bot' && (
                           <div className="mt-2">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(message.content);
-                                      toast({
-                                        title: "Copiado",
-                                        description: "Resposta copiada para a área de transferência.",
-                                      });
-                                    }}
-                                    className="group h-7 w-7 p-0 hover:bg-muted hover-scale transition-colors"
-                                  >
+                                  <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(message.content); toast({ title: "Copiado", description: "Resposta copiada para a área de transferência." }); }} className="group h-7 w-7 p-0 hover:bg-muted hover-scale transition-colors">
                                     <Copy className="h-3 w-3 transition-transform group-hover:scale-110" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  Copiar
-                                </TooltipContent>
+                                <TooltipContent>Copiar</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </div>
                         )}
-                       </div>
+                      </div>
                     </div>
                     {message.sender === 'user' && (
                       <Avatar className="h-8 w-8 shrink-0">
@@ -970,9 +784,7 @@ const Chat = () => {
               {isLoading && (
                 <div className="flex gap-3 justify-start">
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      AI
-                    </AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback>
                   </Avatar>
                   <div className="bg-muted rounded-lg px-4 py-2">
                     <div className="flex space-x-1">
@@ -986,147 +798,70 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
           </div>
-
-          {/* Scroll to bottom button */}
           {showScrollToBottom && (
-            <Button
-              onClick={scrollToBottom}
-              className="absolute bottom-24 right-6 h-10 w-10 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-10"
-              size="sm"
-            >
+            <Button onClick={scrollToBottom} className="absolute bottom-24 right-6 h-10 w-10 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-10" size="sm">
               <ArrowDown className="h-4 w-4" />
             </Button>
           )}
-          {/* Message Input - Fixed at bottom */}
           <div className="border-t border-border bg-background p-4">
             <div className="max-w-4xl mx-auto">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                {/* Unified layout for all devices - Plus button inside input */}
                 <div className="flex-1 relative">
-                  {/* Hidden file input */}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    multiple
-                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
-                  />
-                  
-                  {/* Plus button with attachments menu - inside input */}
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" />
                   <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 hover:bg-muted rounded-full"
-                        >
+                        <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted rounded-full">
                           <Plus className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent 
-                        side="top" 
-                        align="start" 
-                        className="mb-2 bg-background border border-border shadow-lg z-50 min-w-[180px]"
-                      >
-                        <DropdownMenuItem 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
-                        >
+                      <DropdownMenuContent side="top" align="start" className="mb-2 bg-background border border-border shadow-lg z-50 min-w-[180px]">
+                        <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted">
                           <Paperclip className="h-4 w-4" />
                           <span>Anexar arquivo</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={toggleWebSearchMode}
-                          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted"
-                        >
+                        <DropdownMenuItem onClick={toggleWebSearchMode} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted">
                           <Globe className="h-4 w-4" />
                           <span>{isWebSearchMode ? 'Desativar busca web' : 'Buscar na web'}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-
-                   {/* Textarea with padding for buttons */}
-                   <Textarea
-                     value={inputValue}
-                     onChange={(e) => setInputValue(e.target.value)}
-                     placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa"}
-                     disabled={isLoading}
-                     className="w-full pl-12 pr-24 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[44px] max-h-32"
-                     rows={1}
-                    style={{
-                      height: 'auto',
-                      minHeight: '44px'
-                    }}
+                  <Textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa"}
+                    disabled={isLoading}
+                    className="w-full pl-12 pr-24 py-3 rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none min-h-[44px] max-h-32"
+                    rows={1}
+                    style={{ height: 'auto', minHeight: '44px' }}
                     onInput={(e) => {
                       const target = e.target as HTMLTextAreaElement;
                       target.style.height = 'auto';
                       target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        if (isMobile) {
-                          // Mobile/iPad: Enter only adds line break, never submits
-                          if (!e.shiftKey) {
-                            e.preventDefault();
-                            const textarea = e.target as HTMLTextAreaElement;
-                            const start = textarea.selectionStart;
-                            const end = textarea.selectionEnd;
-                            const newValue = inputValue.substring(0, start) + '\n' + inputValue.substring(end);
-                            setInputValue(newValue);
-                            
-                            // Set cursor position after the new line
-                            setTimeout(() => {
-                              textarea.selectionStart = textarea.selectionEnd = start + 1;
-                              // Trigger resize
-                              textarea.style.height = 'auto';
-                              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
-                            }, 0);
-                          }
-                        } else {
-                          // Desktop: Enter submits, Shift+Enter adds line break
-                          if (!e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage(e as any);
-                          }
-                        }
+                      if (e.key === 'Enter' && !isMobile && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e as any);
                       }
                     }}
                   />
-                  
-                   {/* Right side buttons - Mic and Send */}
-                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-                     <TooltipProvider>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <Button
-                             type="button"
-                             variant="ghost"
-                             size="sm"
-                             onClick={isRecording ? stopRecording : startRecording}
-                             className={`h-8 w-8 p-0 hover:bg-muted rounded-full ${isRecording ? 'text-red-500' : ''}`}
-                           >
-                             <Mic className="h-4 w-4" />
-                           </Button>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           Grave uma mensagem de até 30s
-                         </TooltipContent>
-                       </Tooltip>
-                     </TooltipProvider>
-                     
-                     <Button 
-                       type="submit" 
-                       disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)}
-                       size="sm"
-                       className="h-8 w-8 p-0 rounded-full bg-primary hover:bg-primary/90"
-                     >
-                       <ArrowUp className="h-4 w-4 text-primary-foreground" />
-                     </Button>
-                   </div>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button type="button" variant="ghost" size="sm" onClick={isRecording ? stopRecording : startRecording} className={`h-8 w-8 p-0 hover:bg-muted rounded-full ${isRecording ? 'text-red-500' : ''}`}>
+                            <Mic className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Grave uma mensagem de até 30s</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button type="submit" disabled={isLoading || (!inputValue.trim() && attachedFiles.length === 0)} size="sm" className="h-8 w-8 p-0 rounded-full bg-primary hover:bg-primary/90">
+                      <ArrowUp className="h-4 w-4 text-primary-foreground" />
+                    </Button>
+                  </div>
                 </div>
               </form>
               {attachedFiles.length > 0 && (
@@ -1134,20 +869,7 @@ const Chat = () => {
                   {attachedFiles.map((file, idx) => (
                     <div key={idx} className="bg-muted px-3 py-1 rounded-full text-sm flex items-center gap-2">
                       📎 {file.name}
-                      <button
-                        onClick={() => {
-                          setAttachedFiles(prev => prev.filter((_, i) => i !== idx));
-                          // Also remove from processed PDFs if it's a PDF
-                          if (file.type === 'application/pdf') {
-                            setProcessedPdfs(prev => {
-                              const newMap = new Map(prev);
-                              newMap.delete(file.name);
-                              return newMap;
-                            });
-                          }
-                        }}
-                        className="text-red-500 hover:text-red-700 ml-1"
-                      >
+                      <button onClick={() => { setAttachedFiles(prev => prev.filter((_, i) => i !== idx)); if (file.type === 'application/pdf') { setProcessedPdfs(prev => { const newMap = new Map(prev); newMap.delete(file.name); return newMap; }); } }} className="text-red-500 hover:text-red-700 ml-1">
                         ×
                       </button>
                     </div>
