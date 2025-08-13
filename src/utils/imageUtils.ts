@@ -112,3 +112,23 @@ export const getRecreationImageData = (image: GeneratedImage): { prompt: string;
     quality: image.quality,
   };
 };
+
+/**
+ * Converte um Data URI (data:image/xxx;base64,...) em um Blob.
+ * Útil para enviar a imagem para o Supabase Storage.
+ */
+export const dataURIToBlob = (dataURI: string): Blob => {
+  const parts = dataURI.split(',');
+  const header = parts[0] || '';
+  const base64 = parts[1] || '';
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+
+  const byteString = atob(base64);
+  const len = byteString.length;
+  const u8 = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    u8[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([u8], { type: mime });
+};

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,8 +26,8 @@ const MODELS = [
   { id: "runware:108@1", label: "Qwen-Image" },
 ];
 
-// 1 imagem principal + 9 no histórico
-const MAX_IMAGES_TO_FETCH = 10; 
+// 5 imagens por usuário (limite no banco)
+const MAX_IMAGES_TO_FETCH = 5; 
 
 const ImagePage = () => {
   const navigate = useNavigate();
@@ -40,6 +40,11 @@ const ImagePage = () => {
   const [isSaving, setIsSaving] = useState(false); // Feedback para o usuário
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const selectedQualityInfo = useMemo(() => QUALITY_SETTINGS.find(q => q.id === quality)!, [quality]);
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+  };
 
   useEffect(() => {
     document.title = "Gerar Imagens com IA | Synergy AI";
@@ -55,7 +60,7 @@ const ImagePage = () => {
       }
 
       const { data, error } = await supabase
-        .from('generated_images')
+        .from('user_images')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -65,18 +70,21 @@ const ImagePage = () => {
         console.error("Erro ao buscar histórico:", error);
         toast({ title: "Erro", description: "Não foi possível carregar seu histórico.", variant: "destructive" });
       } else if (data) {
-        const formattedImages = data.map(dbImg => ({
-          id: dbImg.id,
-          prompt: dbImg.prompt,
-          originalPrompt: dbImg.prompt,
-          detailedPrompt: dbImg.prompt,
-          url: dbImg.image_url,
-          timestamp: dbImg.created_at,
-          quality: dbImg.quality || 'standard',
-          width: dbImg.width || 1024,
-          height: dbImg.height || 1024,
-          model: dbImg.model || MODELS[0].id,
-        }));
+        const formattedImages = data.map(dbImg => {
+          const { data: pub } = supabase.storage.from('images').getPublicUrl(dbImg.image_path);
+          return {
+            id: dbImg.id,
+            prompt: dbImg.prompt || '',
+            originalPrompt: dbImg.prompt || '',
+            detailedPrompt: dbImg.prompt || '',
+            url: pub.publicUrl,
+            timestamp: dbImg.created_at,
+            quality: 'standard',
+            width: dbImg.width || 1024,
+            height: dbImg.height || 1024,
+            model: MODELS[0].id,
+          } as GeneratedImage;
+        });
         setImages(formattedImages);
       }
     };
@@ -122,28 +130,40 @@ const ImagePage = () => {
       
       // --- LÓGICA DE UPLOAD E SALVAMENTO NO BANCO ---
       const imageBlob = dataURIToBlob(imageDataURI);
-      const fileName = `${user.id}/${Date.now()}.png`;
+      const ext = (format || 'png').toLowerCase();
+      const fileName = `${user.id}/${Date.now()}.${ext}`;
       
-      const { error: uploadError } = await supabase.storage.from('generated_images').upload(fileName, imageBlob);
+      const { error: uploadError } = await supabase.storage.from('images').upload(fileName, imageBlob);
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('generated_images').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
 
-      const newImageData = { user_id: user.id, prompt, image_url: publicUrl, model, quality, width: selectedQualityInfo.width, height: selectedQualityInfo.height, };
-      const { data: insertData, error: insertError } = await supabase.from('generated_images').insert(newImageData).select().single();
+      const newImageData = {
+        user_id: user.id,
+        prompt,
+        image_path: fileName,
+        width: selectedQualityInfo.width,
+        height: selectedQualityInfo.height,
+        format: ext,
+      };
+      const { data: insertData, error: insertError } = await supabase
+        .from('user_images')
+        .insert(newImageData)
+        .select()
+        .single();
       if (insertError) throw insertError;
 
       const newImageForState: GeneratedImage = {
           id: insertData.id,
-          prompt: insertData.prompt,
-          originalPrompt: insertData.prompt,
-          detailedPrompt: insertData.prompt,
-          url: insertData.image_url,
+          prompt: insertData.prompt || prompt,
+          originalPrompt: insertData.prompt || prompt,
+          detailedPrompt: insertData.prompt || prompt,
+          url: publicUrl,
           timestamp: insertData.created_at,
-          quality: insertData.quality,
-          width: insertData.width,
-          height: insertData.height,
-          model: insertData.model,
+          quality: quality,
+          width: insertData.width || selectedQualityInfo.width,
+          height: insertData.height || selectedQualityInfo.height,
+          model: model,
       };
 
       setImages(prev => [newImageForState, ...prev].slice(0, MAX_IMAGES_TO_FETCH));
