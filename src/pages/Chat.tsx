@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from "@/hooks/use-mobile";
 interface Message {
   id: string;
   content: string;
@@ -51,6 +52,7 @@ const Chat = () => {
   const { toast } = useToast();
   const { user, profile, loading } = useAuth();
   const { consumeTokens, getTokenCost, getModelDisplayName, tokenBalance } = useTokens();
+  const isMobile = useIsMobile();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
@@ -986,23 +988,32 @@ const Chat = () => {
                       target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                     }}
                     onKeyDown={(e) => {
-                      // Prevent form submission on Enter for mobile/iPad - only allow line breaks
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        // Add a new line manually
-                        const textarea = e.target as HTMLTextAreaElement;
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const newValue = inputValue.substring(0, start) + '\n' + inputValue.substring(end);
-                        setInputValue(newValue);
-                        
-                        // Set cursor position after the new line
-                        setTimeout(() => {
-                          textarea.selectionStart = textarea.selectionEnd = start + 1;
-                          // Trigger resize
-                          textarea.style.height = 'auto';
-                          textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
-                        }, 0);
+                      if (e.key === 'Enter') {
+                        if (isMobile) {
+                          // Mobile/iPad: Enter only adds line break, never submits
+                          if (!e.shiftKey) {
+                            e.preventDefault();
+                            const textarea = e.target as HTMLTextAreaElement;
+                            const start = textarea.selectionStart;
+                            const end = textarea.selectionEnd;
+                            const newValue = inputValue.substring(0, start) + '\n' + inputValue.substring(end);
+                            setInputValue(newValue);
+                            
+                            // Set cursor position after the new line
+                            setTimeout(() => {
+                              textarea.selectionStart = textarea.selectionEnd = start + 1;
+                              // Trigger resize
+                              textarea.style.height = 'auto';
+                              textarea.style.height = Math.min(textarea.scrollHeight, 128) + 'px';
+                            }, 0);
+                          }
+                        } else {
+                          // Desktop: Enter submits, Shift+Enter adds line break
+                          if (!e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e as any);
+                          }
+                        }
                       }
                     }}
                   />
