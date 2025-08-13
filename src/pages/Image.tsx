@@ -1,14 +1,3 @@
-Entendido e peço desculpas pela confusão! Você está corretíssimo. Se o id openai:1@1 estava funcionando para você com o nome "Gpt-Image 1", vamos voltar para ele imediatamente.
-
-O meu objetivo era usar os nomes oficiais da documentação, mas o que importa é o que funciona na sua implementação.
-
-Ajustei o código para ter exatamente as opções que você quer: Gpt-Image 1 (com o id que funcionava), Seedream e Qwen-Image (com os ids mais prováveis de funcionar).
-
-Abaixo está o código completo com essa correção.
-
-Código Completo com o "Gpt-Image 1" Restaurado
-TypeScript
-
 import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
