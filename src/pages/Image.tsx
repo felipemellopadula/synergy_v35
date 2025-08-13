@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Image as ImageIcon, Share2, ZoomIn, Loader2 } from "lucide-react";
+import { Download, Image as ImageIcon, Share2, ZoomIn, Loader2, X } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { downloadImage, shareImage, GeneratedImage, dataURIToBlob } from "@/utils/imageUtils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -40,6 +40,27 @@ const ImagePage = () => {
     const [images, setImages] = useState<GeneratedImage[]>([]);
     // --- NOVO ESTADO PARA CONTROLAR O CARREGAMENTO INICIAL ---
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+    // Pré-visualização de anexo
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    // Habilita anexo apenas para GPT
+    const canAttachImage = useMemo(() => model === "openai:1@1", [model]);
+
+    useEffect(() => {
+        if (selectedFile) {
+            const url = URL.createObjectURL(selectedFile);
+            setPreviewUrl(url);
+            return () => URL.revokeObjectURL(url);
+        } else {
+            setPreviewUrl(null);
+        }
+    }, [selectedFile]);
+
+    useEffect(() => {
+        if (!canAttachImage && selectedFile) {
+            setSelectedFile(null);
+        }
+    }, [canAttachImage, selectedFile]);
+
     const selectedQualityInfo = useMemo(() => QUALITY_SETTINGS.find(q => q.id === quality)!, [quality]);
 
     useEffect(() => {
@@ -230,10 +251,43 @@ const ImagePage = () => {
                                 </div>
                                 <div className="md:col-span-1">
                                     <Label>Anexar</Label>
-                                    <Input id="file-upload" type="file" accept="image/*" onChange={handleFileChange} className="sr-only"/>
-                                    <Label htmlFor="file-upload" className="mt-2 flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground ring-offset-background hover:bg-accent hover:text-accent-foreground">
+                                    <Input
+                                      id="file-upload"
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleFileChange}
+                                      className="sr-only"
+                                      disabled={!canAttachImage}
+                                    />
+                                    <Label
+                                      htmlFor="file-upload"
+                                      aria-disabled={!canAttachImage}
+                                      className={`mt-2 flex h-10 w-full items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground ring-offset-background ${canAttachImage ? "cursor-pointer hover:bg-accent hover:text-accent-foreground" : "cursor-not-allowed opacity-50 pointer-events-none"}`}
+                                      title={canAttachImage ? "Anexar imagem" : "Disponível apenas no modelo GPT-Image 1"}
+                                    >
                                         Imagem
                                     </Label>
+                                    {!canAttachImage && (
+                                      <p className="mt-2 text-xs text-muted-foreground">Disponível apenas no modelo GPT-Image 1</p>
+                                    )}
+                                    {previewUrl && (
+                                      <div className="relative mt-2 w-20 h-20 rounded-md overflow-hidden border">
+                                        <img
+                                          src={previewUrl}
+                                          alt="Pré-visualização da imagem anexada"
+                                          className="w-full h-full object-cover"
+                                          loading="lazy"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => setSelectedFile(null)}
+                                          className="absolute -top-2 -right-2 inline-flex items-center justify-center h-6 w-6 rounded-full border bg-background text-foreground shadow hover:bg-accent"
+                                          aria-label="Remover imagem anexada"
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex justify-end">
