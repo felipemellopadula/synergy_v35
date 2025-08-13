@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,6 +21,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [showSignInPassword, setShowSignInPassword] = useState(false);
+  const [showSignUpPassword, setShowSignUpPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sign In Form State
@@ -284,16 +287,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
               <div className="space-y-2">
                 <Label htmlFor="signin-password">Senha</Label>
-                <Input
-                  id="signin-password"
-                  type="password"
-                  placeholder="Sua senha"
-                  value={signInData.password}
-                  onChange={(e) =>
-                    setSignInData({ ...signInData, password: e.target.value })
-                  }
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="signin-password"
+                    type={showSignInPassword ? "text" : "password"}
+                    placeholder="Sua senha"
+                    value={signInData.password}
+                    onChange={(e) =>
+                      setSignInData({ ...signInData, password: e.target.value })
+                    }
+                    required
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowSignInPassword(!showSignInPassword)}
+                  >
+                    {showSignInPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
@@ -444,33 +463,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
               <div className="space-y-2">
                 <Label htmlFor="signup-password">Senha</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  placeholder="Sua senha"
-                  value={signUpData.password}
-                  onChange={(e) =>
-                    setSignUpData({ ...signUpData, password: e.target.value })
-                  }
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="signup-password"
+                    type={showSignUpPassword ? "text" : "password"}
+                    placeholder="Sua senha"
+                    value={signUpData.password}
+                    onChange={(e) =>
+                      setSignUpData({ ...signUpData, password: e.target.value })
+                    }
+                    required
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowSignUpPassword(!showSignUpPassword)}
+                  >
+                    {showSignUpPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="signup-confirm-password">Confirmar senha</Label>
-                <Input
-                  id="signup-confirm-password"
-                  type="password"
-                  placeholder="Confirme sua senha"
-                  value={signUpData.confirmPassword}
-                  onChange={(e) =>
-                    setSignUpData({
-                      ...signUpData,
-                      confirmPassword: e.target.value,
-                    })
-                  }
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="signup-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirme sua senha"
+                    value={signUpData.confirmPassword}
+                    onChange={(e) =>
+                      setSignUpData({
+                        ...signUpData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    required
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <Button type="submit" className="w-full" disabled={loading}>
