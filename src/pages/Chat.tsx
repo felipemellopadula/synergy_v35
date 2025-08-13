@@ -752,73 +752,77 @@ const Chat = () => {
         </div>
       </div>
       {/* Body */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex">
         {/* Conversations Sidebar */}
-        <aside className="w-72 border-r border-border bg-background hidden md:flex md:flex-col h-screen">
-          <ScrollArea className="flex-1 pr-2">
-            <div className="p-3">
+        <aside className="w-72 border-r border-border bg-background hidden md:flex md:flex-col">
+          <div className="flex flex-col h-full">
+            <div className="p-3 border-b border-border shrink-0">
               <input
                 placeholder="Pesquisar conversas..."
                 className="w-full h-9 rounded-md border bg-background px-3 text-sm"
                 onChange={() => {}}
               />
             </div>
-            <div className="px-3 pb-2 text-xs text-muted-foreground">Favoritos</div>
-            {conversations.filter(c => c.is_favorite).length === 0 && (
-              <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum favorito</div>
-            )}
-            {conversations.filter(c => c.is_favorite).map((c) => (
-              <button
-                key={c.id}
-                onClick={() => openConversation(c)}
-                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-              >
-                <span className="truncate text-sm">{c.title}</span>
-                <span className="flex items-center gap-2">
+            <ScrollArea className="flex-1">
+              <div className="p-3">
+                <div className="pb-2 text-xs text-muted-foreground">Favoritos</div>
+                {conversations.filter(c => c.is_favorite).length === 0 && (
+                  <div className="py-2 text-xs text-muted-foreground">Nenhum favorito</div>
+                )}
+                {conversations.filter(c => c.is_favorite).map((c) => (
                   <button
-                    className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                    onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                    key={c.id}
+                    onClick={() => openConversation(c)}
+                    className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
                   >
-                    <Star className="h-4 w-4 transition-colors transform-none text-yellow-500" fill="currentColor" strokeWidth={0} />
+                    <span className="truncate text-sm">{c.title}</span>
+                    <span className="flex items-center gap-2">
+                      <button
+                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
+                        onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                      >
+                        <Star className="h-4 w-4 transition-colors transform-none text-yellow-500" fill="currentColor" strokeWidth={0} />
+                      </button>
+                      <button 
+                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
+                        onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                      >
+                        <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
+                      </button>
+                    </span>
                   </button>
-                  <button 
-                    className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                    onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                  >
-                    <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
-                  </button>
-                </span>
-              </button>
-            ))}
-            <div className="px-3 pt-3 pb-2 text-xs text-muted-foreground">Recentes</div>
-            {conversations.filter(c => !c.is_favorite).map((c) => (
-              <button
-                key={c.id}
-                onClick={() => openConversation(c)}
-                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
-              >
-                <span className="truncate text-sm">{c.title}</span>
-                <span className="flex items-center gap-2">
+                ))}
+                <div className="pt-3 pb-2 text-xs text-muted-foreground">Recentes</div>
+                {conversations.filter(c => !c.is_favorite).map((c) => (
                   <button
-                    className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
-                    onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                    key={c.id}
+                    onClick={() => openConversation(c)}
+                    className={`w-full text-left px-3 py-2 mb-1 rounded flex items-center justify-between hover:bg-muted ${currentConversationId === c.id ? 'bg-muted' : ''}`}
                   >
-                    <Star
-                      className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`}
-                      fill={c.is_favorite ? 'currentColor' : 'none'}
-                      strokeWidth={c.is_favorite ? 0 : 2}
-                    />
+                    <span className="truncate text-sm">{c.title}</span>
+                    <span className="flex items-center gap-2">
+                      <button
+                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded"
+                        onClick={(e) => { e.stopPropagation(); toggleFavoriteConversation(c); }}
+                      >
+                        <Star
+                          className={`h-4 w-4 transition-colors transform-none ${c.is_favorite ? 'text-yellow-500' : 'text-muted-foreground group-hover:text-yellow-500'}`}
+                          fill={c.is_favorite ? 'currentColor' : 'none'}
+                          strokeWidth={c.is_favorite ? 0 : 2}
+                        />
+                      </button>
+                      <button 
+                        className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
+                        onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
+                      >
+                        <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
+                      </button>
+                    </span>
                   </button>
-                  <button 
-                    className="group relative h-6 w-6 flex items-center justify-center hover:bg-muted rounded" 
-                    onClick={(e) => { e.stopPropagation(); deleteConversation(c.id); }}
-                  >
-                    <Trash2 className="h-4 w-4 transition-colors group-hover:text-red-500" />
-                  </button>
-                </span>
-              </button>
-            ))}
-          </ScrollArea>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         </aside>
         {/* Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
