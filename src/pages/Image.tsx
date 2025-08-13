@@ -20,11 +20,13 @@ const QUALITY_SETTINGS = [
   { id: "fast", label: "Rápido (512x512)", width: 512, height: 512, steps: 10 },
 ];
 
+// --- ALTERAÇÃO AQUI: Modelos Qwen e Seedream adicionados de volta ---
 const MODELS = [
-  { id: "openai:1@1", label: "GPT Image 1" },
+  { id: "openai:1@1", label: "Gpt-Image 1" },
+  { id: "bytedance:3@1", label: "Seedream 3.0" },
+  { id: "runware:108@1", label: "Qwen-Image" },
 ];
 
-// 1 imagem principal + 9 no histórico
 const MAX_IMAGES = 10;
 const STORAGE_KEY = 'synergy_ai_images';
 
@@ -56,7 +58,6 @@ const ImagePage = () => {
   }, []);
 
   useEffect(() => {
-    // A lógica de salvar no localStorage continua a mesma
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(images.slice(0, MAX_IMAGES)));
     } catch (err) {
@@ -122,7 +123,7 @@ const ImagePage = () => {
         id: taskUUID,
         prompt,
         originalPrompt: prompt,
-        detailedPrompt: prompt, // Mantido para consistência da interface
+        detailedPrompt: " ", // Adicionado para manter a interface consistente
         url: imageDataURI,
         timestamp: new Date().toISOString(),
         quality: quality,
@@ -260,15 +261,10 @@ const ImagePage = () => {
             </Card>
           </div>
 
-          {/* --- ALTERAÇÃO PRINCIPAL NO LAYOUT DO HISTÓRICO --- */}
           <div className="lg:col-span-2">
             <div className="grid grid-cols-3 gap-3">
-              {/* Criamos um array de 9 posições para renderizar os slots */}
               {Array.from({ length: 9 }).map((_, index) => {
-                // Pegamos a imagem correspondente do histórico (pulando a primeira, que é a principal)
                 const img = images[index + 1];
-
-                // Se a imagem existir, renderiza o card com ela
                 if (img) {
                   return (
                     <Dialog key={img.id}>
@@ -292,7 +288,6 @@ const ImagePage = () => {
                   );
                 }
                 
-                // Se a imagem não existir, renderiza um placeholder
                 return (
                   <Card key={`placeholder-${index}`} className="aspect-square rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20" />
                 );
