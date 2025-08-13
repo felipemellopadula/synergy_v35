@@ -45,32 +45,62 @@ const Write = () => {
   ];
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    console.log('🚀 Iniciando geração de conteúdo...');
+    console.log('📝 Prompt:', prompt);
+    console.log('🎨 Formato:', selectedFormat);
+    console.log('🎵 Tom:', selectedTone);
+    console.log('📏 Comprimento:', selectedLength);
+    
+    if (!prompt.trim()) {
+      console.log('❌ Prompt vazio - cancelando');
+      return;
+    }
 
     setIsLoading(true);
+    console.log('⏳ Loading iniciado...');
+    
     try {
+      console.log('🌐 Fazendo fetch para:', '/functions/v1/write-content');
+      
+      const requestBody = {
+        prompt,
+        format: selectedFormat,
+        tone: selectedTone,
+        length: selectedLength
+      };
+      console.log('📦 Body da requisição:', requestBody);
+      
       const response = await fetch('/functions/v1/write-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          prompt,
-          format: selectedFormat,
-          tone: selectedTone,
-          length: selectedLength
-        }),
+        body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) throw new Error('Erro ao gerar conteúdo');
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Response não ok. Texto do erro:', errorText);
+        throw new Error(`Erro ao gerar conteúdo: ${response.status} - ${errorText}`);
+      }
       
+      console.log('✅ Response ok, fazendo parse JSON...');
       const data = await response.json();
+      console.log('📄 Dados recebidos:', data);
+      
       setGeneratedText(data.generatedText);
+      console.log('🎉 Conteúdo gerado com sucesso!');
     } catch (error) {
-      console.error('Erro:', error);
+      console.error('💥 Erro completo:', error);
+      console.error('💥 Erro message:', error.message);
+      console.error('💥 Erro stack:', error.stack);
       setGeneratedText("Desculpe, ocorreu um erro ao gerar o conteúdo. Tente novamente.");
     } finally {
       setIsLoading(false);
+      console.log('🏁 Loading finalizado');
     }
   };
 
