@@ -234,12 +234,13 @@ const ImagePage = () => {
                                 <>
                                     <img src={images[0].url} alt={`Imagem gerada: ${images[0].prompt}`} className="w-full h-full object-cover" loading="eager" />
                                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
-                                            <Button variant="outline" className="gap-2 flex-1 bg-background/80" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
+                                        {/* --- CORREÇÃO DE LAYOUT MOBILE NOS BOTÕES --- */}
+                                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                                            <Button variant="outline" className="gap-2 w-full sm:flex-1 bg-background/80" onClick={() => handleDownload(images[0])}><Download className="h-4 w-4" /> Baixar</Button>
+                                            <Button variant="outline" className="gap-2 w-full sm:flex-1 bg-background/80" onClick={() => handleShare(images[0])}><Share2 className="h-4 w-4" /> Compartilhar</Button>
                                             <Dialog>
                                                 <DialogTrigger asChild>
-                                                    <Button variant="outline" className="gap-2 flex-1 bg-background/80"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
+                                                    <Button variant="outline" className="gap-2 w-full sm:flex-1 bg-background/80"><ZoomIn className="h-4 w-4" /> Ampliar</Button>
                                                 </DialogTrigger>
                                                 <DialogContent className="max-w-4xl">
                                                     <img src={images[0].url} alt={`Imagem ampliada: ${images[0].prompt}`} className="w-full h-auto" />
