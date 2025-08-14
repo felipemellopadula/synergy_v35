@@ -24,7 +24,7 @@ const Write = () => {
     { id: "Ideia", label: "Ideia", icon: MessageSquare },
     { id: "Post de Blog", label: "Post de Blog", icon: Newspaper },
     { id: "Contorno", label: "Contorno", icon: FileText },
-    { id: "Anúncio de Marketing", label: "Anúncio de Marketing", icon: Globe },
+    { id: "Marketing", label: "Marketing", icon: Globe },
     { id: "Comentário", label: "Comentário", icon: MessageSquare },
     { id: "Mensagem", label: "Mensagem", icon: MessageSquare },
     { id: "Twitter", label: "Twitter", icon: MessageSquare }
