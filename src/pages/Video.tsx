@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Download, Link2, Share2, VideoIcon, RotateCcw, Upload, Play, Pause, Maximize, X } from "lucide-react";
+import { Download, Link2, Share2, VideoIcon, RotateCcw, Upload, Play, Pause, Maximize, X, ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserProfile } from "@/components/UserProfile";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const RESOLUTIONS = [
@@ -280,13 +281,20 @@ const VideoPage = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <VideoIcon className="h-7 w-7 text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">Synergy Video</h1>
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2 hover:bg-muted">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <VideoIcon className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-bold text-foreground">Vídeo</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <UserProfile />
             <ThemeToggle />
-            <Button variant="outline" onClick={() => navigate('/dashboard')}>Voltar ao Dashboard</Button>
           </div>
         </div>
       </header>
