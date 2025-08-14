@@ -1,29 +1,3 @@
-Compreendido. Peço desculpas que a versão anterior não atendeu às suas expectativas. O novo exemplo que você forneceu é excelente e deixa muito claro o layout e a estrutura de componentes que você deseja. A chave é a divisão explícita entre a ConversationList (a barra lateral) e a ChatArea (a área de conversa).
-
-Eu reescrevi o código integrando o melhor dos dois mundos:
-
-Estrutura e Layout do seu novo exemplo: Adotei a estrutura com a barra lateral (<aside>) fixa e com scroll, e a área de chat principal. A lista de conversas agora tem o visual e as funcionalidades (renomear, deletar no menu) que você mostrou.
-
-Toda a sua Lógica Original: Manti 100% da sua lógica funcional que estava no primeiro arquivo. A conexão com o Supabase, autenticação, múltiplos modelos de IA, upload de arquivos, gravação de áudio, busca na web, renderização de markdown e o formulário de input estão todos aqui, funcionando como antes.
-
-O resultado é um arquivo único e completo que você pode colar no seu projeto.
-
-O que foi feito nesta versão:
-Layout Fixo de 2 Colunas: A página agora tem uma <aside> (barra lateral) de w-80 (80 unidades de largura, ou 320px) que é fixa e não se esconde em telas maiores, exatamente como no seu exemplo.
-
-Barra de Rolagem na Sidebar: A lista de conversas dentro da sidebar agora usa <ScrollArea>, permitindo rolar pelo histórico independentemente do chat.
-
-Lógica de Negócio Preservada: Todas as funções (handleSendMessage, upsertConversation, handleFileUpload, startRecording, etc.) foram mantidas e estão operando na área de chat.
-
-Funcionalidades Combinadas: Integrei as ações do seu novo exemplo (como Renomear) com as do seu sistema original (Favoritar). Agora, ao passar o mouse sobre uma conversa na lista, um menu de opções aparece.
-
-Responsividade Mantida: Em telas pequenas (mobile), a barra lateral desaparece e um botão de menu (<Menu>) aparece no cabeçalho. Ao clicar, ele abre um painel (<Sheet>) com a lista de conversas, mantendo a experiência de usuário consistente.
-
-Código Completo e Refatorado (Chat.tsx)
-Basta copiar e colar o código abaixo em seu arquivo.
-
-TypeScript
-
 import { ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
