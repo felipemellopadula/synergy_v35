@@ -10,6 +10,7 @@ import VideoPage from "./pages/Video";
 import ImagePage from "./pages/Image";
 import TranslatorPage from "./pages/Translator";
 import WritePage from "./pages/Write";
+import TranscribePage from "./pages/Transcribe";
 import SettingsPage from "./pages/Settings";
 import Share from "./pages/Share";
 import NotFound from "./pages/NotFound";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/image" element={<ImagePage />} />
           <Route path="/translator" element={<TranslatorPage />} />
           <Route path="/write" element={<WritePage />} />
+          <Route path="/transcribe" element={<TranscribePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/share" element={<Share />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

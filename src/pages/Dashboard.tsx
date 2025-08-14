@@ -1,5 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
-import { MessageCircle, Video, Image, UserCheck, PenTool, Settings, LogOut } from "lucide-react";
+import { MessageCircle, Video, Image, UserCheck, PenTool, FileAudio, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -62,13 +62,13 @@ const Dashboard = () => {
       onClick: () => navigate('/write')
     },
     {
-      id: 'settings',
-      icon: Settings,
-      title: 'Configurações',
-      description: 'Personalize sua experiência',
-      color: 'bg-gray-500',
-      available: false,
-      onClick: () => {}
+      id: 'transcribe',
+      icon: FileAudio,
+      title: 'Transcrever',
+      description: 'Converta áudios em texto com IA',
+      color: 'bg-red-500',
+      available: true,
+      onClick: () => navigate('/transcribe')
     }
   ];
 
