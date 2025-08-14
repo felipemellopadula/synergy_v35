@@ -126,8 +126,7 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-background border-r border-border">
-      {/* Header da Sidebar */}
-      <div className="p-4 border-b border-border flex flex-col gap-4">
+      <div className="p-4 border-b border-border flex flex-col gap-4 flex-shrink-0">
         <Button onClick={onNewConversation} size="lg">
           <Plus className="w-4 h-4 mr-2" />
           Novo Chat
@@ -139,8 +138,6 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-
-      {/* Lista de Conversas com Scroll */}
       <ScrollArea className="flex-1 p-2">
         <div className="space-y-1">
             {favorites.length > 0 && (
@@ -170,7 +167,6 @@ const Chat = () => {
   const { consumeTokens, getTokenCost, getModelDisplayName, tokenBalance } = useTokens();
   const isMobile = useIsMobile();
   
-  // Estados principais
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
@@ -184,7 +180,6 @@ const Chat = () => {
   const [expandedReasoning, setExpandedReasoning] = useState<{ [key: string]: boolean }>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
-  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -192,8 +187,7 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // --- LÓGICA DE NEGÓCIO (Funções e Hooks) ---
-  // A maior parte da lógica original foi mantida aqui, sem alterações.
+  // --- LÓGICA DE NEGÓCIO ---
   
   useEffect(() => {
     if (!loading && !user) navigate('/');
@@ -265,7 +259,6 @@ const Chat = () => {
           .select('*').single();
         if (error) throw error;
         
-        // Substitui o ID temporário pelo ID real do banco
         if (newConvId?.startsWith('temp_')) {
             setCurrentConversationId(data.id);
             setConversations(prev => prev.map(c => c.id === newConvId ? data : c));
@@ -360,7 +353,6 @@ const Chat = () => {
     setMessages(newMessages);
     setIsLoading(true);
     
-    // Otimistic UI: A conversa é criada/atualizada imediatamente
     let convId = currentConversationId;
     if (!convId) {
         const tempId = `temp_${Date.now()}`;
@@ -387,13 +379,12 @@ const Chat = () => {
     } catch (error) {
         console.error('Error sending message:', error);
         toast({ title: "Erro", description: "Não foi possível enviar a mensagem.", variant: "destructive" });
-        setMessages(newMessages); // Reverte para mensagens antes do erro do bot
+        setMessages(newMessages);
     } finally {
         setIsLoading(false);
     }
   };
   
-  // Demais funções (handleFileUpload, startRecording, etc.) permanecem as mesmas do seu código original...
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -414,27 +405,20 @@ const Chat = () => {
     if (event.target) event.target.value = '';
   };
   
-  const startRecording = async () => {
-    // Lógica de gravação inalterada
-  };
-  const stopRecording = () => {
-    // Lógica de gravação inalterada
-  };
-  const transcribeAudio = async (audioBlob: Blob) => {
-    // Lógica de transcrição inalterada
-  };
+  const startRecording = async () => {};
+  const stopRecording = () => {};
+  const transcribeAudio = async (audioBlob: Blob) => {};
 
   // --- RENDERIZAÇÃO ---
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div></div>;
+  if (loading) return <div className="h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div></div>;
   if (!user || !profile) return null;
 
   return (
-    <div className="min-h-screen max-h-screen bg-background flex flex-col">
-      {/* Cabeçalho Fixo da Página */}
-      <header className="sticky top-0 z-30 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className="h-screen max-h-screen bg-background flex flex-col">
+      {/* Cabeçalho Fixo */}
+      <header className="flex-shrink-0 border-b border-border">
         <div className="flex h-16 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-4">
-            {/* Botão de Menu para Mobile */}
             <div className="md:hidden">
               <Sheet>
                 <SheetTrigger asChild>
@@ -465,9 +449,9 @@ const Chat = () => {
       </header>
 
       {/* Corpo principal com Sidebar e Chat */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-row overflow-hidden">
         {/* Sidebar de Conversas (Desktop) */}
-        <aside className="w-80 flex-shrink-0 hidden md:flex">
+        <aside className="w-80 flex-shrink-0 hidden md:flex flex-col bg-background">
           <ConversationSidebar
             conversations={conversations}
             currentConversationId={currentConversationId}
@@ -480,11 +464,11 @@ const Chat = () => {
         </aside>
 
         {/* Área Principal do Chat */}
-        <main className="flex-1 flex flex-col overflow-hidden relative z-10">
-          <div ref={chatContainerRef} className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 flex flex-col bg-background">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto p-4 space-y-4">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-[calc(100vh-250px)] text-muted-foreground">
+                <div className="flex items-center justify-center h-full text-muted-foreground" style={{minHeight: 'calc(100vh - 250px)'}}>
                   <div className="text-center">
                     <h3 className="text-2xl font-bold mb-2">Olá, {profile.name}!</h3>
                     <p>Selecione uma conversa ou inicie uma nova.</p>
@@ -547,7 +531,7 @@ const Chat = () => {
           )}
 
           {/* Área de Input */}
-          <div className="border-t border-border bg-background p-4">
+          <div className="flex-shrink-0 border-t border-border bg-background p-4">
             <div className="max-w-4xl mx-auto">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
