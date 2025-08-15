@@ -11,7 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Save, Camera } from "lucide-react";
 import ModelUsageChart from "@/components/settings/ModelUsageChart";
 import SettingsStats from "@/components/settings/SettingsStats";
-import { ThemeToggle } from "@/components/ThemeToggle"; // ADICIONADO: Import do ThemeToggle
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -120,6 +119,7 @@ const SettingsPage = () => {
     try {
       const updates: any = { name, phone, email };
 
+      // Update email in auth if it changed
       if (email && email !== profile.email) {
         const { error: authErr } = await supabase.auth.updateUser({ email: email.trim().toLowerCase() });
         if (authErr) throw authErr;
@@ -157,11 +157,7 @@ const SettingsPage = () => {
             <MessageCircle className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
           </div>
-          {/* AJUSTADO: Adicionado um container para o botão de tema e o de voltar */}
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Button asChild variant="outline"><Link to="/" replace>Voltar</Link></Button>
-          </div>
+          <Button asChild variant="outline"><Link to="/" replace>Voltar</Link></Button>
         </div>
       </header>
 
@@ -182,7 +178,7 @@ const SettingsPage = () => {
                 <div>
                   <Label htmlFor="avatar" className="block mb-2">Foto</Label>
                   <div className="flex items-center gap-2">
-                    <Input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} className="max-w-xs"/>
+                    <Input id="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
                     <Button type="button" variant="secondary">
                       <Camera className="h-4 w-4 mr-2" /> Trocar
                     </Button>
@@ -220,20 +216,8 @@ const SettingsPage = () => {
               cycleStart={cycleStart}
               cycleEnd={cycleEnd}
               nextReset={nextReset}
-              formatDate={formatDate}
             />
-            {/* ESTRUTURA CORRIGIDA: Gráfico agora dentro de um Card para consistência e controle */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Uso por modelo (ciclo atual)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Adicionado um container para garantir que o gráfico não estoure o card */}
-                <div className="relative h-64 w-full">
-                  <ModelUsageChart cycleStart={cycleStart} cycleEnd={cycleEnd} />
-                </div>
-              </CardContent>
-            </Card>
+            <ModelUsageChart cycleStart={cycleStart} cycleEnd={cycleEnd} />
           </div>
         </section>
       </main>
