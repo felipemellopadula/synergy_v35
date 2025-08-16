@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { MessageCircle, Video, Image as ImageIcon, Languages, PenTool, FileAudio, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-// CORREÇÃO: Removido o '/ui' do caminho, que foi adicionado por engano.
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfile } from "@/components/UserProfile";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,10 +15,11 @@ const Dashboard = () => {
     const logoDarkUrl = "/lovable-uploads/c26d1b3b-b8c2-4bbf-9902-d76ebe9534f5.png";
     const logoLightUrl = "/lovable-uploads/95128e47-ede1-4ceb-a2f2-4d0c2ed4eb80.png";
 
-    const imgDark = new Image();
+    // ALTERAÇÃO: Usando 'window.Image' para ser explícito e evitar conflitos de ambiente.
+    const imgDark = new window.Image();
     imgDark.src = logoDarkUrl;
 
-    const imgLight = new Image();
+    const imgLight = new window.Image();
     imgLight.src = logoLightUrl;
   }, []);
 
@@ -114,7 +114,7 @@ const Dashboard = () => {
                   backgroundPosition: 'left center',
                 }}
               />
-       L     </Link>
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <UserProfile />
