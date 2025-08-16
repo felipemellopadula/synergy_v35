@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { MessageCircle, Video, Image as ImageIcon, Languages, PenTool, FileAudio, LogOut } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserProfile } from "@/components/UserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 
