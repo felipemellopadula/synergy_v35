@@ -426,10 +426,9 @@ const Chat = () => {
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
             {/* Lado Esquerdo */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 md:gap-4">
                 <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2">
                     <ArrowLeft className="h-4 w-4" />
-                    {/* Alterado aqui: removido 'hidden sm:inline' para sempre mostrar 'Voltar' */}
                     <span>Voltar</span>
                 </Button>
                 <div className="h-6 w-px bg-border hidden sm:block" />
@@ -484,7 +483,7 @@ const Chat = () => {
             </div>
         </div>
       </header>
-
+      
       {/* Corpo principal com Sidebar e Chat */}
       <div className="flex-1 flex flex-row overflow-hidden">
         {/* Sidebar de Conversas (Desktop) */}
