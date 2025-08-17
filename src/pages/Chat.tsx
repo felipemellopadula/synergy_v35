@@ -422,7 +422,7 @@ const Chat = () => {
   if (!user || !profile) return null;
 
   return (
-    <div className="h-screen overflow-hidden bg-background flex flex-col">
+    <div className="fixed inset-0 bg-background flex flex-col">
       {/* ===== HEADER ===== */}
       <header className="flex-shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
@@ -503,16 +503,16 @@ const Chat = () => {
         {/* Área Principal do Chat */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <div ref={chatContainerRef} className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto p-4 space-y-4">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold mb-2">Olá, {profile.name}!</h3>
-                    <p>Selecione uma conversa ou inicie uma nova.</p>
-                    <p className="mt-2 text-sm">Você tem {tokenBalance.toLocaleString()} tokens disponíveis.</p>
-                  </div>
+            {messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center p-4">
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold mb-2">Olá, {profile.name}!</h3>
+                  <p>Selecione uma conversa ou inicie uma nova.</p>
+                  <p className="mt-2 text-sm">Você tem {tokenBalance.toLocaleString()} tokens disponíveis.</p>
                 </div>
-              ) : (
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto p-4 space-y-4">
                 messages.map((message) => (
                   <div key={message.id} className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                     {message.sender === 'bot' && (
@@ -607,11 +607,12 @@ const Chat = () => {
                   </div>
                 ))
               )}
-              {isLoading && (
-                <div className="flex gap-3"><Avatar className="h-8 w-8 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback></Avatar><div className="bg-muted rounded-lg px-4 py-2 flex items-center"><div className="flex space-x-1"><div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-current rounded-full animate-bounce"></div></div></div></div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+                {isLoading && (
+                  <div className="flex gap-3"><Avatar className="h-8 w-8 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback></Avatar><div className="bg-muted rounded-lg px-4 py-2 flex items-center"><div className="flex space-x-1"><div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]"></div><div className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]"></div><div className="w-2 h-2 bg-current rounded-full animate-bounce"></div></div></div></div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
           
           {showScrollToBottom && (
