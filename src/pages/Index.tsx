@@ -451,14 +451,14 @@ const Index = () => {
                 <div>
                   <h4 className="font-semibold mb-3">Contato</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>Email: contato@iahub.com.br</li>
+                    <li>Email: contato@synergyia.com.br</li>
                     <li>Telefone: +55 (11) 4567-8901</li>
                     <li>Endereço: Av. Paulista, 1000, São Paulo/SP</li>
                   </ul>
                 </div>
               </div>
               <div className="mt-8 pt-6 border-t border-border text-xs text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-2">
-                <p>© {new Date().getFullYear()} IA Hub. Todos os direitos reservados.</p>
+                <p>© {new Date().getFullYear()} Synergy IA Hub. Todos os direitos reservados.</p>
                 <div className="flex items-center gap-4">
                   <a href="#" className="hover:text-foreground">Política de Privacidade</a>
                   <a href="#" className="hover:text-foreground">Termos de Serviço</a>
