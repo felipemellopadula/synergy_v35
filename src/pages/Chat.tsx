@@ -422,7 +422,7 @@ const Chat = () => {
   if (!user || !profile) return null;
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="max-h-screen flex flex-col bg-background overflow-hidden">
       {/* ===== INÍCIO DO CABEÇALHO MODIFICADO ===== */}
       <header className="py-2 px-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex-shrink-0">
         <div className="container mx-auto pb-2 px-4 flex justify-between items-center">
