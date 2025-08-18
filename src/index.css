@@ -134,6 +134,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    margin: 0; /* <-- LINHA ADICIONADA PARA CORRIGIR O ESPAÇAMENTO */
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
@@ -192,4 +193,3 @@
   .light .logo-light-theme { @apply hidden; }
   .light .logo-dark-theme { @apply inline-block; }
 }
-
