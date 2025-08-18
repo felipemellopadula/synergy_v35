@@ -1,195 +1,387 @@
 @tailwind base;
+
 @tailwind components;
+
 @tailwind utilities;
+
+
 
 /* AI Hub Design System - Modern & Elegant */
 
-@layer base {
-  :root {
-    /* Base colors */
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
 
-    /* Card system */
-    --card: 240 10% 5.9%;
-    --card-foreground: 0 0% 98%;
-
-    /* Interactive elements */
-    --popover: 240 10% 5.9%;
-    --popover-foreground: 0 0% 98%;
-
-    /* Primary brand colors - Purple gradient theme */
-    --primary: 260 100% 68%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 280 100% 75%;
-
-    /* Secondary theme */
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-
-    /* Muted elements */
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-
-    /* User message color (cinza diferente do muted) */
-    --user-message: 240 5% 25%;
-    --user-message-foreground: 0 0% 98%;
-
-    /* Accent colors */
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-
-    /* Status colors */
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-
-    /* Borders and inputs */
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 260 100% 68%;
-
-    /* Design tokens */
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .light {
-    /* Light theme */
-    --background: 0 0% 98%;
-    --foreground: 240 10% 3.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-
-    --primary: 260 100% 68%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 280 100% 75%;
-
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    /* User message color (cinza diferente do muted) */
-    --user-message: 240 10% 85%;
-    --user-message-foreground: 240 10% 3.9%;
-
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 260 100% 68%;
-  }
-
-    /* Gradients and effects */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 50%, hsl(var(--accent)) 100%);
-    
-    /* Shadows */
-    --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.3);
-    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
-    --shadow-card: 0 4px 6px -1px hsl(var(--foreground) / 0.1), 0 2px 4px -1px hsl(var(--foreground) / 0.06);
-    
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
 
 @layer base {
-  * {
-    @apply border-border;
-  }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    margin: 0; /* <-- LINHA ADICIONADA PARA CORRIGIR O ESPAÇAMENTO */
-    transition: background-color 0.3s ease, color 0.3s ease;
-  }
+  :root {
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
+    /* Base colors */
 
-  ::-webkit-scrollbar-track {
-    background: hsl(var(--muted));
-  }
+    --background: 240 10% 3.9%;
 
-  ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 4px;
-  }
+    --foreground: 0 0% 98%;
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary));
-  }
+
+
+    /* Card system */
+
+    --card: 240 10% 5.9%;
+
+    --card-foreground: 0 0% 98%;
+
+
+
+    /* Interactive elements */
+
+    --popover: 240 10% 5.9%;
+
+    --popover-foreground: 0 0% 98%;
+
+
+
+    /* Primary brand colors - Purple gradient theme */
+
+    --primary: 260 100% 68%;
+
+    --primary-foreground: 0 0% 98%;
+
+    --primary-glow: 280 100% 75%;
+
+
+
+    /* Secondary theme */
+
+    --secondary: 240 3.7% 15.9%;
+
+    --secondary-foreground: 0 0% 98%;
+
+
+
+    /* Muted elements */
+
+    --muted: 240 3.7% 15.9%;
+
+    --muted-foreground: 240 5% 64.9%;
+
+
+
+    /* User message color (cinza diferente do muted) */
+
+    --user-message: 240 5% 25%;
+
+    --user-message-foreground: 0 0% 98%;
+
+
+
+    /* Accent colors */
+
+    --accent: 240 3.7% 15.9%;
+
+    --accent-foreground: 0 0% 98%;
+
+
+
+    /* Status colors */
+
+    --destructive: 0 84.2% 60.2%;
+
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%;
+
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+
+    --warning-foreground: 0 0% 98%;
+
+
+
+    /* Borders and inputs */
+
+    --border: 240 3.7% 15.9%;
+
+    --input: 240 3.7% 15.9%;
+
+    --ring: 260 100% 68%;
+
+
+
+    /* Design tokens */
+
+    --radius: 0.75rem;
+
+
+
+    --sidebar-background: 0 0% 98%;
+
+
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+
+
+    --sidebar-primary: 240 5.9% 10%;
+
+
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+
+
+    --sidebar-border: 220 13% 91%;
+
+
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+  }
+
+
+
+  .light {
+
+    /* Light theme */
+
+    --background: 0 0% 98%;
+
+    --foreground: 240 10% 3.9%;
+
+
+
+    --card: 0 0% 100%;
+
+    --card-foreground: 240 10% 3.9%;
+
+
+
+    --popover: 0 0% 100%;
+
+    --popover-foreground: 240 10% 3.9%;
+
+
+
+    --primary: 260 100% 68%;
+
+    --primary-foreground: 0 0% 98%;
+
+    --primary-glow: 280 100% 75%;
+
+
+
+    --secondary: 240 4.8% 95.9%;
+
+    --secondary-foreground: 240 5.9% 10%;
+
+
+
+    --muted: 240 4.8% 95.9%;
+
+    --muted-foreground: 240 3.8% 46.1%;
+
+
+
+    /* User message color (cinza diferente do muted) */
+
+    --user-message: 240 10% 85%;
+
+    --user-message-foreground: 240 10% 3.9%;
+
+
+
+    --accent: 240 4.8% 95.9%;
+
+    --accent-foreground: 240 5.9% 10%;
+
+
+
+    --destructive: 0 84.2% 60.2%;
+
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%;
+
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+
+    --warning-foreground: 0 0% 98%;
+
+
+
+    --border: 240 5.9% 90%;
+
+    --input: 240 5.9% 90%;
+
+    --ring: 260 100% 68%;
+
+  }
+
+
+
+    /* Gradients and effects */
+
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-glow)) 50%, hsl(var(--accent)) 100%);
+
+    
+
+    /* Shadows */
+
+    --shadow-elegant: 0 10px 30px -10px hsl(var(--primary) / 0.3);
+
+    --shadow-glow: 0 0 40px hsl(var(--primary-glow) / 0.4);
+
+    --shadow-card: 0 4px 6px -1px hsl(var(--foreground) / 0.1), 0 2px 4px -1px hsl(var(--foreground) / 0.06);
+
+    
+
+    /* Animations */
+
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
 }
 
-@layer components {
-  /* Custom animations */
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite alternate;
-  }
 
-  @keyframes glow {
-    from {
-      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-    }
-    to {
-      box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
-    }
-  }
 
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
+@layer base {
 
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
+  * {
+
+    @apply border-border;
+
+  }
+
+
+
+  body {
+
+    @apply bg-background text-foreground font-sans antialiased;
+
+    transition: background-color 0.3s ease, color 0.3s ease;
+
+  }
+
+
+
+  /* Custom scrollbar */
+
+  ::-webkit-scrollbar {
+
+    width: 8px;
+
+  }
+
+
+
+  ::-webkit-scrollbar-track {
+
+    background: hsl(var(--muted));
+
+  }
+
+
+
+  ::-webkit-scrollbar-thumb {
+
+    background: hsl(var(--border));
+
+    border-radius: 4px;
+
+  }
+
+
+
+  ::-webkit-scrollbar-thumb:hover {
+
+    background: hsl(var(--primary));
+
+  }
+
 }
 
+
+
 @layer components {
-  /* Logo theme handling */
-  .logo-light-theme { @apply inline-block; }
-  .logo-dark-theme { @apply hidden; }
-  .light .logo-light-theme { @apply hidden; }
-  .light .logo-dark-theme { @apply inline-block; }
+
+  /* Custom animations */
+
+  .animate-glow {
+
+    animation: glow 2s ease-in-out infinite alternate;
+
+  }
+
+
+
+  @keyframes glow {
+
+    from {
+
+      box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+
+    }
+
+    to {
+
+      box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+
+    }
+
+  }
+
+
+
+  .animate-float {
+
+    animation: float 3s ease-in-out infinite;
+
+  }
+
+
+
+  @keyframes float {
+
+    0%, 100% {
+
+      transform: translateY(0px);
+
+    }
+
+    50% {
+
+      transform: translateY(-10px);
+
+    }
+
+  }
+
+}
+
+
+
+@layer components {
+
+  /* Logo theme handling */
+
+  .logo-light-theme { @apply inline-block; }
+
+  .logo-dark-theme { @apply hidden; }
+
+  .light .logo-light-theme { @apply hidden; }
+
+  .light .logo-dark-theme { @apply inline-block; }
+
 }
