@@ -425,7 +425,7 @@ const Chat = () => {
     <div className="h-screen max-h-screen bg-background flex flex-col">
       {/* ===== INÍCIO DO CABEÇALHO MODIFICADO ===== */}
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="container mx-auto px-4 h-16 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center"> {/* <-- CORREÇÃO APLICADA AQUI */}
             {/* Lado Esquerdo: Voltar e Título */}
             <div className="flex items-center gap-3 md:gap-4">
                <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2 hover:bg-muted">
@@ -623,7 +623,7 @@ const Chat = () => {
           )}
 
           {/* Área de Input */}
-          <div className="flex-shrink-0 border-t border-border bg-background px-4 pt-4 pb-8"> {/* <-- CORREÇÃO APLICADA AQUI */}
+          <div className="flex-shrink-0 border-t border-border bg-background px-4 pt-4 pb-8">
             <div className="max-w-4xl mx-auto">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
