@@ -429,9 +429,9 @@ const Chat = () => {
             {/* Lado Esquerdo: Voltar e Título */}
             <div className="flex items-center gap-3 md:gap-4">
                <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2 hover:bg-muted">
-                            <ArrowLeft className="h-4 w-4" />
-                            Voltar
-                        </Button>
+                        <ArrowLeft className="h-4 w-4" />
+                        Voltar
+                    </Button>
                 <div className="h-6 w-px bg-border hidden sm:block" />
                 <div className="flex items-center gap-2">
                     <MessageCircle className="h-5 w-5 text-blue-500" />
@@ -525,33 +525,33 @@ const Chat = () => {
                            {message.files && (<div className="flex flex-wrap gap-2">{message.files.map((file, idx) => (<div key={idx} className="bg-background/50 px-3 py-1 rounded-full text-xs">📎 {file.name}</div>))}</div>)}
                            
                            {message.sender === 'user' && (
-                              <TooltipProvider>
-                                 <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary-foreground/20"
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(message.content);
-                                          toast({ title: "Copiado para a área de transferência!" });
-                                        }}
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>Copiar mensagem</TooltipContent>
-                                 </Tooltip>
-                              </TooltipProvider>
+                               <TooltipProvider>
+                                   <Tooltip>
+                                       <TooltipTrigger asChild>
+                                           <Button
+                                               variant="ghost"
+                                               size="icon"
+                                               className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary-foreground/20"
+                                               onClick={() => {
+                                                   navigator.clipboard.writeText(message.content);
+                                                   toast({ title: "Copiado para a área de transferência!" });
+                                               }}
+                                           >
+                                               <Copy className="h-3 w-3" />
+                                           </Button>
+                                       </TooltipTrigger>
+                                       <TooltipContent>Copiar mensagem</TooltipContent>
+                                   </Tooltip>
+                               </TooltipProvider>
                            )}
-                          
+                           
                            {message.reasoning && (
-                             <div className="border-b border-border/50 pb-2">
-                               <Button variant="ghost" size="sm" onClick={() => setExpandedReasoning(p => ({ ...p, [message.id]: !p[message.id] }))} className="h-auto p-1 text-xs opacity-70 hover:opacity-100">
-                                 {expandedReasoning[message.id] ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />} Raciocínio
-                               </Button>
-                               {expandedReasoning[message.id] && <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-hidden">{message.reasoning}</div>}
-                             </div>
+                               <div className="border-b border-border/50 pb-2">
+                                   <Button variant="ghost" size="sm" onClick={() => setExpandedReasoning(p => ({ ...p, [message.id]: !p[message.id] }))} className="h-auto p-1 text-xs opacity-70 hover:opacity-100">
+                                       {expandedReasoning[message.id] ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />} Raciocínio
+                                   </Button>
+                                   {expandedReasoning[message.id] && <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-hidden">{message.reasoning}</div>}
+                               </div>
                            )}
 
                            <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
@@ -592,14 +592,14 @@ const Chat = () => {
                            </div>
                            
                            {message.sender === 'bot' && (
-                             <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                                 <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
-                                 <TooltipProvider>
-                                   <Tooltip><TooltipTrigger asChild>
-                                       <Button variant="ghost" size="icon" onClick={() => { navigator.clipboard.writeText(message.content); toast({ title: "Copiado!" }); }} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
-                                   </TooltipTrigger><TooltipContent>Copiar</TooltipContent></Tooltip>
-                                 </TooltipProvider>
-                             </div>
+                               <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                                   <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
+                                   <TooltipProvider>
+                                     <Tooltip><TooltipTrigger asChild>
+                                         <Button variant="ghost" size="icon" onClick={() => { navigator.clipboard.writeText(message.content); toast({ title: "Copiado!" }); }} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
+                                     </TooltipTrigger><TooltipContent>Copiar</TooltipContent></Tooltip>
+                                   </TooltipProvider>
+                               </div>
                            )}
                          </div>
                       </div>
@@ -623,7 +623,7 @@ const Chat = () => {
           )}
 
           {/* Área de Input */}
-          <div className="flex-shrink-0 border-t border-border bg-background p-4">
+          <div className="flex-shrink-0 border-t border-border bg-background px-4 pt-4 pb-8"> {/* <-- CORREÇÃO APLICADA AQUI */}
             <div className="max-w-4xl mx-auto">
                 {attachedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
