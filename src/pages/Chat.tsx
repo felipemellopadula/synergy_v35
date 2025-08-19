@@ -444,7 +444,7 @@ const Chat = () => {
           {/* Header Responsivo */}
           <div className="flex-shrink-0 flex items-center justify-between border-b border-border bg-background px-3 md:px-4 py-2 md:py-3">
             <div className="flex items-center gap-2 md:gap-3">
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate('/')}>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => navigate('/dashboard')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               
