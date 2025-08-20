@@ -352,39 +352,10 @@ const Chat = () => {
     const canProceed = await consumeTokens(selectedModel, currentInput);
     if (!canProceed) return;
 
-    // Upload files to Storage first and get paths
     const fileData = await Promise.all(currentFiles.map(async (file) => {
-        if (file.type === 'application/pdf') {
-            // Upload PDF to Supabase Storage
-            const fileName = `${user!.id}/${Date.now()}_${file.name}`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('documents')
-                .upload(fileName, file);
-            
-            if (uploadError) {
-                console.error('Error uploading PDF:', uploadError);
-                toast({ title: "Erro", description: `Falha ao fazer upload de ${file.name}`, variant: "destructive" });
-                return null;
-            }
-            
-            return {
-                name: file.name,
-                type: file.type,
-                storagePath: uploadData.path,
-                isLargeFile: true
-            };
-        } else {
-            // For images and other small files, keep the current approach
-            return {
-                name: file.name,
-                type: file.type,
-                data: await fileToBase64(file)
-            };
-        }
+        const baseData = { name: file.name, type: file.type, data: await fileToBase64(file) };
+        return file.type === 'application/pdf' ? { ...baseData, pdfContent: processedPdfs.get(file.name) || '' } : baseData;
     }));
-    
-    // Filter out null values (failed uploads)
-    const validFileData = fileData.filter(file => file !== null);
 
     const userMessage: Message = { id: Date.now().toString(), content: currentInput, sender: 'user', timestamp: new Date(), files: currentFiles.map(f => ({ name: f.name, type: f.type }))};
     const newMessages = [...messages, userMessage];
@@ -402,7 +373,7 @@ const Chat = () => {
 
     try {
         const internalModel = selectedModel === 'synergy-ia' ? 'gpt-4o-mini' : selectedModel;
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', { body: { message: currentInput, model: internalModel, files: validFileData.length > 0 ? validFileData : undefined } });
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', { body: { message: currentInput, model: internalModel, files: fileData.length > 0 ? fileData : undefined } });
         if (fnError) throw fnError;
         
         const data = fnData as any;
@@ -453,23 +424,15 @@ const Chat = () => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
-    
     for (const file of files) {
         const isValidType = file.type.startsWith('image/') || file.type.includes('pdf') || file.type.includes('word') || file.type.includes('document') || file.name.endsWith('.doc') || file.name.endsWith('.docx');
         if (!isValidType || file.size > 50 * 1024 * 1024) continue;
-        
         setAttachedFiles(prev => [...prev, file]);
-        
-        // Para PDFs, apenas processamos para validação, não precisamos do conteúdo completo aqui
         if (file.type === 'application/pdf') {
             try {
-                // Apenas validamos se o PDF pode ser lido
                 const result = await PdfProcessor.processPdf(file);
-                if (result.success) {
-                    setProcessedPdfs(prev => new Map(prev).set(file.name, 'validated'));
-                } else {
-                    toast({ title: "Erro ao processar PDF", description: result.error || `Falha em ${file.name}.`, variant: "destructive" });
-                }
+                if (result.success) setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
+                else toast({ title: "Erro ao processar PDF", description: result.error || `Falha em ${file.name}.`, variant: "destructive" });
             } catch (error) {
                 toast({ title: "Erro ao processar PDF", description: `Falha em ${file.name}.`, variant: "destructive" });
             }
