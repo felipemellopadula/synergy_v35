@@ -373,7 +373,54 @@ const Chat = () => {
 
     try {
         const internalModel = selectedModel === 'synergy-ia' ? 'gpt-4o-mini' : selectedModel;
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', { body: { message: currentInput, model: internalModel, files: fileData.length > 0 ? fileData : undefined } });
+        
+        // Prepare message with PDF content if exists
+        let messageWithPdf = currentInput;
+        if (fileData.length > 0) {
+          const pdfFiles = fileData.filter(f => f.type === 'application/pdf' && 'pdfContent' in f);
+          if (pdfFiles.length > 0) {
+            console.log('PDF files detected:', pdfFiles.map(f => ({ 
+              name: f.name, 
+              contentLength: ('pdfContent' in f) ? (f as any).pdfContent?.length || 0 : 0 
+            })));
+            
+            // Include PDF content in the message
+            const pdfContents = pdfFiles.map(pdf => 
+              `[Arquivo PDF: ${pdf.name}]\n\n${('pdfContent' in pdf) ? (pdf as any).pdfContent || 'Conteúdo não disponível' : 'Conteúdo não disponível'}`
+            ).join('\n\n---\n\n');
+            
+            messageWithPdf = `${currentInput}\n\n${pdfContents}`;
+            console.log('Final message length with PDF:', messageWithPdf.length);
+          }
+        }
+        
+        // Determine which edge function to use based on the selected model
+        const getEdgeFunctionName = (model: string) => {
+          if (model.includes('gpt-') || model.includes('o3') || model.includes('o4')) {
+            return 'openai-chat';
+          }
+          if (model.includes('gemini')) {
+            return 'gemini-chat';
+          }
+          if (model.includes('claude')) {
+            return 'anthropic-chat';
+          }
+          if (model.includes('llama') || model.includes('deepseek')) {
+            return 'apillm-chat';
+          }
+          return 'ai-chat'; // Fallback to original function
+        };
+
+        const functionName = getEdgeFunctionName(internalModel);
+        console.log(`Using edge function: ${functionName} for model: ${internalModel}`);
+        
+        const { data: fnData, error: fnError } = await supabase.functions.invoke(functionName, { 
+          body: { 
+            message: messageWithPdf, 
+            model: internalModel,
+            files: fileData.length > 0 ? fileData : undefined 
+          } 
+        });
         if (fnError) throw fnError;
         
         const data = fnData as any;
@@ -429,11 +476,24 @@ const Chat = () => {
         if (!isValidType || file.size > 50 * 1024 * 1024) continue;
         setAttachedFiles(prev => [...prev, file]);
         if (file.type === 'application/pdf') {
+            console.log('Processing PDF:', file.name, 'Size:', file.size);
             try {
                 const result = await PdfProcessor.processPdf(file);
-                if (result.success) setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
-                else toast({ title: "Erro ao processar PDF", description: result.error || `Falha em ${file.name}.`, variant: "destructive" });
+                if (result.success && result.content) {
+                    console.log('PDF processed successfully:', {
+                      fileName: file.name,
+                      pageCount: result.pageCount,
+                      contentLength: result.content.length,
+                      contentPreview: result.content.substring(0, 200) + '...'
+                    });
+                    setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
+                    toast({ title: "PDF processado com sucesso!", description: `${file.name} - ${result.pageCount} páginas processadas.` });
+                } else {
+                    console.error('PDF processing failed:', result.error);
+                    toast({ title: "Erro ao processar PDF", description: result.error || `Falha em ${file.name}.`, variant: "destructive" });
+                }
             } catch (error) {
+                console.error('PDF processing error:', error);
                 toast({ title: "Erro ao processar PDF", description: `Falha em ${file.name}.`, variant: "destructive" });
             }
         }
