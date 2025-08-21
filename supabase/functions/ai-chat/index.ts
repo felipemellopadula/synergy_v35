@@ -178,6 +178,24 @@ const getModelLimits = (model: string) => {
     };
   }
   
+  if (model.includes('deepseek')) {
+    return {
+      maxTokensPerChunk: 8000,
+      maxTokens: 4096,
+      delayMs: 1000,
+      useMaxCompletionTokens: false
+    };
+  }
+  
+  if (model.includes('Llama-4')) {
+    return {
+      maxTokensPerChunk: 8000,
+      maxTokens: 4096,
+      delayMs: 1000,
+      useMaxCompletionTokens: false
+    };
+  }
+  
   // Default for other models
   return {
     maxTokensPerChunk: 8000,
@@ -472,26 +490,122 @@ const callXaiGrok = async (message: string, model: string) => {
   }
 };
 
+const callDeepseek = async (message: string, model: string) => {
+  console.log('Chamando Deepseek com modelo:', model);
+  
+  const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
+  if (!apiKey) {
+    throw new Error('DEEPSEEK_API_KEY não configurada');
+  }
+
+  const modelLimits = getModelLimits(model);
+
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'user', content: message }
+        ],
+        max_tokens: modelLimits.maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Erro da API Deepseek:', response.status, '-', errorData.error?.message || 'Erro desconhecido');
+      throw new Error(`Erro da API Deepseek: ${response.status} - ${errorData.error?.message || 'Erro desconhecido'}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error('Erro ao chamar Deepseek:', error);
+    throw error;
+  }
+};
+
+const callApillm = async (message: string, model: string) => {
+  console.log('Chamando APILLM com modelo:', model);
+  
+  const apiKey = Deno.env.get('APILLM_API_KEY');
+  if (!apiKey) {
+    throw new Error('APILLM_API_KEY não configurada');
+  }
+
+  const modelLimits = getModelLimits(model);
+
+  // Map our model names to APILLM model names
+  let apillmModel = model;
+  if (model.includes('Llama-4-Scout')) {
+    apillmModel = 'llama4-scout';
+  } else if (model.includes('Llama-4') && model.includes('Maverick')) {
+    apillmModel = 'llama4-maverick';
+  } else if (model.includes('llama3.3')) {
+    apillmModel = 'llama3.3-70b';
+  }
+
+  try {
+    const response = await fetch('https://api.llama-api.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: apillmModel,
+        messages: [
+          { role: 'user', content: message }
+        ],
+        max_tokens: modelLimits.maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Erro da API APILLM:', response.status, '-', errorData.error?.message || 'Erro desconhecido');
+      throw new Error(`Erro da API APILLM: ${response.status} - ${errorData.error?.message || 'Erro desconhecido'}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+  } catch (error) {
+    console.error('Erro ao chamar APILLM:', error);
+    throw error;
+  }
+};
+
 const processLargePdf = async (content: string, userMessage: string, model: string) => {
   const modelLimits = getModelLimits(model);
   const estimatedTokens = estimateTokens(content);
   
   console.log(`PDF tem aproximadamente ${estimatedTokens} tokens, limite por chunk: ${modelLimits.maxTokensPerChunk}`);
   
-  if (estimatedTokens <= modelLimits.maxTokensPerChunk) {
-    // PDF is small enough, process normally
-    const optimizedPrompt = createOptimizedPdfPrompt(content, userMessage);
-    
-    if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
-      return await callOpenAI(optimizedPrompt, model);
-    } else if (model.includes('claude')) {
-      return await callAnthropic(optimizedPrompt, model);
-    } else if (model.includes('gemini')) {
-      return await callGoogleGemini(optimizedPrompt, model);
-    } else if (model.includes('grok')) {
-      return await callXaiGrok(optimizedPrompt, model);
+    if (estimatedTokens <= modelLimits.maxTokensPerChunk) {
+      // PDF is small enough, process normally
+      const optimizedPrompt = createOptimizedPdfPrompt(content, userMessage);
+      
+      if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
+        return await callOpenAI(optimizedPrompt, model);
+      } else if (model.includes('claude')) {
+        return await callAnthropic(optimizedPrompt, model);
+      } else if (model.includes('gemini')) {
+        return await callGoogleGemini(optimizedPrompt, model);
+      } else if (model.includes('grok')) {
+        return await callXaiGrok(optimizedPrompt, model);
+      } else if (model.includes('deepseek')) {
+        return await callDeepseek(optimizedPrompt, model);
+      } else if (model.includes('Llama-4')) {
+        return await callApillm(optimizedPrompt, model);
+      }
     }
-  }
   
   // PDF is too large, need to chunk
   console.log('PDF muito grande, dividindo em chunks...');
@@ -524,6 +638,10 @@ ${chunks.length > 1 ? `(Esta é apenas uma parte do documento completo)` : ''}`;
         response = await callGoogleGemini(chunkPrompt, model);
       } else if (model.includes('grok')) {
         response = await callXaiGrok(chunkPrompt, model);
+      } else if (model.includes('deepseek')) {
+        response = await callDeepseek(chunkPrompt, model);
+      } else if (model.includes('Llama-4')) {
+        response = await callApillm(chunkPrompt, model);
       } else {
         throw new Error('Modelo não suportado para processamento de PDF');
       }
@@ -564,6 +682,10 @@ Crie um resumo consolidado que:
         return await callGoogleGemini(finalSummaryPrompt, model);
       } else if (model.includes('grok')) {
         return await callXaiGrok(finalSummaryPrompt, model);
+      } else if (model.includes('deepseek')) {
+        return await callDeepseek(finalSummaryPrompt, model);
+      } else if (model.includes('Llama-4')) {
+        return await callApillm(finalSummaryPrompt, model);
       }
     } catch (error) {
       console.log('Erro ao criar resumo final, retornando resumos parciais');
@@ -622,6 +744,10 @@ serve(async (req) => {
         response = await callGoogleGemini(message, model);
       } else if (model.includes('grok')) {
         response = await callXaiGrok(message, model);
+      } else if (model.includes('deepseek')) {
+        response = await callDeepseek(message, model);
+      } else if (model.includes('Llama-4')) {
+        response = await callApillm(message, model);
       } else {
         throw new Error(`Modelo não suportado: ${model}`);
       }
