@@ -1,7 +1,8 @@
-import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square } from "lucide-react";
+import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square, FileText, Loader2 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import React, { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTokens } from "@/hooks/useTokens";
 import { supabase } from "@/integrations/supabase/client";
-import { PdfProcessor } from "@/utils/PdfProcessor";
+import { PdfProcessor } from "@/utils/pdfProcessor"; // Certifique-se que o caminho está correto
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
@@ -29,7 +30,6 @@ interface Message {
   model?: string;
   reasoning?: string;
   isStreaming?: boolean;
-  files?: { name: string; type: string }[];
 }
 
 interface ChatConversation {
@@ -173,12 +173,16 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isWebSearchMode, setIsWebSearchMode] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [processedPdfs, setProcessedPdfs] = useState<Map<string, string>>(new Map());
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [expandedReasoning, setExpandedReasoning] = useState<{ [key: string]: boolean }>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // Estados para o PDF (lógica do primeiro arquivo)
+  const [pdfContent, setPdfContent] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('');
+  const [pdfInfo, setPdfInfo] = useState<{ pages?: number; size?: number } | null>(null);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -186,7 +190,7 @@ const Chat = () => {
   const recordingTimeoutRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null); // Ref para o intervalo
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- LÓGICA DE NEGÓCIO ---
   
@@ -235,15 +239,6 @@ const Chat = () => {
       await createNewConversation();
     }
     setSelectedModel(newModel);
-  };
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
   };
 
   const toSerializable = (msgs: Message[]) => msgs.map(m => ({...m, timestamp: m.timestamp.toISOString()}));
@@ -298,8 +293,9 @@ const Chat = () => {
     setCurrentConversationId(null);
     setMessages([]);
     setInputValue('');
-    setAttachedFiles([]);
-    setProcessedPdfs(new Map());
+    setPdfContent('');
+    setFileName('');
+    setPdfInfo(null);
   };
 
   const deleteConversation = async (id: string) => {
@@ -351,28 +347,38 @@ const Chat = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && attachedFiles.length === 0) || isLoading) return;
+    if ((!inputValue.trim() && !pdfContent) || isLoading) return;
 
-    const currentInput = inputValue;
-    const currentFiles = [...attachedFiles];
-    setInputValue('');
-    setAttachedFiles([]);
-    setProcessedPdfs(new Map());
-    if (fileInputRef.current) fileInputRef.current.value = '';
-
-    const canProceed = await consumeTokens(selectedModel, currentInput);
+    const canProceed = await consumeTokens(selectedModel, inputValue);
     if (!canProceed) return;
+    
+    let messageContent = inputValue;
+    let displayMessage = inputValue || `Análise do arquivo: ${fileName}`;
 
-    const fileData = await Promise.all(currentFiles.map(async (file) => {
-        const baseData = { name: file.name, type: file.type, data: await fileToBase64(file) };
-        return file.type === 'application/pdf' ? { ...baseData, pdfContent: processedPdfs.get(file.name) || '' } : baseData;
-    }));
+    if (pdfContent && pdfInfo) {
+      if (inputValue.toLowerCase().includes('resumo') || inputValue.toLowerCase().includes('resume') || !inputValue.trim()) {
+        messageContent = `Aqui está o conteúdo de um PDF com ${pdfInfo.pages} páginas chamado "${fileName}". Por favor, crie um resumo executivo completo e bem estruturado, destacando os pontos-chave, conclusões principais e quaisquer dados ou números importantes.\n\nCONTEÚDO DO PDF:\n"""\n${pdfContent}\n"""`;
+        displayMessage = `Resumo do PDF: ${fileName}`;
+      } else {
+        messageContent = `Use o seguinte conteúdo do PDF com ${pdfInfo.pages} páginas chamado "${fileName}" como contexto principal para responder à pergunta do usuário. Forneça uma resposta detalhada e precisa baseada exclusivamente nas informações do documento.\n\nCONTEÚDO DO PDF:\n"""\n${pdfContent}\n"""\n\nPERGUNTA DO USUÁRIO:\n"""\n${inputValue}\n"""`;
+        displayMessage = `Análise sobre: ${inputValue}`;
+      }
+    }
 
-    const userMessage: Message = { id: Date.now().toString(), content: currentInput, sender: 'user', timestamp: new Date(), files: currentFiles.map(f => ({ name: f.name, type: f.type }))};
+    const userMessage: Message = { id: Date.now().toString(), content: displayMessage, sender: 'user', timestamp: new Date() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsLoading(true);
-    
+    setInputValue(''); // Limpar input aqui
+
+    // Limpar PDF após preparar a mensagem
+    setPdfContent('');
+    setFileName('');
+    setPdfInfo(null);
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+
     let convId = currentConversationId;
     if (!convId) {
         const tempId = `temp_${Date.now()}`;
@@ -384,7 +390,13 @@ const Chat = () => {
 
     try {
         const internalModel = selectedModel === 'synergy-ia' ? 'gpt-4o-mini' : selectedModel;
-        const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', { body: { message: currentInput, model: internalModel, files: fileData.length > 0 ? fileData : undefined } });
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('ai-chat', {
+             body: { 
+                message: messageContent, // Enviamos o prompt completo com o texto do PDF
+                model: internalModel 
+            } 
+        });
+
         if (fnError) throw fnError;
         
         const data = fnData as any;
@@ -430,29 +442,70 @@ const Chat = () => {
     } catch (error) {
         console.error('Error sending message:', error);
         toast({ title: "Erro", description: "Não foi possível enviar a mensagem.", variant: "destructive" });
-        setMessages(newMessages);
+        setMessages(newMessages); // Reverter para mensagens antes da falha
         setIsLoading(false);
     }
   };
   
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
-    for (const file of files) {
-        const isValidType = file.type.startsWith('image/') || file.type.includes('pdf') || file.type.includes('word') || file.type.includes('document') || file.name.endsWith('.doc') || file.name.endsWith('.docx');
-        if (!isValidType || file.size > 50 * 1024 * 1024) continue;
-        setAttachedFiles(prev => [...prev, file]);
-        if (file.type === 'application/pdf') {
-            try {
-                const result = await PdfProcessor.processPdf(file);
-                if (result.success) setProcessedPdfs(prev => new Map(prev).set(file.name, result.content || ''));
-                else toast({ title: "Erro ao processar PDF", description: result.error || `Falha em ${file.name}.`, variant: "destructive" });
-            } catch (error) {
-                toast({ title: "Erro ao processar PDF", description: `Falha em ${file.name}.`, variant: "destructive" });
-            }
-        }
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: "Erro de Arquivo",
+        description: "Por favor, selecione apenas arquivos PDF.",
+        variant: "destructive",
+      });
+      return;
     }
-    if (event.target) event.target.value = '';
+
+    setIsProcessingPdf(true);
+    try {
+      const result = await PdfProcessor.processPdf(file);
+
+      if (result.success && result.content) {
+        setPdfContent(result.content);
+        setFileName(file.name);
+        setPdfInfo({
+          pages: result.pageCount,
+          size: result.fileSize
+        });
+        toast({
+          title: "PDF processado com sucesso",
+          description: `${file.name} - ${result.pageCount} páginas (${result.fileSize}MB)`,
+        });
+      } else {
+        let errorMessage = result.error || "Erro desconhecido ao processar o PDF.";
+        if (result.isPasswordProtected) {
+          errorMessage = "PDF protegido por senha. Não é possível processar.";
+        }
+        toast({
+          title: "Erro ao processar PDF",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        setPdfContent('');
+        setFileName('');
+        setPdfInfo(null);
+      }
+    } catch (error) {
+      console.error('Erro ao processar PDF:', error);
+      toast({
+        title: "Erro Interno",
+        description: "Ocorreu um erro inesperado ao processar o arquivo PDF.",
+        variant: "destructive",
+      });
+      setPdfContent('');
+      setFileName('');
+      setPdfInfo(null);
+    } finally {
+      setIsProcessingPdf(false);
+      // Limpar o valor do input para permitir o re-upload do mesmo arquivo
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
   };
   
   const startRecording = async () => {};
@@ -470,14 +523,14 @@ const Chat = () => {
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
             <div className="flex items-center gap-3 md:gap-4">
                <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="flex items-center gap-2 hover:bg-muted">
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
-                <div className="h-6 w-px bg-border hidden sm:block" />
-                <div className="flex items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-blue-500" />
-                    <h1 className="text-lg font-semibold text-foreground">Chat</h1>
-                </div>
+                 <ArrowLeft className="h-4 w-4" />
+                 Voltar
+               </Button>
+               <div className="h-6 w-px bg-border hidden sm:block" />
+               <div className="flex items-center gap-2">
+                   <MessageCircle className="h-5 w-5 text-blue-500" />
+                   <h1 className="text-lg font-semibold text-foreground">Chat</h1>
+               </div>
             </div>
             <div className="hidden md:flex items-center gap-4">
                 <ModelSelector onModelSelect={handleModelChange} selectedModel={selectedModel} />
@@ -552,70 +605,69 @@ const Chat = () => {
                   <div key={message.id} className={`flex items-start gap-3 ${message.sender === 'user' ? 'justify-end' : ''}`}>
                     
                     {message.sender === 'bot' ? (
-                      <>
-                        <Avatar className="h-8 w-8 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback></Avatar>
-                        <div className="max-w-[85%] rounded-lg px-4 py-3 bg-muted">
-                          <div className="space-y-3">
-                            {message.reasoning && (
-                              <div className="border-b border-border/50 pb-2">
-                                <Button variant="ghost" size="sm" onClick={() => setExpandedReasoning(p => ({ ...p, [message.id]: !p[message.id] }))} className="h-auto p-1 text-xs opacity-70 hover:opacity-100">
-                                  {expandedReasoning[message.id] ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />} Raciocínio
-                                </Button>
-                                {expandedReasoning[message.id] && <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-hidden">{message.reasoning}</div>}
+                        <>
+                            <Avatar className="h-8 w-8 shrink-0"><AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback></Avatar>
+                            <div className="max-w-[85%] rounded-lg px-4 py-3 bg-muted">
+                              <div className="space-y-3">
+                                {message.reasoning && (
+                                  <div className="border-b border-border/50 pb-2">
+                                    <Button variant="ghost" size="sm" onClick={() => setExpandedReasoning(p => ({ ...p, [message.id]: !p[message.id] }))} className="h-auto p-1 text-xs opacity-70 hover:opacity-100">
+                                      {expandedReasoning[message.id] ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />} Raciocínio
+                                    </Button>
+                                    {expandedReasoning[message.id] && <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-hidden">{message.reasoning}</div>}
+                                  </div>
+                                )}
+                                <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                                  {message.isStreaming && <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />}
+                                </div>
+                                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                                  <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" onClick={() => { navigator.clipboard.writeText(message.content); toast({ title: "Copiado!" }); }} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Copiar</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
                               </div>
-                            )}
-                            <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                              {message.isStreaming && <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />}
                             </div>
-                            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                              <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => { navigator.clipboard.writeText(message.content); toast({ title: "Copiado!" }); }} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Copiar</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          </div>
-                        </div>
-                      </>
+                        </>
                     ) : (
-                      <>
-                        <div className="group flex flex-col items-end max-w-[90%]">
-                          <div className="rounded-lg px-4 py-3 bg-primary text-primary-foreground">
-                            <div className="space-y-3">
-                              {message.files && (<div className="flex flex-wrap gap-2">{message.files.map((file, idx) => (<div key={idx} className="bg-background/50 px-3 py-1 rounded-full text-xs">📎 {file.name}</div>))}</div>)}
-                              <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                        <>
+                            <div className="group flex flex-col items-end max-w-[90%]">
+                              <div className="rounded-lg px-4 py-3 bg-primary text-primary-foreground">
+                                <div className="space-y-3">
+                                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 mt-1 hover:bg-muted/50"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(message.content);
+                                          toast({ title: "Copiado!" });
+                                        }}
+                                      >
+                                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Copiar</TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </div>
                             </div>
-                          </div>
-                          <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 mt-1 hover:bg-muted/50"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(message.content);
-                                      toast({ title: "Copiado!" });
-                                    }}
-                                  >
-                                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Copiar</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
-                        <Avatar className="h-8 w-8 shrink-0"><AvatarFallback>U</AvatarFallback></Avatar>
-                      </>
+                            <Avatar className="h-8 w-8 shrink-0"><AvatarFallback>U</AvatarFallback></Avatar>
+                        </>
                     )}
                     
                   </div>
@@ -629,36 +681,82 @@ const Chat = () => {
           </div>
           
           {showScrollToBottom && (
-            <Button onClick={scrollToBottom} variant="outline" size="icon" className="absolute bottom-24 right-6 h-10 w-10 rounded-full shadow-lg z-20">
+            <Button onClick={scrollToBottom} variant="outline" size="icon" className="absolute bottom-40 right-6 h-10 w-10 rounded-full shadow-lg z-20">
               <ArrowDown className="h-4 w-4" />
             </Button>
           )}
 
           {/* ===== ÁREA DE INPUT ===== */}
           <div className="flex-shrink-0 border-t border-border bg-background px-4 pt-4 pb-8">
-            <div className="max-w-4xl mx-auto">
-                {attachedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {attachedFiles.map((file, idx) => (
-                      <div key={idx} className="bg-muted px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                        📎 {file.name}
-                        <button onClick={() => { setAttachedFiles(p => p.filter((_, i) => i !== idx)); if (file.type === 'application/pdf') setProcessedPdfs(p => { const n = new Map(p); n.delete(file.name); return n; }); }} className="text-red-500 hover:text-red-700 ml-1 text-lg leading-none">&times;</button>
+            <div className="max-w-4xl mx-auto space-y-3">
+              {/* Status do PDF Anexado */}
+              {fileName && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <div>
+                          <span className="text-foreground font-medium">Anexado: {fileName}</span>
+                          {pdfInfo && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {pdfInfo.pages} páginas • {pdfInfo.size}MB
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPdfContent('');
+                          setFileName('');
+                          setPdfInfo(null);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = '';
+                          }
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Status de Processamento do PDF */}
+              {isProcessingPdf && (
+                <Card className="bg-secondary/5 border-secondary/20">
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin text-secondary" />
+                      <div>
+                        <span className="text-foreground font-medium">Processando PDF...</span>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Aguarde, isto pode levar alguns segundos.
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                 <div className="flex-1 relative">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,.pdf,.doc,.docx" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf" />
                   <div className="absolute left-2 top-3 z-10">
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8"><Plus className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent side="top" align="start" className="mb-2">
-                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer"><Paperclip className="h-4 w-4 mr-2" />Anexar</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setIsWebSearchMode(p => !p)} className="cursor-pointer"><Globe className="h-4 w-4 mr-2" />{isWebSearchMode ? 'Desativar Busca Web' : 'Busca Web'}</DropdownMenuItem>
-                        </DropdownMenuContent>
+                          <DropdownMenuTrigger asChild>
+                              <Button type="button" variant="ghost" size="icon" className="h-8 w-8"><Plus className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="top" align="start" className="mb-2">
+                              <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer" disabled={isProcessingPdf}>
+                                {isProcessingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Paperclip className="h-4 w-4 mr-2" />}
+                                Anexar PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setIsWebSearchMode(p => !p)} className="cursor-pointer"><Globe className="h-4 w-4 mr-2" />{isWebSearchMode ? 'Desativar Busca Web' : 'Busca Web'}</DropdownMenuItem>
+                          </DropdownMenuContent>
                       </DropdownMenu>
                   </div>
                   <Textarea
@@ -669,8 +767,14 @@ const Chat = () => {
                       target.style.height = 'auto';
                       target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
                     }}
-                    placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa..."}
-                    disabled={isLoading}
+                    placeholder={
+                        pdfContent 
+                          ? "Faça uma pergunta sobre o PDF ou digite 'resumo'..." 
+                          : isWebSearchMode 
+                            ? "Digite para buscar na web..." 
+                            : "Pergunte alguma coisa..."
+                    }
+                    disabled={isLoading || isProcessingPdf}
                     className="w-full pl-14 pr-24 py-3 rounded-lg resize-none min-h-[52px] max-h-[128px]"
                     rows={1}
                     onKeyDown={(e) => { 
@@ -700,7 +804,7 @@ const Chat = () => {
                     ) : (
                       <Button
                         type="submit"
-                        disabled={!inputValue.trim() && attachedFiles.length === 0}
+                        disabled={(!inputValue.trim() && !pdfContent) || isProcessingPdf}
                         size="icon"
                         className="h-8 w-8 rounded-full"
                       >
