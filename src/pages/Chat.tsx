@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// --- INTERFACES ---
+// --- SEÇÃO 1: INTERFACES (TIPOS DE DADOS) ---
 interface Message {
   id: string;
   content: string;
@@ -46,8 +46,8 @@ interface ChatConversation {
   updated_at: string;
 }
 
-// --- COMPONENTE SIDEBAR ---
-const ConversationSidebar: React.FC<{
+// --- SEÇÃO 2: COMPONENTE DA SIDEBAR (INCLUÍDO PARA SER COMPLETO) ---
+interface ConversationSidebarProps {
   conversations: ChatConversation[];
   currentConversationId: string | null;
   onSelectConversation: (conv: ChatConversation) => void;
@@ -56,25 +56,112 @@ const ConversationSidebar: React.FC<{
   onToggleFavorite: (conv: ChatConversation) => void;
   onRenameConversation: (id: string, newTitle: string) => void;
   isMobile?: boolean;
-}> = ({ conversations, currentConversationId, onSelectConversation, onNewConversation, onDeleteConversation, onToggleFavorite, onRenameConversation, isMobile }) => {
+}
+
+const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
+  conversations,
+  currentConversationId,
+  onSelectConversation,
+  onNewConversation,
+  onDeleteConversation,
+  onToggleFavorite,
+  onRenameConversation,
+  isMobile = false
+}) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  
   const handleRename = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const newTitle = prompt("Digite o novo título da conversa:");
-    if (newTitle && newTitle.trim()) onRenameConversation(id, newTitle.trim());
+    if (newTitle && newTitle.trim()) {
+      onRenameConversation(id, newTitle.trim());
+    }
   };
+
+  const filteredConversations = conversations.filter(c =>
+    c.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   const renderItem = (conv: ChatConversation) => (
-    <div key={conv.id} className={`group relative rounded-lg p-3 cursor-pointer transition-colors duration-200 ${currentConversationId === conv.id ? "bg-muted" : "hover:bg-muted/50"}`} onClick={() => onSelectConversation(conv)}>
-      <div className="flex items-start justify-between"><div className="flex-1 min-w-0"><h3 className="text-sm font-medium text-foreground truncate">{conv.title}</h3><p className="text-xs text-muted-foreground mt-1">{new Date(conv.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</p></div><div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleFavorite(conv); }}><Star className={`h-4 w-4 mr-2 ${conv.is_favorite ? 'text-yellow-500 fill-current' : ''}`} />{conv.is_favorite ? 'Desfavoritar' : 'Favoritar'}</DropdownMenuItem><DropdownMenuItem onClick={(e) => handleRename(e, conv.id)}><Edit3 className="h-4 w-4 mr-2" />Renomear</DropdownMenuItem><DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteConversation(conv.id); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Deletar</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></div>
+    <div
+      key={conv.id}
+      className={`group relative rounded-lg p-3 cursor-pointer transition-colors duration-200 ${
+        currentConversationId === conv.id ? "bg-muted" : "hover:bg-muted/50"
+      }`}
+      onClick={() => onSelectConversation(conv)}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-foreground truncate">{conv.title}</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            {new Date(conv.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </p>
+        </div>
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onToggleFavorite(conv); }}>
+                <Star className={`h-4 w-4 mr-2 ${conv.is_favorite ? 'text-yellow-500 fill-current' : ''}`} />
+                {conv.is_favorite ? 'Desfavoritar' : 'Favoritar'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => handleRename(e, conv.id)}>
+                <Edit3 className="h-4 w-4 mr-2" />
+                Renomear
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteConversation(conv.id); }} className="text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
     </div>
   );
-  const favorites = conversations.filter(c => c.is_favorite);
-  const recents = conversations.filter(c => !c.is_favorite);
+  
+  const favorites = filteredConversations.filter(c => c.is_favorite);
+  const recents = filteredConversations.filter(c => !c.is_favorite);
+
   return (
-    <div className="flex flex-col h-full bg-background border-r border-border"><div className="p-4 border-b border-border"><Button onClick={onNewConversation} size="lg" className="w-full"><Plus className="w-4 h-4 mr-2" />Novo Chat</Button></div><ScrollArea className="flex-1 p-2"><div className="space-y-1">{favorites.length > 0 && (<><h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground">Favoritos</h4>{favorites.map(conv => isMobile ? <SheetClose asChild key={conv.id}>{renderItem(conv)}</SheetClose> : renderItem(conv))}</>)}{recents.length > 0 && (<><h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground">Recentes</h4>{recents.map(conv => isMobile ? <SheetClose asChild key={conv.id}>{renderItem(conv)}</SheetClose> : renderItem(conv))}</>)}</div></ScrollArea></div>
+    <div className="flex flex-col h-full bg-background border-r border-border">
+      <div className="p-4 border-b border-border flex flex-col gap-4 flex-shrink-0">
+        <Button onClick={onNewConversation} size="lg">
+          <Plus className="w-4 h-4 mr-2" />
+          Novo Chat
+        </Button>
+        <input
+          placeholder="Pesquisar conversas..."
+          className="w-full h-9 rounded-md border bg-muted px-3 text-sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+      <ScrollArea className="flex-1 p-2">
+        <div className="space-y-1">
+            {favorites.length > 0 && (
+                <>
+                    <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground">Favoritos</h4>
+                    {favorites.map(conv => isMobile ? <SheetClose asChild key={conv.id}>{renderItem(conv)}</SheetClose> : renderItem(conv))}
+                </>
+            )}
+            <h4 className="px-3 py-2 text-xs font-semibold text-muted-foreground">Recentes</h4>
+            {recents.map(conv => isMobile ? <SheetClose asChild key={conv.id}>{renderItem(conv)}</SheetClose> : renderItem(conv))}
+            
+            {filteredConversations.length === 0 && (
+                <p className="p-4 text-center text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
+            )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 
-// --- COMPONENTE PRINCIPAL ---
+// --- SEÇÃO 3: COMPONENTE PRINCIPAL 'CHAT' ---
 const Chat = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -87,7 +174,7 @@ const Chat = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
+  const [selectedModel, setSelectedModel] = useState<string | undefined>('synergy-ia');
   
   const [pdfContent, setPdfContent] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
@@ -98,6 +185,7 @@ const Chat = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // --- SEÇÃO 4: LÓGICA DE CONVERSAS (SALVAR, CARREGAR, ETC) ---
   useEffect(() => {
     if (!loading && !user) navigate('/');
     if (user && !loading) fetchConversations();
@@ -113,8 +201,8 @@ const Chat = () => {
     else setConversations((data as any) || []);
   };
 
-  const toSerializable = (msgs: Message[]) => msgs.map(m => ({ ...m, sender: m.sender, content: m.content, timestamp: m.timestamp.toISOString(), model: m.model, reasoning: m.reasoning }));
-  const fromSerializable = (msgs: any[]): Message[] => (msgs || []).map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+  const toSerializable = (msgs: Message[]) => msgs.map(m => ({ content: m.content, sender: m.sender, timestamp: m.timestamp.toISOString(), model: m.model, reasoning: m.reasoning }));
+  const fromSerializable = (msgs: any[]): Message[] => (msgs || []).map((m, index) => ({ ...m, id: `${new Date(m.timestamp).getTime()}-${index}`, timestamp: new Date(m.timestamp) }));
   const deriveTitle = (msgs: Message[]) => (msgs.find(m => m.sender === 'user')?.content?.trim() || 'Nova conversa').slice(0, 50);
 
   const openConversation = (conv: ChatConversation) => {
@@ -161,6 +249,8 @@ const Chat = () => {
     await fetchConversations();
   };
 
+
+  // --- SEÇÃO 5: LÓGICA FUNCIONAL DE PDF & ENVIO DE MENSAGEM (A QUE FUNCIONA) ---
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -200,18 +290,14 @@ const Chat = () => {
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     
-    const userInput = inputValue; // Guarda o input antes de limpar
+    const userInput = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // --- ESTA É A CORREÇÃO CRÍTICA ---
-      // Construímos o payload exatamente como a sua função `ai-chat` espera:
-      // 1. `message` é APENAS o texto do usuário.
-      // 2. `files` contém um objeto com o `pdfContent` bruto extraído no navegador.
-      // O backend (`ai-chat`) será responsável por juntar os dois.
+      // **AQUI ESTÁ A LÓGICA CORRETA PARA ENVIAR PARA A SUA FUNÇÃO `ai-chat`**
       const payload = {
-          message: userInput, // Apenas o que o usuário digitou
+          message: userInput,
           model: selectedModel,
           files: pdfContent ? [{
               name: fileName,
@@ -235,13 +321,12 @@ const Chat = () => {
       
       await upsertConversation(finalMessages);
 
-      // Limpa o estado do PDF após o sucesso
       setPdfContent(''); setFileName(''); setPdfInfo(null);
 
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
-      toast({ title: "Erro", description: "Não foi possível enviar a mensagem. A função do Supabase pode estar com erro.", variant: "destructive" });
-      setMessages(messages); // Reverte para o estado anterior em caso de erro
+      toast({ title: "Erro", description: error.message || "A função do Supabase pode estar com erro.", variant: "destructive" });
+      setMessages(messages);
     } finally {
       setIsLoading(false);
     }
@@ -251,6 +336,7 @@ const Chat = () => {
   if (loading) return <div className="h-screen bg-background flex items-center justify-center"><Loader2 className="h-16 w-16 animate-spin" /></div>;
   if (!user || !profile) return null;
 
+  // --- SEÇÃO 6: RENDERIZAÇÃO / JSX COMPLETO ---
   return (
     <div className="h-screen max-h-screen bg-background flex flex-col">
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
