@@ -26,24 +26,42 @@ interface ChatRequest {
 }
 
 const getApiKey = (model: string): string | null => {
+  console.log('🔍 Verificando chave API para modelo:', model);
+  
   if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
-    return Deno.env.get('OPENAI_API_KEY');
+    const key = Deno.env.get('OPENAI_API_KEY');
+    console.log('🔑 OpenAI API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
   if (model.includes('claude')) {
-    return Deno.env.get('ANTHROPIC_API_KEY');
+    const key = Deno.env.get('ANTHROPIC_API_KEY');
+    console.log('🔑 Anthropic API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
   if (model.includes('gemini')) {
-    return Deno.env.get('GOOGLE_API_KEY');
+    const key = Deno.env.get('GOOGLE_API_KEY');
+    console.log('🔑 Google API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
   if (model.includes('grok')) {
-    return Deno.env.get('XAI_API_KEY');
+    const key = Deno.env.get('XAI_API_KEY');
+    console.log('🔑 xAI API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
   if (model.includes('deepseek')) {
-    return Deno.env.get('DEEPSEEK_API_KEY');
+    const key = Deno.env.get('DEEPSEEK_API_KEY');
+    console.log('🔑 Deepseek API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
-  if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
-    return Deno.env.get('APILLM_API_KEY');
+  // APILLM models - updated patterns
+  if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+      model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
+    const key = Deno.env.get('APILLM_API_KEY');
+    console.log('🔑 APILLM API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+    return key;
   }
+  
+  console.log('❌ Nenhuma chave API encontrada para modelo:', model);
   return null;
 };
 
@@ -187,7 +205,9 @@ const getModelLimits = (model: string) => {
     };
   }
   
-  if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
+  // APILLM models - updated patterns
+  if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+      model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
     return {
       maxTokensPerChunk: 8000,
       maxTokens: 4096,
@@ -532,64 +552,83 @@ const callDeepseek = async (message: string, model: string) => {
 };
 
 const callApillm = async (message: string, model: string) => {
-  console.log('Chamando APILLM com modelo:', model);
+  console.log('🚀 Chamando APILLM com modelo:', model);
   
   const apiKey = Deno.env.get('APILLM_API_KEY');
+  console.log('🔑 APILLM_API_KEY status:', apiKey ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
+  
   if (!apiKey) {
     throw new Error('APILLM_API_KEY não configurada');
   }
 
   const modelLimits = getModelLimits(model);
-
-  console.log('Modelo APILLM:', model);
+  console.log('📊 Limites do modelo:', modelLimits);
+  
+  const requestPayload = {
+    model: model,
+    messages: [
+      {
+        role: 'system',
+        content: 'Você é um assistente de IA prestativo, preciso e versátil.'
+      },
+      { 
+        role: 'user', 
+        content: message 
+      }
+    ],
+    max_tokens: modelLimits.maxTokens,
+    temperature: 0.7,
+    stream: false,
+  };
+  
+  console.log('📤 Payload da requisição APILLM:', JSON.stringify(requestPayload, null, 2));
 
   try {
+    console.log('🌐 Fazendo requisição para https://api.apillm.com/chat/completions');
+    
     const response = await fetch('https://api.apillm.com/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: 'system',
-            content: 'Você é um assistente de IA prestativo, preciso e versátil.'
-          },
-          { 
-            role: 'user', 
-            content: message 
-          }
-        ],
-        max_tokens: modelLimits.maxTokens,
-        temperature: 0.7,
-        stream: false,
-      }),
+      body: JSON.stringify(requestPayload),
     });
 
-    console.log('Response status APILLM:', response.status);
+    console.log('📥 Response status APILLM:', response.status);
+    console.log('📥 Response headers APILLM:', response.headers);
 
     if (!response.ok) {
       let errorMessage = 'Erro desconhecido';
+      let responseBody = '';
+      
       try {
-        const errorData = await response.json();
+        responseBody = await response.text();
+        console.log('🚨 Response body completo:', responseBody);
+        
+        const errorData = JSON.parse(responseBody);
         errorMessage = errorData.error?.message || errorData.message || JSON.stringify(errorData);
       } catch (parseError) {
-        const errorText = await response.text();
-        errorMessage = errorText || `HTTP ${response.status}`;
+        console.log('❌ Erro ao parsear response:', parseError);
+        errorMessage = responseBody || `HTTP ${response.status}`;
       }
-      console.error('Erro da API APILLM:', response.status, '-', errorMessage);
+      
+      console.error('🚨 Erro da API APILLM:', response.status, '-', errorMessage);
       throw new Error(`Erro da API APILLM: ${response.status} - ${errorMessage}`);
     }
 
-    const data = await response.json();
-    console.log('Response APILLM recebida com sucesso');
+    const responseText = await response.text();
+    console.log('📥 Response body completo APILLM:', responseText);
+    
+    const data = JSON.parse(responseText);
+    console.log('✅ Response APILLM parseiada com sucesso');
     
     if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('❌ Formato de resposta inválido:', data);
       throw new Error('Formato de resposta inválido da API APILLM');
     }
 
+    console.log('✅ Conteúdo da resposta:', data.choices[0].message.content);
     return data.choices[0].message.content;
   } catch (error) {
     console.error('Erro ao chamar APILLM:', error);
@@ -617,7 +656,8 @@ const processLargePdf = async (content: string, userMessage: string, model: stri
         return await callXaiGrok(optimizedPrompt, model);
       } else if (model.includes('deepseek')) {
         return await callDeepseek(optimizedPrompt, model);
-      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
+      } else if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+                 model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
         return await callApillm(optimizedPrompt, model);
       }
     }
@@ -655,7 +695,8 @@ ${chunks.length > 1 ? `(Esta é apenas uma parte do documento completo)` : ''}`;
         response = await callXaiGrok(chunkPrompt, model);
       } else if (model.includes('deepseek')) {
         response = await callDeepseek(chunkPrompt, model);
-      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
+      } else if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+                 model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
         response = await callApillm(chunkPrompt, model);
       } else {
         throw new Error('Modelo não suportado para processamento de PDF');
@@ -699,7 +740,8 @@ Crie um resumo consolidado que:
         return await callXaiGrok(finalSummaryPrompt, model);
       } else if (model.includes('deepseek')) {
         return await callDeepseek(finalSummaryPrompt, model);
-      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
+      } else if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+                 model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
         return await callApillm(finalSummaryPrompt, model);
       }
     } catch (error) {
@@ -719,7 +761,11 @@ serve(async (req) => {
   try {
     const { message, model, files }: ChatRequest = await req.json();
 
-    console.log('Recebido:', { message: message.substring(0, 100) + '...', model });
+    console.log('📨 Requisição recebida:', { 
+      message: message.substring(0, 100) + (message.length > 100 ? '...' : ''), 
+      model,
+      messageLength: message.length
+    });
 
     if (!message || !model) {
       return new Response(
@@ -761,7 +807,8 @@ serve(async (req) => {
         response = await callXaiGrok(message, model);
       } else if (model.includes('deepseek')) {
         response = await callDeepseek(message, model);
-      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
+      } else if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
+                 model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
         response = await callApillm(message, model);
       } else {
         throw new Error(`Modelo não suportado: ${model}`);
