@@ -41,7 +41,7 @@ const getApiKey = (model: string): string | null => {
   if (model.includes('deepseek')) {
     return Deno.env.get('DEEPSEEK_API_KEY');
   }
-  if (model.includes('Llama-4')) {
+  if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
     return Deno.env.get('APILLM_API_KEY');
   }
   return null;
@@ -187,7 +187,7 @@ const getModelLimits = (model: string) => {
     };
   }
   
-  if (model.includes('Llama-4')) {
+  if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
     return {
       maxTokensPerChunk: 8000,
       maxTokens: 4096,
@@ -543,13 +543,19 @@ const callApillm = async (message: string, model: string) => {
 
   // Map our model names to APILLM model names
   let apillmModel = model;
-  if (model.includes('Llama-4-Scout')) {
+  if (model.includes('Llama-4-Scout') || model.includes('llama4-scout') || model === 'Llama-4-Scout-17B-16E-Instruct-FP8') {
     apillmModel = 'llama4-scout';
+  } else if (model.includes('Llama-4-Maverick') || model.includes('llama4-maverick') || model === 'Llama-4-Maverick-17B-128E-Instruct-FP8') {
+    apillmModel = 'llama4-maverick';
   } else if (model.includes('Llama-4') && model.includes('Maverick')) {
     apillmModel = 'llama4-maverick';
-  } else if (model.includes('llama3.3')) {
+  } else if (model.includes('Llama-4') && model.includes('Scout')) {
+    apillmModel = 'llama4-scout';
+  } else if (model.includes('llama3.3') || model === 'llama3.3-70b-instruct') {
     apillmModel = 'llama3.3-70b';
   }
+
+  console.log('Modelo mapeado para APILLM:', apillmModel);
 
   try {
     const response = await fetch('https://api.llama-api.com/chat/completions', {
@@ -568,13 +574,28 @@ const callApillm = async (message: string, model: string) => {
       }),
     });
 
+    console.log('Response status APILLM:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Erro da API APILLM:', response.status, '-', errorData.error?.message || 'Erro desconhecido');
-      throw new Error(`Erro da API APILLM: ${response.status} - ${errorData.error?.message || 'Erro desconhecido'}`);
+      let errorMessage = 'Erro desconhecido';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorData.message || JSON.stringify(errorData);
+      } catch (parseError) {
+        const errorText = await response.text();
+        errorMessage = errorText || `HTTP ${response.status}`;
+      }
+      console.error('Erro da API APILLM:', response.status, '-', errorMessage);
+      throw new Error(`Erro da API APILLM: ${response.status} - ${errorMessage}`);
     }
 
     const data = await response.json();
+    console.log('Response APILLM recebida com sucesso');
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      throw new Error('Formato de resposta inválido da API APILLM');
+    }
+
     return data.choices[0].message.content;
   } catch (error) {
     console.error('Erro ao chamar APILLM:', error);
@@ -602,7 +623,7 @@ const processLargePdf = async (content: string, userMessage: string, model: stri
         return await callXaiGrok(optimizedPrompt, model);
       } else if (model.includes('deepseek')) {
         return await callDeepseek(optimizedPrompt, model);
-      } else if (model.includes('Llama-4')) {
+      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
         return await callApillm(optimizedPrompt, model);
       }
     }
@@ -640,7 +661,7 @@ ${chunks.length > 1 ? `(Esta é apenas uma parte do documento completo)` : ''}`;
         response = await callXaiGrok(chunkPrompt, model);
       } else if (model.includes('deepseek')) {
         response = await callDeepseek(chunkPrompt, model);
-      } else if (model.includes('Llama-4')) {
+      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
         response = await callApillm(chunkPrompt, model);
       } else {
         throw new Error('Modelo não suportado para processamento de PDF');
@@ -684,7 +705,7 @@ Crie um resumo consolidado que:
         return await callXaiGrok(finalSummaryPrompt, model);
       } else if (model.includes('deepseek')) {
         return await callDeepseek(finalSummaryPrompt, model);
-      } else if (model.includes('Llama-4')) {
+      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
         return await callApillm(finalSummaryPrompt, model);
       }
     } catch (error) {
@@ -746,7 +767,7 @@ serve(async (req) => {
         response = await callXaiGrok(message, model);
       } else if (model.includes('deepseek')) {
         response = await callDeepseek(message, model);
-      } else if (model.includes('Llama-4')) {
+      } else if (model.includes('llama4-') || model.includes('Llama-4') || model.includes('llama3.3')) {
         response = await callApillm(message, model);
       } else {
         throw new Error(`Modelo não suportado: ${model}`);
