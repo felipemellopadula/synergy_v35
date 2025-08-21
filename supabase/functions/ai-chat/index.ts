@@ -26,7 +26,7 @@ interface ChatRequest {
 }
 
 const getApiKey = (model: string): string | null => {
-  if (model.includes('gpt-') || model.includes('o1')) {
+  if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
     return Deno.env.get('OPENAI_API_KEY');
   }
   if (model.includes('claude')) {
@@ -58,11 +58,78 @@ const estimateTokens = (text: string): number => {
 
 const getModelLimits = (model: string) => {
   // Token limits per minute for different models
+  
+  // GPT-5 series (future models - high limits)
+  if (model.includes('gpt-5')) {
+    if (model.includes('nano')) {
+      return {
+        maxTokensPerChunk: 8000,
+        maxTokens: 4096,
+        delayMs: 500,
+        useMaxCompletionTokens: true
+      };
+    }
+    if (model.includes('mini')) {
+      return {
+        maxTokensPerChunk: 12000,
+        maxTokens: 8192,
+        delayMs: 1000,
+        useMaxCompletionTokens: true
+      };
+    }
+    // GPT-5 regular
+    return {
+      maxTokensPerChunk: 15000,
+      maxTokens: 16384,
+      delayMs: 1000,
+      useMaxCompletionTokens: true
+    };
+  }
+  
+  // GPT-4.1 series (future models)
+  if (model.includes('gpt-4.1')) {
+    if (model.includes('nano')) {
+      return {
+        maxTokensPerChunk: 6000,
+        maxTokens: 4096,
+        delayMs: 500,
+        useMaxCompletionTokens: true
+      };
+    }
+    if (model.includes('mini')) {
+      return {
+        maxTokensPerChunk: 10000,
+        maxTokens: 8192,
+        delayMs: 1000,
+        useMaxCompletionTokens: true
+      };
+    }
+    // GPT-4.1 regular
+    return {
+      maxTokensPerChunk: 12000,
+      maxTokens: 8192,
+      delayMs: 1000,
+      useMaxCompletionTokens: true
+    };
+  }
+  
+  // O3/O4 reasoning models
+  if (model.includes('o3') || model.includes('o4')) {
+    return {
+      maxTokensPerChunk: 10000,
+      maxTokens: 8192,
+      delayMs: 2000,
+      useMaxCompletionTokens: true
+    };
+  }
+  
+  // Current available models
   if (model.includes('gpt-4o-mini') || model.includes('gpt-3.5')) {
     return {
       maxTokensPerChunk: 6000,
       maxTokens: 4096,
-      delayMs: 1000
+      delayMs: 1000,
+      useMaxCompletionTokens: false
     };
   }
   
@@ -70,7 +137,8 @@ const getModelLimits = (model: string) => {
     return {
       maxTokensPerChunk: 7500,
       maxTokens: 4096,
-      delayMs: 1000
+      delayMs: 1000,
+      useMaxCompletionTokens: false
     };
   }
   
@@ -78,7 +146,8 @@ const getModelLimits = (model: string) => {
     return {
       maxTokensPerChunk: 7500,
       maxTokens: 4096,
-      delayMs: 1000
+      delayMs: 1000,
+      useMaxCompletionTokens: false
     };
   }
   
@@ -86,7 +155,8 @@ const getModelLimits = (model: string) => {
     return {
       maxTokensPerChunk: 15000,
       maxTokens: 4096,
-      delayMs: 2000
+      delayMs: 2000,
+      useMaxCompletionTokens: false
     };
   }
   
@@ -94,7 +164,8 @@ const getModelLimits = (model: string) => {
     return {
       maxTokensPerChunk: 12000,
       maxTokens: 8192,
-      delayMs: 1500
+      delayMs: 1500,
+      useMaxCompletionTokens: false
     };
   }
   
@@ -102,7 +173,8 @@ const getModelLimits = (model: string) => {
   return {
     maxTokensPerChunk: 8000,
     maxTokens: 4096,
-    delayMs: 1000
+    delayMs: 1000,
+    useMaxCompletionTokens: false
   };
 };
 
@@ -197,14 +269,34 @@ const callOpenAI = async (message: string, model: string) => {
 
   const modelLimits = getModelLimits(model);
   
+  // Map fictional future models to current available models for now
+  let actualModel = model;
+  if (model.includes('gpt-5')) {
+    actualModel = model.includes('mini') ? 'gpt-4o-mini' : 'gpt-4o';
+  } else if (model.includes('gpt-4.1')) {
+    actualModel = model.includes('mini') ? 'gpt-4o-mini' : 'gpt-4o';
+  } else if (model.includes('o3') || model.includes('o4')) {
+    actualModel = 'gpt-4o';
+  }
+  
   const requestBody: any = {
-    model: model,
+    model: actualModel,
     messages: [
       { role: 'user', content: message }
-    ],
-    max_tokens: modelLimits.maxTokens,
-    temperature: 0.7
+    ]
   };
+
+  // Use correct token parameter based on model
+  if (modelLimits.useMaxCompletionTokens) {
+    requestBody.max_completion_tokens = modelLimits.maxTokens;
+  } else {
+    requestBody.max_tokens = modelLimits.maxTokens;
+  }
+
+  // Only add temperature for models that support it
+  if (!modelLimits.useMaxCompletionTokens) {
+    requestBody.temperature = 0.7;
+  }
 
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
@@ -285,7 +377,7 @@ const processLargePdf = async (content: string, userMessage: string, model: stri
     // PDF is small enough, process normally
     const optimizedPrompt = createOptimizedPdfPrompt(content, userMessage);
     
-    if (model.includes('gpt-') || model.includes('o1')) {
+    if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
       return await callOpenAI(optimizedPrompt, model);
     } else if (model.includes('claude')) {
       return await callAnthropic(optimizedPrompt, model);
@@ -315,7 +407,7 @@ ${chunks.length > 1 ? `(Esta é apenas uma parte do documento completo)` : ''}`;
 
     try {
       let response: string;
-      if (model.includes('gpt-') || model.includes('o1')) {
+      if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
         response = await callOpenAI(chunkPrompt, model);
       } else if (model.includes('claude')) {
         response = await callAnthropic(chunkPrompt, model);
@@ -351,7 +443,7 @@ Crie um resumo consolidado que:
 4. Seja claro e bem estruturado`;
 
     try {
-      if (model.includes('gpt-') || model.includes('o1')) {
+      if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
         return await callOpenAI(finalSummaryPrompt, model);
       } else if (model.includes('claude')) {
         return await callAnthropic(finalSummaryPrompt, model);
@@ -405,7 +497,7 @@ serve(async (req) => {
       response = await processLargePdf(message, message.includes('Pergunta:') ? message.split('Pergunta:')[1] : '', model);
     } else {
       // Regular message processing
-      if (model.includes('gpt-') || model.includes('o1')) {
+      if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
         response = await callOpenAI(message, model);
       } else if (model.includes('claude')) {
         response = await callAnthropic(message, model);
