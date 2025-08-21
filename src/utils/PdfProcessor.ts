@@ -2,7 +2,7 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configurar o worker do PDF.js - link CDN é uma boa prática
+// Configurar o worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 export interface PdfProcessResult {
@@ -16,7 +16,7 @@ export interface PdfProcessResult {
 
 export class PdfProcessor {
   static readonly MAX_FILE_SIZE_MB = 500;
-  static readonly BATCH_SIZE = 50; // Processar em lotes para evitar congelamento da UI
+  static readonly BATCH_SIZE = 50; 
 
   static async processPdf(file: File): Promise<PdfProcessResult> {
     try {
