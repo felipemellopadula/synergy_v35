@@ -188,22 +188,39 @@ const cleanExtractedText = (text: string): string => {
     .substring(0, 50000);  // Increase limit for better processing
 };
 
-// Function to split text into chunks based on token limits
-const chunkText = (text: string, maxTokens: number = 15000): string[] => {
-  // Estimate ~4 characters per token (conservative estimate)
-  const maxChars = maxTokens * 4;
+// Function to estimate token count (approximate)
+const estimateTokens = (text: string): number => {
+  // Rough estimate: 1 token ≈ 4 characters for Portuguese text
+  return Math.ceil(text.length / 4);
+};
+
+// Function to split text into chunks based on token limits and rate limits
+const chunkText = (text: string, model: string): string[] => {
+  const limitations = getModelLimitations(model);
+  
+  // Conservative chunking for rate limits - use smaller chunks
+  let maxTokensPerChunk = Math.min(limitations.maxTokens, 7500); // Max 7.5k tokens per chunk
+  
+  // Even smaller for mini/nano models
+  if (model.includes('mini') || model.includes('nano')) {
+    maxTokensPerChunk = 6000;
+  }
+  
+  const maxCharsPerChunk = maxTokensPerChunk * 4; // Convert to chars
   const chunks: string[] = [];
   
-  if (text.length <= maxChars) {
+  if (text.length <= maxCharsPerChunk) {
     return [text];
   }
+  
+  console.log(`Splitting large text (${text.length} chars) into chunks of max ${maxCharsPerChunk} chars each`);
   
   // Split by paragraphs first, then sentences if needed
   const paragraphs = text.split(/\n\s*\n/);
   let currentChunk = '';
   
   for (const paragraph of paragraphs) {
-    if ((currentChunk + paragraph).length <= maxChars) {
+    if ((currentChunk + paragraph).length <= maxCharsPerChunk) {
       currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
     } else {
       if (currentChunk) {
@@ -212,10 +229,10 @@ const chunkText = (text: string, maxTokens: number = 15000): string[] => {
       }
       
       // If paragraph is too large, split by sentences
-      if (paragraph.length > maxChars) {
+      if (paragraph.length > maxCharsPerChunk) {
         const sentences = paragraph.split(/[.!?]+/);
         for (const sentence of sentences) {
-          if ((currentChunk + sentence).length <= maxChars) {
+          if ((currentChunk + sentence).length <= maxCharsPerChunk) {
             currentChunk += (currentChunk ? '. ' : '') + sentence;
           } else {
             if (currentChunk) {
@@ -225,7 +242,7 @@ const chunkText = (text: string, maxTokens: number = 15000): string[] => {
               // If single sentence is still too large, split by words
               const words = sentence.split(' ');
               for (const word of words) {
-                if ((currentChunk + ' ' + word).length <= maxChars) {
+                if ((currentChunk + ' ' + word).length <= maxCharsPerChunk) {
                   currentChunk += (currentChunk ? ' ' : '') + word;
                 } else {
                   if (currentChunk) {
@@ -247,26 +264,27 @@ const chunkText = (text: string, maxTokens: number = 15000): string[] => {
     chunks.push(currentChunk);
   }
   
+  console.log(`Created ${chunks.length} chunks`);
   return chunks;
 };
 
-// Function to check if model has limitations
+// Function to check if model has limitations and return appropriate settings
 const getModelLimitations = (model: string): { isLimited: boolean; maxTokens: number; warning?: string } => {
   // Mini/Nano models have stricter limits
   if (model.includes('mini') || model.includes('nano')) {
     return {
       isLimited: true,
-      maxTokens: 8000,
-      warning: `⚠️ Modelo ${model} tem limitações para PDFs grandes. Para análises completas, considere usar um modelo mais potente.`
+      maxTokens: 6000, // Very conservative for mini models
+      warning: `⚠️ Modelo ${model} tem limitações para PDFs grandes. Para análises completas, considere usar um modelo mais potente como GPT-5 ou GPT-4.1.`
     };
   }
   
-  // GPT-5 and newer models need smaller chunks due to rate limits
+  // GPT-5 and newer models - conservative due to rate limits
   if (model.includes('gpt-5') || model.includes('o4') || model.includes('gpt-4.1')) {
     return {
       isLimited: true,
-      maxTokens: 15000,
-      warning: `ℹ️ PDF grande detectado. Processando em partes menores para evitar limites de tokens por minuto.`
+      maxTokens: 7500, // Conservative due to 30k tokens/min rate limit
+      warning: `ℹ️ PDF grande detectado. Processando em partes menores para respeitar o limite de 30.000 tokens por minuto da OpenAI.`
     };
   }
   
@@ -274,8 +292,8 @@ const getModelLimitations = (model: string): { isLimited: boolean; maxTokens: nu
   if (model.includes('claude')) {
     return {
       isLimited: true,
-      maxTokens: 15000,
-      warning: `ℹ️ PDF grande detectado. Processando em partes menores para evitar limites de tokens por minuto.`
+      maxTokens: 12000,
+      warning: `ℹ️ PDF grande detectado. Processando em partes menores para otimizar o processamento.`
     };
   }
   
@@ -283,12 +301,41 @@ const getModelLimitations = (model: string): { isLimited: boolean; maxTokens: nu
   if (model.includes('grok')) {
     return {
       isLimited: true,
-      maxTokens: 12000,
-      warning: `ℹ️ PDF grande detectado. Processando em partes menores para evitar limites de tokens por minuto.`
+      maxTokens: 10000,
+      warning: `ℹ️ PDF grande detectado. Processando em partes menores para otimizar o processamento.`
     };
   }
   
-  return { isLimited: false, maxTokens: 30000 };
+  return { isLimited: false, maxTokens: 15000 };
+};
+
+// Function to create optimized prompts for PDF analysis
+const createOptimizedPdfPrompt = (content: string, fileName: string, userMessage: string, chunkIndex?: number, totalChunks?: number): string => {
+  const isResumeSummary = userMessage.toLowerCase().includes('resumo') || 
+                         userMessage.toLowerCase().includes('resume') || 
+                         !userMessage.trim();
+  
+  let basePrompt = '';
+  
+  if (totalChunks && totalChunks > 1) {
+    basePrompt = `[DOCUMENTO: ${fileName} - Parte ${chunkIndex! + 1} de ${totalChunks}]\n\n`;
+  } else {
+    basePrompt = `[DOCUMENTO: ${fileName}]\n\n`;
+  }
+  
+  if (isResumeSummary) {
+    basePrompt += `Por favor, analise o seguinte conteúdo e forneça ${totalChunks && totalChunks > 1 ? 'uma análise desta seção' : 'um resumo completo'}:\n\n`;
+  } else {
+    basePrompt += `Baseado no seguinte conteúdo, responda: ${userMessage}\n\n`;
+  }
+  
+  basePrompt += `CONTEÚDO:\n${content}`;
+  
+  if (totalChunks && totalChunks > 1) {
+    basePrompt += `\n\n[Nota: Esta é a parte ${chunkIndex! + 1} de ${totalChunks}. Foque apenas nesta seção.]`;
+  }
+  
+  return basePrompt;
 };
 
 const performWebSearch = async (query: string): Promise<string | null> => {
@@ -930,7 +977,7 @@ serve(async (req) => {
               console.log('PDF is large, chunking required. Model limitations:', limitations);
               
               // Split into chunks
-              const chunks = chunkText(fullPdfContent, limitations.maxTokens);
+              const chunks = chunkText(fullPdfContent, actualModel);
               console.log(`PDF split into ${chunks.length} chunks`);
               
               // Process each chunk and combine results
@@ -949,7 +996,7 @@ serve(async (req) => {
                   pdfContent: chunks[i]
                 };
                 
-                const chunkMessage = `${message}\n\n[IMPORTANTE: Esta é a parte ${i + 1} de ${chunks.length} do PDF "${file.name}". Analise esta parte e forneça insights relevantes.]`;
+                const chunkMessage = createOptimizedPdfPrompt(chunks[i], file.name, message, i, chunks.length);
                 
                 try {
                   let chunkResponse: string;
