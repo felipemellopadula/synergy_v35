@@ -1,125 +1,71 @@
-// Caminho: supabase/functions/ai-chat/index.ts
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
+
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- INTERFACES ---
-interface ChatFile {
-  name: string;
-  type: string;
-  pdfContent?: string;
-}
-
 interface ChatRequest {
   message: string;
   model: string;
-  files?: ChatFile[];
+  files?: Array<{
+    name: string;
+    type: string;
+    data?: string; // base64 for small files
+    storagePath?: string; // Storage path for large files like PDFs
+    isLargeFile?: boolean; // Flag to indicate if file is stored in Storage
+    pdfContent?: string; // extracted PDF text
+  }>;
 }
 
-// --- FUNÇÕES AUXILIARES ---
-function estimateTokenCount(text: string): number {
-  return Math.ceil(text.length / 3.5); // Média de caracteres por token
-}
-
-function splitIntoChunks(text: string, maxChars: number): string[] {
-  const chunks: string[] = [];
-  for (let i = 0; i < text.length; i += maxChars) {
-    chunks.push(text.slice(i, i + maxChars));
+const getApiKey = (model: string): string | null => {
+  if (model.includes('gpt-5') || model.includes('gpt-4.1') || model.includes('o4')) {
+    return Deno.env.get('OPENAI_API_KEY');
   }
-  return chunks;
-}
-
-// --- LÓGICA PRINCIPAL DA FUNÇÃO ---
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+  if (model.includes('claude')) {
+    return Deno.env.get('ANTHROPIC_API_KEY');
   }
+  if (model.includes('gemini')) {
+    return Deno.env.get('GOOGLE_API_KEY');
+  }
+  if (model.includes('grok')) {
+    return Deno.env.get('XAI_API_KEY');
+  }
+  if (model.includes('deepseek')) {
+    return Deno.env.get('DEEPSEEK_API_KEY');
+  }
+  if (model.includes('Llama-4')) {
+    return Deno.env.get('APILLM_API_KEY');
+  }
+  return null;
+};
 
+// Function to process PDF from Storage
+const processPdfFromStorage = async (storagePath: string): Promise<string> => {
   try {
-    const { message, model, files }: ChatRequest = await req.json();
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-
-    if (!openaiApiKey) {
-      throw new Error("OPENAI_API_KEY não foi encontrada nas configurações do seu projeto Supabase.");
-    }
-    if (!model) {
-      throw new Error('O nome do modelo é obrigatório.');
-    }
-
-    // --- TRADUÇÃO DE MODELOS ---
-    let apiModel = model;
-    if (model.includes('gpt-5-mini') || model.includes('gpt-5-nano')) apiModel = 'gpt-4o-mini';
-    else if (model.includes('gpt-5')) apiModel = 'gpt-4o';
-    else if (model.includes('gpt-4.1')) apiModel = 'gpt-4-turbo';
-    console.log(`Model mapping: '${model}' -> '${apiModel}'`);
-
-    // --- LÓGICA DE CONTEÚDO (SIMPLIFICADA) ---
-    // O `fullContent` é o prompt que o frontend já preparou (seja a pergunta do user ou o prompt com o texto do PDF)
-    let fullContent = (files && files.length > 0 && files[0].pdfContent) ? files[0].pdfContent : message;
-
-    if (!fullContent || !fullContent.trim()) {
-      throw new Error("A mensagem para a IA está vazia.");
-    }
-
-    // --- LÓGICA DE FATIAMENTO (CHUNK) SIMPLIFICADA ---
-    const INPUT_TOKEN_LIMIT = 28000; // Limite de segurança para não estourar os 30k de TPM
-    const estimatedTokens = estimateTokenCount(fullContent);
+    console.log('Downloading PDF from storage:', storagePath);
     
-    let processedMessage = fullContent;
-    let responsePrefix = '';
-
-    if (estimatedTokens > INPUT_TOKEN_LIMIT) {
-      const maxChars = INPUT_TOKEN_LIMIT * 3;
-      const chunks = splitIntoChunks(fullContent, maxChars);
-      
-      responsePrefix = `⚠️ **Atenção:** O documento enviado é muito grande. A análise abaixo foi feita com base **apenas no início do documento** para fornecer uma visão geral.\n\n---\n\n`;
-      
-      processedMessage = `O texto a seguir é a primeira parte de um documento muito longo. O usuário pediu para "${message || 'fazer um resumo'}". Analise este trecho e forneça uma resposta baseada apenas nele:\n\n"""\n${chunks[0]}\n"""`;
+    // Download file from Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('documents')
+      .download(storagePath);
+    
+    if (downloadError) {
+      throw new Error(`Error downloading PDF: ${downloadError.message}`);
     }
     
-    // --- MONTAGEM E ENVIO DA REQUISIÇÃO PARA A OPENAI ---
-    const requestBody = {
-      model: apiModel,
-      messages: [
-        { role: 'system', content: 'Você é um assistente prestativo, especializado em analisar documentos e responder em português do Brasil.' },
-        { role: 'user', content: processedMessage }
-      ],
-      max_tokens: 4096,
-      temperature: 0.5,
-    };
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${openaiApiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`Erro na API da OpenAI: ${errorBody}`);
-    }
-
-    const data = await response.json();
-    const generatedText = data.choices[0]?.message?.content ?? 'Desculpe, não consegui obter uma resposta.';
+    // Convert blob to arrayBuffer
+    const arrayBuffer = await fileData.arrayBuffer();
     
-    const finalResponse = responsePrefix + generatedText;
-
-    // **IMPORTANTE: Retornando no formato simples que o frontend agora espera**
-    return new Response(JSON.stringify({ response: finalResponse }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
-  } catch (error) {
-    console.error('Erro fatal na função ai-chat:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
-  }
+    console.log('PDF downloaded successfully, size:', arrayBuffer.byteLength, 'bytes');
+    
+    // Extract text from PDF
+    try {
 });
