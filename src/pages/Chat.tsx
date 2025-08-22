@@ -179,10 +179,9 @@ const Chat = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [expandedReasoning, setExpandedReasoning] = useState<{ [key: string]: boolean }>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [stopGeneration, setStopGeneration] = useState<boolean>(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimeoutRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -362,7 +361,6 @@ const Chat = () => {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsLoading(true);
-    setStopGeneration(false);
     
     let convId = currentConversationId;
     if (!convId) {
@@ -445,19 +443,7 @@ const Chat = () => {
         setMessages(prev => [...newMessages, placeholderBotMessage]);
 
         let charIndex = 0;
-        const typingInterval = setInterval(() => {
-            if (stopGeneration) {
-                clearInterval(typingInterval);
-                setMessages(prev => prev.map(msg => 
-                    msg.id === botMessageId 
-                    ? { ...msg, content: fullBotText.slice(0, charIndex), isStreaming: false } 
-                    : msg
-                ));
-                setIsLoading(false);
-                toast({ title: "Geração interrompida" });
-                return;
-            }
-            
+        typingIntervalRef.current = setInterval(() => {
             if (charIndex < fullBotText.length) {
                 setMessages(prev => prev.map(msg => 
                     msg.id === botMessageId 
@@ -466,7 +452,10 @@ const Chat = () => {
                 ));
                 charIndex++;
             } else {
-                clearInterval(typingInterval);
+                if (typingIntervalRef.current) {
+                    clearInterval(typingIntervalRef.current);
+                    typingIntervalRef.current = null;
+                }
                 
                 const finalBotMessage: Message = { ...placeholderBotMessage, content: fullBotText, isStreaming: false };
                 const finalMessages = [...newMessages, finalBotMessage];
@@ -486,7 +475,16 @@ const Chat = () => {
   };
 
   const handleStopGeneration = () => {
-    setStopGeneration(true);
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+    setIsLoading(false);
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.isStreaming ? { ...msg, isStreaming: false } : msg
+      )
+    );
   };
   
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
