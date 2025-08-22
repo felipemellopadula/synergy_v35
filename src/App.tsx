@@ -14,6 +14,7 @@ import TranscribePage from "./pages/Transcribe";
 import SettingsPage from "./pages/Settings";
 import Share from "./pages/Share";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -25,14 +26,14 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/video" element={<VideoPage />} />
-          <Route path="/image" element={<ImagePage />} />
-          <Route path="/translator" element={<TranslatorPage />} />
-          <Route path="/write" element={<WritePage />} />
-          <Route path="/transcribe" element={<TranscribePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+          <Route path="/video" element={<ProtectedRoute><VideoPage /></ProtectedRoute>} />
+          <Route path="/image" element={<ProtectedRoute><ImagePage /></ProtectedRoute>} />
+          <Route path="/translator" element={<ProtectedRoute><TranslatorPage /></ProtectedRoute>} />
+          <Route path="/write" element={<ProtectedRoute><WritePage /></ProtectedRoute>} />
+          <Route path="/transcribe" element={<ProtectedRoute><TranscribePage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           <Route path="/share" element={<Share />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
