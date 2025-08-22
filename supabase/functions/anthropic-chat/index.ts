@@ -33,28 +33,19 @@ serve(async (req) => {
   try {
     const { message, model = 'claude-sonnet-4-20250514' } = await req.json();
     
-    console.log('Anthropic Chat - Request received:', {
-      model,
-      messageLength: message?.length || 0,
-      messagePreview: message?.substring(0, 200) + '...',
-      hasMessage: !!message
-    });
-    
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
       throw new Error('ANTHROPIC_API_KEY não configurada');
     }
 
-    // Define token limits for Claude models
+    // Define token limits for different Claude models
     const getModelLimits = (modelName: string) => {
-      // All Claude 4 models have 200K context
-      if (modelName.includes('claude-opus-4') || modelName.includes('claude-sonnet-4')) {
-        return { input: 180000, output: 8192 };
-      }
-      if (modelName.includes('claude-3-5-haiku')) return { input: 180000, output: 8192 };
-      if (modelName.includes('claude-3-5-sonnet')) return { input: 180000, output: 8192 };
-      if (modelName.includes('claude-3-opus')) return { input: 180000, output: 4096 };
-      return { input: 180000, output: 4096 }; // Default for Claude models
+      if (modelName.includes('claude-opus-4')) return { input: 200000, output: 8192 };
+      if (modelName.includes('claude-sonnet-4')) return { input: 200000, output: 8192 };
+      if (modelName.includes('claude-3-5-haiku')) return { input: 200000, output: 8192 };
+      if (modelName.includes('claude-3-5-sonnet')) return { input: 200000, output: 8192 };
+      if (modelName.includes('claude-3-opus')) return { input: 200000, output: 4096 };
+      return { input: 200000, output: 8192 }; // Default for Claude models
     };
 
     const limits = getModelLimits(model);
@@ -70,39 +61,51 @@ serve(async (req) => {
     let processedMessage = message;
     let responsePrefix = '';
 
-    // Claude has high limits, chunk only for very large documents
-    if (estimatedTokens > limits.input * 0.8) {
-      console.log('Message extremely large, processing in chunks...');
+    // If message is too large, split into chunks and summarize
+    if (estimatedTokens > limits.input * 0.6) { // Use 60% of limit for Claude
+      console.log('Message too large, processing in chunks...');
       
-      const maxChunkTokens = Math.floor(limits.input * 0.7);
+      // Claude models have high context window, use larger chunks
+      let maxChunkTokens;
+      if (model.includes('haiku')) {
+        maxChunkTokens = Math.min(25000, Math.floor(limits.input * 0.4)); // Smaller chunks for Haiku
+      } else {
+        maxChunkTokens = Math.min(40000, Math.floor(limits.input * 0.5)); // Larger chunks for Opus/Sonnet
+      }
+      
       const chunks = splitIntoChunks(message, maxChunkTokens);
       
       if (chunks.length > 1) {
-        responsePrefix = `🤖 Documento extenso analisado em ${chunks.length} partes pelo Claude:\n\n`;
+        responsePrefix = `⚠️ Documento muito grande para ${model}. Processando em ${chunks.length} partes:\n\n`;
         
-        // Process first chunk with instructions to analyze
-        processedMessage = `Analise este documento extenso (parte 1 de ${chunks.length}). Forneça uma análise detalhada e estruturada:\n\n${chunks[0]}`;
+        // Process first chunk with instructions to summarize
+        processedMessage = `Analise e resuma este trecho de um documento extenso (parte 1 de ${chunks.length}). Foque nos pontos principais:\n\n${chunks[0]}`;
       }
     }
+    
+    const requestBody = {
+      model: model,
+      max_tokens: limits.output,
+      messages: [{
+        role: 'user',
+        content: processedMessage
+      }]
+    };
 
     console.log('Sending request to Anthropic with model:', model);
+    console.log('Request config:', { 
+      model, 
+      maxTokens: requestBody.max_tokens
+    });
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${anthropicApiKey}`,
+        'x-api-key': anthropicApiKey,
         'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: model,
-        messages: [{
-          role: 'user',
-          content: processedMessage
-        }],
-        max_tokens: limits.output,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -123,7 +126,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Erro na função anthropic-chat:', error);
+    console.error('Erro na função claude-chat:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
