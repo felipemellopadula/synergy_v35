@@ -406,7 +406,7 @@ const Chat = () => {
             return 'anthropic-chat';
           }
           if (model.includes('grok')) {
-            return 'ai-chat'; // Grok usa a função ai-chat que já tem suporte
+            return 'grok-chat'; // Função específica para Grok com suporte a PDFs
           }
           if (model.includes('llama') || model.includes('deepseek')) {
             return 'apillm-chat';
