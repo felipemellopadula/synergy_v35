@@ -383,13 +383,63 @@ const Chat = () => {
     return formattedLines.join('\n');
   };
 
-  // Função para copiar com formatação (sem toast)
+  // Função para copiar com formatação HTML preservada para Word
   const copyWithFormatting = async (markdownText: string, isUser: boolean) => {
     try {
-      const textToCopy = isUser ? markdownText : convertToWordFormat(markdownText);
-      await navigator.clipboard.writeText(textToCopy);
+      if (isUser) {
+        await navigator.clipboard.writeText(markdownText);
+        return;
+      }
+
+      // Formata o texto usando a mesma função de formatação
+      const formattedText = formatAIResponse(markdownText);
+      
+      // Converte para HTML preservando formatação
+      const htmlContent = formattedText
+        .split(/(\*\*.*?\*\*)/g)
+        .map(part => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            const boldText = part.slice(2, -2);
+            return `<strong>${boldText}</strong>`;
+          }
+          
+          // Processa linhas normais mantendo quebras e bullet points
+          const lines = part.split('\n');
+          return lines.map(line => {
+            const trimmedLine = line.trim();
+            
+            if (trimmedLine.startsWith('•')) {
+              return `<div style="margin-left: 20px; margin-bottom: 4px;">• ${trimmedLine.replace(/^•\s*/, '')}</div>`;
+            }
+            
+            if (trimmedLine) {
+              return `<div style="margin-bottom: 8px;">${trimmedLine}</div>`;
+            }
+            
+            return '<br>';
+          }).join('');
+        })
+        .join('');
+
+      // HTML completo com estilos para Word
+      const fullHtml = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; font-size: 11pt;">
+          ${htmlContent}
+        </div>
+      `;
+
+      // Copia tanto texto simples quanto HTML formatado
+      const clipboardItem = new ClipboardItem({
+        'text/plain': new Blob([formattedText], { type: 'text/plain' }),
+        'text/html': new Blob([fullHtml], { type: 'text/html' })
+      });
+
+      await navigator.clipboard.write([clipboardItem]);
     } catch (error) {
-      console.error('Erro ao copiar:', error);
+      // Fallback para texto simples se HTML falhar
+      const fallbackText = isUser ? markdownText : formatAIResponse(markdownText);
+      await navigator.clipboard.writeText(fallbackText);
+      console.error('Erro ao copiar com formatação, usado fallback:', error);
     }
   };
 
