@@ -268,22 +268,21 @@ const Chat = () => {
         
         // Detectar títulos e subtítulos para colocar em bold
         const isTitleOrSubtitle = (
+          // Títulos específicos como "Objetos Mágicos" (duas palavras com maiúscula)
+          processedLine.match(/^[A-ZÁÊÇÕÜÉ][a-záêçõüé]*\s+[A-ZÁÊÇÕÜÉ][a-záêçõüé]*$/) ||
+          // Títulos de uma palavra com maiúscula
+          (processedLine.length < 50 && processedLine.match(/^[A-ZÁÊÇÕÜÉ][a-záêçõüé]*$/)) ||
           // Linhas curtas e descritivas (títulos)
           (processedLine.length < 80 && 
            !processedLine.startsWith('•') && 
            !processedLine.startsWith('-') && 
            !processedLine.includes('.') && // Evita frases completas
-           processedLine.match(/^[A-ZÁÊÇÕÜÉ][^.!?]*$/)) ||
+           !processedLine.includes(',') && // Evita listas
+           processedLine.match(/^[A-ZÁÊÇÕÜÉ]/)) ||
           // Subtítulos com parênteses (ex: "(0 a 12 anos)")
           processedLine.match(/^\([^)]+\)$/) ||
           // Palavras-chave isoladas em maiúscula
-          processedLine.match(/^[A-ZÁÊÇÕÜÉ][A-ZÁÊÇÕÜÉ\s]+$/) ||
-          // Títulos que começam com maiúscula e são relativamente curtos
-          (processedLine.length < 60 && 
-           processedLine.match(/^[A-ZÁÊÇÕÜÉ][a-záêçõüéA-ZÁÊÇÕÜÉ\s]*$/) &&
-           !processedLine.includes(',') && 
-           !processedLine.includes('(') &&
-           !processedLine.includes(')'))
+          processedLine.match(/^[A-ZÁÊÇÕÜÉ][A-ZÁÊÇÕÜÉ\s]+$/)
         );
         
         if (isTitleOrSubtitle) {
