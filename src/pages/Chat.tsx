@@ -196,31 +196,43 @@ const Chat = () => {
     const formattedLines = lines.map((line, index) => {
       const trimmedLine = line.trim();
       
+      // Remove linhas vazias ou com apenas símbolos soltos
+      if (!trimmedLine || trimmedLine === '•' || trimmedLine === '-' || trimmedLine === '*' || trimmedLine === ':') {
+        return '';
+      }
+      
       // Remove símbolos # dos títulos e marca como bold
       if (trimmedLine.startsWith('#')) {
         const titleText = trimmedLine.replace(/^#+\s*/, '');
         return `**${titleText}**`;
       }
       
+      // Remove : no início de linhas
+      let processedLine = trimmedLine;
+      if (processedLine.startsWith(':')) {
+        processedLine = processedLine.replace(/^:\s*/, '');
+      }
+      
       // Handle bold titles (lines that end with : or are short and descriptive)
-      if (trimmedLine.endsWith(':') || (trimmedLine.length < 50 && !trimmedLine.startsWith('•') && !trimmedLine.startsWith('-') && !trimmedLine.startsWith('*') && !trimmedLine.match(/^\d+\./) && trimmedLine.match(/^[A-ZÁÊÇÕÜÉ][^.!?]*$/))) {
-        return `**${trimmedLine}**`;
+      if (processedLine.endsWith(':') || (processedLine.length < 50 && !processedLine.startsWith('•') && !processedLine.startsWith('-') && !processedLine.startsWith('*') && !processedLine.match(/^\d+\./) && processedLine.match(/^[A-ZÁÊÇÕÜÉ][^.!?]*$/))) {
+        return `**${processedLine}**`;
       }
       
       // Handle bullet points
-      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
-        return `• ${trimmedLine.replace(/^[•\-*]\s*/, '')}`;
+      if (processedLine.startsWith('•') || processedLine.startsWith('-') || processedLine.startsWith('*')) {
+        return `• ${processedLine.replace(/^[•\-*]\s*/, '')}`;
       }
       
       // Handle numbered lists - manter como está
-      if (trimmedLine.match(/^\d+\./)) {
-        return trimmedLine;
+      if (processedLine.match(/^\d+\./)) {
+        return processedLine;
       }
       
-      return line;
+      return processedLine;
     });
     
-    return formattedLines.join('\n');
+    // Filtrar linhas vazias consecutivas
+    return formattedLines.filter(line => line.trim() !== '').join('\n');
   };
 
   const renderFormattedText = (text: string, isUser: boolean) => {
