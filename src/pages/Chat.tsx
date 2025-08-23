@@ -241,7 +241,7 @@ const Chat = () => {
     const formattedLines = lines.map((line, index) => {
       const trimmedLine = line.trim();
       
-      // Remove linhas vazias ou com apenas símbolos soltos
+      // Remove linhas vazias ou com apenas símbolos soltos (incluindo bullet points perdidos)
       if (!trimmedLine || trimmedLine === '•' || trimmedLine === '-' || trimmedLine === '*' || trimmedLine === ':') {
         return '';
       }
@@ -252,14 +252,22 @@ const Chat = () => {
         return `**${titleText}**`;
       }
       
-      // Remove : no início de linhas e dois pontos extras
+      // Para SynergyAI: Remove : no início de linhas e dois pontos extras
       let processedLine = trimmedLine;
+      
+      // Remove : no início de qualquer linha
       if (processedLine.startsWith(':')) {
         processedLine = processedLine.replace(/^:\s*/, '');
       }
+      
       // Remove dois pontos no final de títulos antes de fazer bold
       if (processedLine.endsWith(':')) {
         processedLine = processedLine.slice(0, -1);
+      }
+      
+      // Handle numbered lists primeiro - colocar número e título na mesma linha em bold
+      if (processedLine.match(/^\d+\./)) {
+        return `**${processedLine}**`;
       }
       
       // Detectar títulos e subtítulos para colocar em bold
@@ -293,11 +301,6 @@ const Chat = () => {
       // Handle bullet points
       if (processedLine.startsWith('•') || processedLine.startsWith('-') || processedLine.startsWith('*')) {
         return `• ${processedLine.replace(/^[•\-*]\s*/, '')}`;
-      }
-      
-      // Handle numbered lists - colocar em bold
-      if (processedLine.match(/^\d+\./)) {
-        return `**${processedLine}**`;
       }
       
       return processedLine;
