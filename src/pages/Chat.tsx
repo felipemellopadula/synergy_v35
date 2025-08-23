@@ -1,6 +1,4 @@
 import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square } from "lucide-react";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import React, { useState, useRef, useEffect } from "react";
@@ -188,6 +186,83 @@ const Chat = () => {
   const recordingTimeoutRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Função para formatar a resposta da IA
+  const formatAIResponse = (text: string) => {
+    if (!text) return text;
+    
+    // Split into lines and process each
+    const lines = text.split('\n');
+    const formattedLines = lines.map((line, index) => {
+      const trimmedLine = line.trim();
+      
+      // Handle bold titles (lines that end with : or are short and descriptive)
+      if (trimmedLine.endsWith(':') || (trimmedLine.length < 50 && !trimmedLine.startsWith('•') && !trimmedLine.startsWith('-') && trimmedLine.match(/^[A-Z][^.!?]*$/))) {
+        return `**${trimmedLine}**`;
+      }
+      
+      // Handle bullet points
+      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
+        return `• ${trimmedLine.replace(/^[•\-*]\s*/, '')}`;
+      }
+      
+      // Handle numbered lists
+      if (trimmedLine.match(/^\d+\./)) {
+        return trimmedLine;
+      }
+      
+      return line;
+    });
+    
+    return formattedLines.join('\n');
+  };
+
+  const renderFormattedText = (text: string, isUser: boolean) => {
+    if (isUser) {
+      return text;
+    }
+    
+    const formattedText = formatAIResponse(text);
+    const parts = formattedText.split(/(\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const boldText = part.slice(2, -2);
+        return (
+          <strong key={index} className="font-semibold text-foreground block mt-4 first:mt-0 mb-2">
+            {boldText}
+          </strong>
+        );
+      }
+      
+      // Handle regular text with bullet points
+      const lines = part.split('\n');
+      return (
+        <span key={index}>
+          {lines.map((line, lineIndex) => {
+            if (line.trim().startsWith('•')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-2 ml-4 mb-1">
+                  <span className="text-muted-foreground mt-1">•</span>
+                  <span>{line.trim().replace(/^•\s*/, '')}</span>
+                </div>
+              );
+            }
+            
+            if (line.trim()) {
+              return (
+                <div key={lineIndex} className="mb-2 last:mb-0">
+                  {line}
+                </div>
+              );
+            }
+            
+            return <br key={lineIndex} />;
+          })}
+        </span>
+      );
+    });
+  };
 
   // --- LÓGICA DE NEGÓCIO ---
   
@@ -789,8 +864,8 @@ const Chat = () => {
                                 {expandedReasoning[message.id] && <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-hidden">{message.reasoning}</div>}
                               </div>
                             )}
-                            <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                             <div className="text-sm max-w-none break-words overflow-hidden">
+                              {renderFormattedText(message.content, false)}
                               {message.isStreaming && <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />}
                             </div>
                             <div className="flex items-center justify-between pt-2 border-t border-border/50">
@@ -813,9 +888,9 @@ const Chat = () => {
                           <div className="rounded-lg px-4 py-3 bg-primary text-primary-foreground">
                             <div className="space-y-3">
                               {message.files && (<div className="flex flex-wrap gap-2">{message.files.map((file, idx) => (<div key={idx} className="bg-background/50 px-3 py-1 rounded-full text-xs">📎 {file.name}</div>))}</div>)}
-                              <div className="text-sm prose prose-sm dark:prose-invert max-w-none break-words overflow-hidden">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-                              </div>
+                               <div className="text-sm max-w-none break-words overflow-hidden">
+                                 {renderFormattedText(message.content, true)}
+                               </div>
                             </div>
                           </div>
                           <div className="pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
