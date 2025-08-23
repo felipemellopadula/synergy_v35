@@ -1,4 +1,4 @@
-import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square } from "lucide-react";
+import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import React, { useState, useRef, useEffect } from "react";
@@ -179,6 +179,7 @@ const Chat = () => {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [expandedReasoning, setExpandedReasoning] = useState<{ [key: string]: boolean }>({});
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -386,62 +387,73 @@ const Chat = () => {
   };
 
   // Função para copiar com formatação HTML preservada para Word
-  const copyWithFormatting = async (markdownText: string, isUser: boolean) => {
+  const copyWithFormatting = async (markdownText: string, isUser: boolean, messageId: string) => {
     try {
+      setCopiedMessageId(messageId);
+      
       if (isUser) {
         await navigator.clipboard.writeText(markdownText);
-        return;
+      } else {
+        // Formata o texto usando a mesma função de formatação
+        const formattedText = formatAIResponse(markdownText);
+        
+        // Converte para HTML preservando formatação
+        const htmlContent = formattedText
+          .split(/(\*\*.*?\*\*)/g)
+          .map(part => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              const boldText = part.slice(2, -2);
+              return `<strong>${boldText}</strong>`;
+            }
+            
+            // Processa linhas normais mantendo quebras e bullet points
+            const lines = part.split('\n');
+            return lines.map(line => {
+              const trimmedLine = line.trim();
+              
+              if (trimmedLine.startsWith('•')) {
+                return `<div style="margin-left: 20px; margin-bottom: 4px;">• ${trimmedLine.replace(/^•\s*/, '')}</div>`;
+              }
+              
+              if (trimmedLine) {
+                return `<div style="margin-bottom: 8px;">${trimmedLine}</div>`;
+              }
+              
+              return '<br>';
+            }).join('');
+          })
+          .join('');
+
+        // HTML completo com estilos para Word
+        const fullHtml = `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; font-size: 11pt;">
+            ${htmlContent}
+          </div>
+        `;
+
+        // Copia tanto texto simples quanto HTML formatado
+        const clipboardItem = new ClipboardItem({
+          'text/plain': new Blob([formattedText], { type: 'text/plain' }),
+          'text/html': new Blob([fullHtml], { type: 'text/html' })
+        });
+
+        await navigator.clipboard.write([clipboardItem]);
       }
-
-      // Formata o texto usando a mesma função de formatação
-      const formattedText = formatAIResponse(markdownText);
       
-      // Converte para HTML preservando formatação
-      const htmlContent = formattedText
-        .split(/(\*\*.*?\*\*)/g)
-        .map(part => {
-          if (part.startsWith('**') && part.endsWith('**')) {
-            const boldText = part.slice(2, -2);
-            return `<strong>${boldText}</strong>`;
-          }
-          
-          // Processa linhas normais mantendo quebras e bullet points
-          const lines = part.split('\n');
-          return lines.map(line => {
-            const trimmedLine = line.trim();
-            
-            if (trimmedLine.startsWith('•')) {
-              return `<div style="margin-left: 20px; margin-bottom: 4px;">• ${trimmedLine.replace(/^•\s*/, '')}</div>`;
-            }
-            
-            if (trimmedLine) {
-              return `<div style="margin-bottom: 8px;">${trimmedLine}</div>`;
-            }
-            
-            return '<br>';
-          }).join('');
-        })
-        .join('');
-
-      // HTML completo com estilos para Word
-      const fullHtml = `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; font-size: 11pt;">
-          ${htmlContent}
-        </div>
-      `;
-
-      // Copia tanto texto simples quanto HTML formatado
-      const clipboardItem = new ClipboardItem({
-        'text/plain': new Blob([formattedText], { type: 'text/plain' }),
-        'text/html': new Blob([fullHtml], { type: 'text/html' })
-      });
-
-      await navigator.clipboard.write([clipboardItem]);
+      // Volta ao ícone normal após 2 segundos
+      setTimeout(() => {
+        setCopiedMessageId(null);
+      }, 2000);
     } catch (error) {
       // Fallback para texto simples se HTML falhar
       const fallbackText = isUser ? markdownText : formatAIResponse(markdownText);
       await navigator.clipboard.writeText(fallbackText);
       console.error('Erro ao copiar com formatação, usado fallback:', error);
+      
+      // Volta ao ícone normal após 2 segundos mesmo com erro
+      setTimeout(() => {
+        setCopiedMessageId(null);
+      }, 2000);
     }
   };
 
@@ -972,14 +984,21 @@ const Chat = () => {
                             </div>
                             <div className="flex items-center justify-between pt-2 border-t border-border/50">
                               <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => copyWithFormatting(message.content, false)} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Copiar com formatação</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button 
+                                          variant="ghost" 
+                                          size="icon" 
+                                          onClick={() => copyWithFormatting(message.content, false, message.id)} 
+                                          className="h-7 w-7 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
+                                        >
+                                          {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Copiar com formatação</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                             </div>
                           </div>
                         </div>
@@ -1004,10 +1023,10 @@ const Chat = () => {
                                     size="icon"
                                     className="h-7 w-7 mt-1 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
                                     onClick={() => {
-                                      copyWithFormatting(message.content, message.sender === 'user');
+                                      copyWithFormatting(message.content, message.sender === 'user', message.id);
                                     }}
                                   >
-                                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5 text-muted-foreground" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Copiar</TooltipContent>
