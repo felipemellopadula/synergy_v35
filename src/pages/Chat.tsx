@@ -345,44 +345,51 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Função para copiar com formatação HTML (mantém formatação no Word)
-  const copyWithFormatting = async (markdownText: string) => {
+  // Função para converter formato Word (extração do código fornecido)
+  const convertToWordFormat = (text: string) => {
+    if (!text) return text;
+    
+    // Remove # and * symbols from the entire text
+    let cleanText = text.replace(/#+\s*/g, '').replace(/\*/g, '');
+    
+    // Split into lines and process each
+    const lines = cleanText.split('\n');
+    const formattedLines = lines.map((line, index) => {
+      let trimmedLine = line.trim();
+      
+      // Remove stray bullet points in the middle of text
+      trimmedLine = trimmedLine.replace(/\s•\s/g, ' ');
+      
+      // Handle numbered subtitles (e.g., "1. Title", "5. Legado e vida pós-futebol")
+      if (trimmedLine.match(/^\d+\.\s+[A-Za-zÀ-ÿ]/)) {
+        return `\n${trimmedLine.toUpperCase()}\n`;
+      }
+      
+      // Handle bold titles (lines that end with : or are short and descriptive)
+      if (trimmedLine.endsWith(':') || (trimmedLine.length < 50 && !trimmedLine.startsWith('•') && !trimmedLine.startsWith('-') && trimmedLine.match(/^[A-Z][^.!?]*$/))) {
+        // Remove the : before making it bold and add extra line break
+        const titleText = trimmedLine.endsWith(':') ? trimmedLine.slice(0, -1) : trimmedLine;
+        return `\n${titleText.toUpperCase()}\n`;
+      }
+      
+      // Handle bullet points with proper spacing
+      if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-')) {
+        return `• ${trimmedLine.replace(/^[•\-]\s*/, '')}`;
+      }
+      
+      return line;
+    });
+    
+    return formattedLines.join('\n');
+  };
+
+  // Função para copiar com formatação (sem toast)
+  const copyWithFormatting = async (markdownText: string, isUser: boolean) => {
     try {
-      // Converte markdown básico para HTML
-      const htmlText = markdownText
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **bold** -> <strong>
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *italic* -> <em>
-        .replace(/^### (.*$)/gim, '<h3><strong>$1</strong></h3>')  // ### -> <h3> com bold
-        .replace(/^## (.*$)/gim, '<h2><strong>$1</strong></h2>')   // ## -> <h2> com bold
-        .replace(/^# (.*$)/gim, '<h1><strong>$1</strong></h1>')    // # -> <h1> com bold
-        .replace(/^\* (.*$)/gim, '<li>$1</li>')            // * lista -> <li>
-        .replace(/^\- (.*$)/gim, '<li>$1</li>')            // - lista -> <li>
-        .replace(/\n\n/g, '</p><p>')                       // Parágrafos
-        .replace(/\n/g, '<br>')                            // Quebras de linha
-        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')        // Envolve listas em <ul>
-        .replace(/<\/ul><br><ul>/g, '')                    // Remove <br> entre listas
-        .replace(/^(.)/gm, '<p>$1')                        // Inicia parágrafos
-        .replace(/(.)$/gm, '$1</p>');                      // Finaliza parágrafos
-
-      // Cria o HTML completo com estilos inline
-      const fullHtml = `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333;">
-          ${htmlText}
-        </div>
-      `;
-
-      // Copia tanto texto simples quanto HTML formatado
-      const clipboardItem = new ClipboardItem({
-        'text/plain': new Blob([markdownText], { type: 'text/plain' }),
-        'text/html': new Blob([fullHtml], { type: 'text/html' })
-      });
-
-      await navigator.clipboard.write([clipboardItem]);
-      toast({ title: "Copiado com formatação!" });
+      const textToCopy = isUser ? markdownText : convertToWordFormat(markdownText);
+      await navigator.clipboard.writeText(textToCopy);
     } catch (error) {
-      // Fallback para texto simples se a API avançada falhar
-      navigator.clipboard.writeText(markdownText);
-      toast({ title: "Copiado como texto simples" });
+      console.error('Erro ao copiar:', error);
     }
   };
 
@@ -916,7 +923,7 @@ const Chat = () => {
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => copyWithFormatting(message.content)} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => copyWithFormatting(message.content, false)} className="h-7 w-7"><Copy className="h-3.5 w-3.5" /></Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Copiar com formatação</TooltipContent>
                                 </Tooltip>
