@@ -466,14 +466,27 @@ const Chat = () => {
         setMessages(prev => [...newMessages, placeholderBotMessage]);
 
         let charIndex = 0;
+        
+        // Determine typing speed based on text length
+        const getChunkSize = (textLength: number) => {
+            if (textLength > 5000) return 8;  // Very long texts: 8 chars at once
+            if (textLength > 2000) return 5;  // Long texts: 5 chars at once
+            if (textLength > 1000) return 3;  // Medium texts: 3 chars at once
+            return 1;  // Short texts: 1 char at once
+        };
+        
+        const chunkSize = getChunkSize(fullBotText.length);
+        const interval = 3;  // Ultra-fast 3ms interval
+        
         typingIntervalRef.current = setInterval(() => {
             if (charIndex < fullBotText.length) {
+                const nextIndex = Math.min(charIndex + chunkSize, fullBotText.length);
                 setMessages(prev => prev.map(msg => 
                     msg.id === botMessageId 
-                    ? { ...msg, content: fullBotText.slice(0, charIndex + 1) } 
+                    ? { ...msg, content: fullBotText.slice(0, nextIndex) } 
                     : msg
                 ));
-                charIndex++;
+                charIndex = nextIndex;
             } else {
                 if (typingIntervalRef.current) {
                     clearInterval(typingIntervalRef.current);
@@ -487,7 +500,7 @@ const Chat = () => {
                 upsertConversation(finalMessages, convId);
                 setIsLoading(false);
             }
-        }, 25);
+        }, interval);
 
     } catch (error: any) {
         console.error('Error sending message:', error);
