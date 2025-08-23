@@ -207,16 +207,18 @@ const Chat = () => {
         return `**${titleText}**`;
       }
       
-      // Remove : no início de linhas
+      // Remove : no início de linhas e dois pontos extras
       let processedLine = trimmedLine;
       if (processedLine.startsWith(':')) {
         processedLine = processedLine.replace(/^:\s*/, '');
       }
+      // Remove dois pontos no final de títulos antes de fazer bold
+      if (processedLine.endsWith(':')) {
+        processedLine = processedLine.slice(0, -1);
+      }
       
       // Detectar títulos e subtítulos para colocar em bold
       const isTitleOrSubtitle = (
-        // Linhas que terminam com :
-        processedLine.endsWith(':') ||
         // Linhas curtas e descritivas (títulos)
         (processedLine.length < 80 && 
          !processedLine.startsWith('•') && 
@@ -248,9 +250,9 @@ const Chat = () => {
         return `• ${processedLine.replace(/^[•\-*]\s*/, '')}`;
       }
       
-      // Handle numbered lists - manter como está
+      // Handle numbered lists - colocar em bold
       if (processedLine.match(/^\d+\./)) {
-        return processedLine;
+        return `**${processedLine}**`;
       }
       
       return processedLine;
@@ -272,7 +274,7 @@ const Chat = () => {
       if (part.startsWith('**') && part.endsWith('**')) {
         const boldText = part.slice(2, -2);
         return (
-          <strong key={index} className="font-semibold text-foreground block mt-4 first:mt-0 mb-2">
+          <strong key={index} className="font-semibold text-foreground inline-block mt-4 first:mt-0 mb-2">
             {boldText}
           </strong>
         );
@@ -1000,10 +1002,9 @@ const Chat = () => {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 mt-1 hover:bg-muted/50"
+                                    className="h-7 w-7 mt-1 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
                                     onClick={() => {
-                                      navigator.clipboard.writeText(message.content);
-                                      toast({ title: "Copiado!" });
+                                      copyWithFormatting(message.content, message.sender === 'user');
                                     }}
                                   >
                                     <Copy className="h-3.5 w-3.5 text-muted-foreground" />
