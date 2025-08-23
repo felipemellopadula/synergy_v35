@@ -213,8 +213,33 @@ const Chat = () => {
         processedLine = processedLine.replace(/^:\s*/, '');
       }
       
-      // Handle bold titles (lines that end with : or are short and descriptive)
-      if (processedLine.endsWith(':') || (processedLine.length < 50 && !processedLine.startsWith('•') && !processedLine.startsWith('-') && !processedLine.startsWith('*') && !processedLine.match(/^\d+\./) && processedLine.match(/^[A-ZÁÊÇÕÜÉ][^.!?]*$/))) {
+      // Detectar títulos e subtítulos para colocar em bold
+      const isTitleOrSubtitle = (
+        // Linhas que terminam com :
+        processedLine.endsWith(':') ||
+        // Linhas curtas e descritivas (títulos)
+        (processedLine.length < 80 && 
+         !processedLine.startsWith('•') && 
+         !processedLine.startsWith('-') && 
+         !processedLine.startsWith('*') && 
+         !processedLine.match(/^\d+\./) &&
+         !processedLine.includes('.') && // Evita frases completas
+         processedLine.match(/^[A-ZÁÊÇÕÜÉ][^.!?]*$/)) ||
+        // Subtítulos com parênteses (ex: "(0 a 12 anos)")
+        processedLine.match(/^\([^)]+\)$/) ||
+        // Palavras-chave isoladas em maiúscula
+        processedLine.match(/^[A-ZÁÊÇÕÜÉ][A-ZÁÊÇÕÜÉ\s]+$/) ||
+        // Títulos que começam com maiúscula e são relativamente curtos
+        (processedLine.length < 60 && 
+         processedLine.match(/^[A-ZÁÊÇÕÜÉ][a-záêçõüéA-ZÁÊÇÕÜÉ\s]*$/) &&
+         !processedLine.includes(',') && 
+         !processedLine.includes('e ') &&
+         !processedLine.includes('de ') &&
+         !processedLine.includes('da ') &&
+         !processedLine.includes('do '))
+      );
+      
+      if (isTitleOrSubtitle) {
         return `**${processedLine}**`;
       }
       
