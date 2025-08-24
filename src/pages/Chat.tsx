@@ -185,6 +185,7 @@ const Chat = () => {
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -884,6 +885,97 @@ const Chat = () => {
     if (event.target) event.target.value = '';
   };
 
+  // Funções de drag and drop
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Só remove o drag state se saindo da área do textarea
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length === 0) return;
+    
+    // Processar arquivos arrastados
+    handleDroppedFiles(droppedFiles);
+  };
+
+  // Função para processar arquivos arrastados (sem toasts)
+  const handleDroppedFiles = async (files: File[]) => {
+    // Verificar se há arquivos .doc (não suportados)
+    const docFiles = files.filter(file => file.name.toLowerCase().endsWith('.doc') && !file.name.toLowerCase().endsWith('.docx'));
+    if (docFiles.length > 0) {
+      toast({
+        title: "Arquivos .doc não suportados",
+        description: `${docFiles.length} arquivo(s) .doc detectado(s). Por favor, converta para .docx ou use arquivos .docx diretamente.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Verificar limite de 5 arquivos
+    const totalFiles = attachedFiles.length + files.length;
+    if (totalFiles > 5) {
+      toast({
+        title: "Limite de arquivos excedido",
+        description: `Você pode anexar no máximo 5 arquivos. Atualmente: ${attachedFiles.length} + ${files.length} = ${totalFiles}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Filtrar arquivos válidos
+    const validFiles = files.filter(file => {
+      const isValidType = file.type.startsWith('image/') || 
+                         file.type === 'application/pdf' || 
+                         file.type.includes('word') || 
+                         file.name.toLowerCase().endsWith('.pdf') ||
+                         file.name.toLowerCase().endsWith('.docx');
+      return isValidType && file.size <= 50 * 1024 * 1024; // 50MB limit
+    });
+    
+    if (validFiles.length === 0) {
+      toast({
+        title: "Nenhum arquivo válido",
+        description: "Arraste apenas imagens, PDFs ou documentos Word .docx (máx. 50MB cada). Arquivos .doc não são suportados.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+    
+    // Ativar análise comparativa se houver mais de um arquivo
+    if (attachedFiles.length + validFiles.length > 1) {
+      setComparativeAnalysisEnabled(true);
+    }
+    
+    // Processar arquivos em paralelo (sem toast de confirmação)
+    await processFilesInParallel(validFiles);
+  };
+
   // Função para processar múltiplos arquivos em paralelo
   const processFilesInParallel = async (files: File[]) => {
     // Criar URLs de preview para imagens
@@ -1435,9 +1527,9 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                       target.style.height = 'auto';
                       target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
                     }}
-                    placeholder={isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa..."}
+                    placeholder={isDragOver ? "Solte os arquivos aqui..." : isWebSearchMode ? "Digite para buscar na web..." : "Pergunte alguma coisa..."}
                     disabled={isLoading}
-                    className="w-full pl-14 pr-24 py-3 rounded-lg resize-none min-h-[52px] max-h-[128px]"
+                    className={`w-full pl-14 pr-24 py-3 rounded-lg resize-none min-h-[52px] max-h-[128px] transition-colors ${isDragOver ? 'bg-accent border-primary border-dashed' : ''}`}
                     rows={1}
                     onKeyDown={(e) => { 
                       if (e.key === 'Enter' && !isMobile && !e.shiftKey) { 
@@ -1447,6 +1539,10 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                         target.style.height = '52px';
                       } 
                     }}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
                   />
                   <div className="absolute right-3 top-3 flex gap-1">
                     <TooltipProvider><Tooltip><TooltipTrigger asChild>
