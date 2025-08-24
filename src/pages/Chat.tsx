@@ -282,12 +282,6 @@ const Chat = () => {
     }
   }, [user, loadConversations]);
     
-    // Remove # and * symbols from the entire text
-    let cleanText = text.replace(/#+\s*/g, '').replace(/\*/g, '');
-    
-    // Split into lines and process each
-    const lines = cleanText.split('\n');
-    const formattedLines = lines.map((line, index) => {
       let trimmedLine = line.trim();
       
       // Remove stray bullet points in the middle of text
