@@ -278,10 +278,19 @@ const Chat = () => {
 
   useEffect(() => {
     if (user) {
-      loadConversations();
+      // Carregar conversas será implementado se necessário
     }
-  }, [user, loadConversations]);
+  }, [user]);
     
+  const convertToWordFormat = (text: string) => {
+    if (!text) return text;
+    
+    // Remove # and * symbols from the entire text
+    let cleanText = text.replace(/#+\s*/g, '').replace(/\*/g, '');
+    
+    // Split into lines and process each
+    const lines = cleanText.split('\n');
+    const formattedLines = lines.map((line) => {
       let trimmedLine = line.trim();
       
       // Remove stray bullet points in the middle of text
@@ -308,6 +317,62 @@ const Chat = () => {
     });
     
     return formattedLines.join('\n');
+  };
+
+  
+  // Função para renderizar texto formatado
+  const renderFormattedText = (text: string, isUser: boolean, model?: string) => {
+    if (isUser) {
+      return text;
+    }
+    
+    const formattedText = formatAIResponse(text, model);
+    const parts = formattedText.split(/(\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const boldText = part.slice(2, -2);
+        return (
+          <strong key={index} className="font-semibold text-foreground block mt-4 first:mt-0 mb-2">
+            {boldText}
+          </strong>
+        );
+      }
+      
+      // Handle regular text with bullet points
+      const lines = part.split('\n');
+      return (
+        <span key={index}>
+          {lines.map((line, lineIndex) => {
+            if (line.trim().startsWith('•')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-2 ml-4 mb-1">
+                  <span className="text-muted-foreground mt-1">•</span>
+                  <span>{line.trim().replace(/^•\s*/, '')}</span>
+                </div>
+              );
+            }
+            
+            if (line.trim()) {
+              return (
+                <div key={lineIndex} className="mb-2 last:mb-0">
+                  {line}
+                </div>
+              );
+            }
+            
+            return <br key={lineIndex} />;
+          })}
+        </span>
+      );
+    });
+  };
+
+  // Função para scroll para o fim
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // Função para copiar com formatação HTML preservada para Word
