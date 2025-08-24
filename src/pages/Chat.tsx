@@ -668,7 +668,7 @@ const Chat = () => {
           messageWithPdf = generateComparativePrompt(currentInput, processedDocuments);
         } else if (attachedFiles.length > 0) {
           const pdfFiles = attachedFiles.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-          const wordFiles = attachedFiles.filter(f => f.type.includes('word') || f.name.toLowerCase().endsWith('.docx') || f.name.toLowerCase().endsWith('.doc'));
+          const wordFiles = attachedFiles.filter(f => f.type.includes('word') || f.name.toLowerCase().endsWith('.docx'));
           const imageFiles = attachedFiles.filter(f => f.type.startsWith('image/'));
           
           if (pdfFiles.length > 0 || wordFiles.length > 0 || imageFiles.length > 0) {
@@ -829,6 +829,18 @@ const Chat = () => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
     
+    // Verificar se há arquivos .doc (não suportados)
+    const docFiles = files.filter(file => file.name.toLowerCase().endsWith('.doc') && !file.name.toLowerCase().endsWith('.docx'));
+    if (docFiles.length > 0) {
+      toast({
+        title: "Arquivos .doc não suportados",
+        description: `${docFiles.length} arquivo(s) .doc detectado(s). Por favor, converta para .docx ou use arquivos .docx diretamente.`,
+        variant: "destructive",
+      });
+      if (event.target) event.target.value = '';
+      return;
+    }
+    
     // Verificar limite de 5 arquivos
     const totalFiles = attachedFiles.length + files.length;
     if (totalFiles > 5) {
@@ -846,15 +858,14 @@ const Chat = () => {
                          file.type === 'application/pdf' || 
                          file.type.includes('word') || 
                          file.name.toLowerCase().endsWith('.pdf') ||
-                         file.name.toLowerCase().endsWith('.doc') || 
-                         file.name.toLowerCase().endsWith('.docx');
+                         file.name.toLowerCase().endsWith('.docx'); // Removido .doc
       return isValidType && file.size <= 50 * 1024 * 1024; // 50MB limit
     });
     
     if (validFiles.length === 0) {
       toast({
         title: "Nenhum arquivo válido",
-        description: "Selecione apenas imagens, PDFs ou documentos Word (máx. 50MB cada).",
+        description: "Selecione apenas imagens, PDFs ou documentos Word .docx (máx. 50MB cada). Arquivos .doc não são suportados.",
         variant: "destructive",
       });
       return;
@@ -920,7 +931,7 @@ const Chat = () => {
             throw new Error(result.error || 'Erro ao processar PDF');
           }
           
-        } else if (file.type.includes('word') || file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
+        } else if (file.type.includes('word') || file.name.toLowerCase().endsWith('.docx')) {
           console.log('Processing Word:', fileName, 'Size:', file.size);
           const result = await WordProcessor.processWord(file);
           if (result.success && result.content) {
@@ -967,9 +978,25 @@ const Chat = () => {
       details: results
     });
     
-    // Apenas mostrar toast se houver erros críticos
+    // Mostrar toast informativo se houver arquivos que falharam
     if (failed > 0) {
       const failedFiles = results.filter(r => !r.success);
+      const docFormatErrors = failedFiles.filter(f => f.error?.includes('.doc (formato antigo)')).length;
+      
+      if (docFormatErrors > 0) {
+        toast({
+          title: `${docFormatErrors} arquivo(s) .doc não suportado(s)`,
+          description: "Arquivos .doc (formato antigo) não são suportados. Use arquivos .docx ou converta seus arquivos.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `Erro ao processar ${failed} arquivo(s)`,
+          description: "Alguns arquivos não puderam ser processados. Verifique o formato e tente novamente.",
+          variant: "destructive",
+        });
+      }
+      
       console.error('Failed file processing:', failedFiles);
     }
   };
@@ -1388,14 +1415,14 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                 )}
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                 <div className="flex-1 relative">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,.pdf,.doc,.docx" max="5" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,.pdf,.docx" max="5" />
                   <div className="absolute left-2 top-3 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8"><Plus className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent side="top" align="start" className="mb-2">
-                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer"><Paperclip className="h-4 w-4 mr-2" />Anexar Arquivos (até 5)</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer"><Paperclip className="h-4 w-4 mr-2" />Anexar (.pdf, .docx, imagens)</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setIsWebSearchMode(p => !p)} className="cursor-pointer"><Globe className="h-4 w-4 mr-2" />{isWebSearchMode ? 'Desativar Busca Web' : 'Busca Web'}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

@@ -11,10 +11,22 @@ export class WordProcessor {
     try {
       console.log('Processing Word file:', file.name, 'Size:', file.size);
 
-      if (!file.type.includes('word') && !file.name.endsWith('.docx') && !file.name.endsWith('.doc')) {
+      // Verificar se é um arquivo Word válido
+      const isDocx = file.type.includes('word') || file.name.toLowerCase().endsWith('.docx');
+      const isDoc = file.name.toLowerCase().endsWith('.doc');
+      
+      if (!isDocx && !isDoc) {
         return {
           success: false,
           error: 'Arquivo deve ser um documento Word (.docx ou .doc)'
+        };
+      }
+
+      // Arquivos .doc (formato antigo) não são suportados pela biblioteca mammoth
+      if (isDoc && !isDocx) {
+        return {
+          success: false,
+          error: 'Arquivos .doc (formato antigo) não são suportados. Por favor, converta para .docx ou use um arquivo .docx.'
         };
       }
 
@@ -55,6 +67,15 @@ export class WordProcessor {
 
     } catch (error: any) {
       console.error('Erro ao processar Word:', error);
+      
+      // Verificar se o erro é devido ao formato .doc
+      if (error.message && error.message.includes('Could not find the body element')) {
+        return {
+          success: false,
+          error: 'Este arquivo parece ser um .doc (formato antigo). Por favor, use arquivos .docx (formato moderno) ou converta o arquivo.'
+        };
+      }
+      
       return {
         success: false,
         error: `Falha ao processar documento Word: ${error.message || 'Erro desconhecido'}`
