@@ -619,6 +619,13 @@ const Chat = () => {
     const currentInput = inputValue;
     const currentFiles = [...attachedFiles];
     setInputValue('');
+    
+    // Resetar altura do textarea
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = '52px';
+    }
+    
     setAttachedFiles([]);
     setProcessedPdfs(new Map());
     setProcessedWords(new Map());
