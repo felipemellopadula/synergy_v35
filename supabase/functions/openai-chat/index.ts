@@ -12,16 +12,99 @@ function estimateTokenCount(text: string): number {
   return Math.ceil(text.length / 3);
 }
 
-// Function to split text into chunks
-function splitIntoChunks(text: string, maxTokens: number): string[] {
-  const maxChars = maxTokens * 3; // Convert tokens to approximate characters
-  const chunks = [];
+// Intelligent chunking function that respects sentence and paragraph boundaries
+function chunkText(text: string, maxTokensPerChunk: number): string[] {
+  const maxCharsPerChunk = maxTokensPerChunk * 3; // Convert tokens to approximate characters
   
-  for (let i = 0; i < text.length; i += maxChars) {
-    chunks.push(text.slice(i, i + maxChars));
+  if (text.length <= maxCharsPerChunk) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let currentChunk = '';
+  
+  // Split by paragraphs first
+  const paragraphs = text.split(/\n\s*\n/);
+  
+  for (const paragraph of paragraphs) {
+    // If adding this paragraph would exceed the limit
+    if ((currentChunk + paragraph).length > maxCharsPerChunk && currentChunk.length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = '';
+    }
+    
+    // If a single paragraph is too large, split by sentences
+    if (paragraph.length > maxCharsPerChunk) {
+      // Add any existing chunk first
+      if (currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+      
+      const sentences = paragraph.split(/[.!?]+\s+/);
+      for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i] + (i < sentences.length - 1 ? '. ' : '');
+        
+        if ((currentChunk + sentence).length > maxCharsPerChunk && currentChunk.length > 0) {
+          chunks.push(currentChunk.trim());
+          currentChunk = sentence;
+        } else {
+          currentChunk += sentence;
+        }
+      }
+    } else {
+      currentChunk += (currentChunk.length > 0 ? '\n\n' : '') + paragraph;
+    }
   }
   
-  return chunks;
+  // Add the last chunk if it has content
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+  
+  return chunks.length > 0 ? chunks : [text];
+}
+
+// Create optimized prompt for PDF processing
+function createOptimizedPdfPrompt(content: string, userMessage: string, chunkIndex?: number, totalChunks?: number): string {
+  const isMultiChunk = totalChunks && totalChunks > 1;
+  
+  if (isMultiChunk) {
+    return `ANÁLISE DE DOCUMENTO EXTENSO (PARTE ${chunkIndex! + 1}/${totalChunks})
+
+Você está analisando a parte ${chunkIndex! + 1} de ${totalChunks} de um documento extenso.
+
+INSTRUÇÃO ORIGINAL DO USUÁRIO: "${userMessage}"
+
+CONTEÚDO DA PARTE ${chunkIndex! + 1}:
+${content}
+
+INSTRUÇÕES:
+1. Analise este trecho focando na instrução original do usuário
+2. Extraia informações relevantes para responder à pergunta/solicitação
+3. Mantenha o contexto de que isso é parte de um documento maior
+4. Seja específico sobre o que encontrou nesta seção`;
+  }
+  
+  return `${userMessage}\n\nCONTEÚDO DO DOCUMENTO:\n${content}`;
+}
+
+// Combine multiple responses into a cohesive final response
+function combineResponses(responses: string[], originalMessage: string): string {
+  if (responses.length === 1) {
+    return responses[0];
+  }
+  
+  const separator = '\n\n---\n\n';
+  const combinedContent = responses.join(separator);
+  
+  return `📄 ANÁLISE COMPLETA DO DOCUMENTO (${responses.length} partes processadas)
+
+${combinedContent}
+
+---
+
+✅ Análise completa finalizada com base em todas as ${responses.length} partes do documento.`;
 }
 
 serve(async (req) => {
@@ -68,36 +151,139 @@ serve(async (req) => {
       messageLength: message.length 
     });
 
-    let processedMessage = message;
-    let responsePrefix = '';
+    // Detect if this is likely a PDF document based on content patterns
+    const isPdfContent = message.length > 5000 && (
+      message.includes('ANÁLISE COMPARATIVA') ||
+      message.includes('CONTEÚDO DO DOCUMENTO') ||
+      message.includes('documento') ||
+      message.includes('análise') ||
+      estimatedTokens > limits.input * 0.3
+    );
 
-    // If message is too large, split into chunks and summarize
-    if (estimatedTokens > limits.input * 0.4) { // Use 40% of limit to avoid TPM limits
-      console.log('Message too large, processing in chunks...');
+    console.log('Content analysis:', {
+      isPdfContent,
+      shouldChunk: estimatedTokens > limits.input * 0.3,
+      estimatedTokens,
+      messageLength: message.length
+    });
+
+    // If message is too large or is PDF content, process with complete chunking
+    if (isPdfContent || estimatedTokens > limits.input * 0.3) {
+      console.log('Processing large document with chunking system...');
       
-      // For GPT-5 models, use smaller chunks due to TPM limits
-      let maxChunkTokens;
-      if (model.includes('gpt-5')) {
-        maxChunkTokens = Math.min(15000, Math.floor(limits.input * 0.3)); // Much smaller chunks for GPT-5
-      } else {
-        maxChunkTokens = Math.floor(limits.input * 0.6);
+      // Extract user message from the content if it contains PDF analysis patterns
+      let userMessage = message;
+      let contentToAnalyze = message;
+      
+      // Try to extract user instruction from structured prompts
+      const analysisMatch = message.match(/INSTRUÇÃO ORIGINAL DO USUÁRIO:\s*"([^"]+)"/);
+      if (analysisMatch) {
+        userMessage = analysisMatch[1];
+      } else if (message.includes('CONTEÚDO DO DOCUMENTO:')) {
+        const parts = message.split('CONTEÚDO DO DOCUMENTO:');
+        if (parts.length > 1) {
+          userMessage = parts[0].trim();
+          contentToAnalyze = parts[1].trim();
+        }
       }
+
+      // Configure chunk size based on model for GPT-5 TPM limits
+      let maxChunkTokens;
+      let delayBetweenChunks;
       
-      const chunks = splitIntoChunks(message, maxChunkTokens);
-      
-      if (chunks.length > 1) {
-        responsePrefix = `⚠️ Documento muito grande para ${model}. Processando em ${chunks.length} partes:\n\n`;
+      if (model.includes('gpt-5-nano')) {
+        maxChunkTokens = 8000;  // Smaller chunks for nano
+        delayBetweenChunks = 500;
+      } else if (model.includes('gpt-5-mini')) {
+        maxChunkTokens = 12000; // Medium chunks for mini
+        delayBetweenChunks = 1000;
+      } else if (model.includes('gpt-5')) {
+        maxChunkTokens = 15000; // Larger chunks for regular GPT-5
+        delayBetweenChunks = 1000;
+      } else {
+        maxChunkTokens = Math.floor(limits.input * 0.6); // Legacy models
+        delayBetweenChunks = 300;
+      }
+
+      const chunks = chunkText(contentToAnalyze, maxChunkTokens);
+      console.log(`Split into ${chunks.length} chunks for processing`);
+
+      if (chunks.length === 1) {
+        // Single chunk - process normally
+        const prompt = createOptimizedPdfPrompt(chunks[0], userMessage);
+        contentToAnalyze = prompt;
+      } else {
+        // Multiple chunks - process sequentially
+        const responses: string[] = [];
         
-        // Process first chunk with instructions to summarize
-        processedMessage = `Analise e resuma este trecho de um documento extenso (parte 1 de ${chunks.length}). Foque nos pontos principais:\n\n${chunks[0]}`;
+        for (let i = 0; i < chunks.length; i++) {
+          console.log(`Processing chunk ${i + 1}/${chunks.length}`);
+          
+          try {
+            const chunkPrompt = createOptimizedPdfPrompt(chunks[i], userMessage, i, chunks.length);
+            
+            const requestBody: any = {
+              model: model,
+              messages: [{
+                role: 'user',
+                content: chunkPrompt
+              }],
+              max_completion_tokens: isNewerModel ? limits.output : undefined,
+              max_tokens: !isNewerModel ? limits.output : undefined,
+            };
+
+            // Only add temperature for legacy models
+            if (!isNewerModel) {
+              requestBody.temperature = 0.7;
+            }
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openaiApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+              const errorData = await response.text();
+              console.error(`OpenAI API error for chunk ${i + 1}:`, errorData);
+              responses.push(`❌ Erro ao processar parte ${i + 1}: ${errorData}`);
+            } else {
+              const data = await response.json();
+              const chunkResponse = data.choices?.[0]?.message?.content || `Erro ao processar parte ${i + 1}`;
+              responses.push(chunkResponse);
+            }
+
+            // Add delay between chunks to respect TPM limits (especially for GPT-5)
+            if (i < chunks.length - 1) {
+              console.log(`Waiting ${delayBetweenChunks}ms before next chunk...`);
+              await new Promise(resolve => setTimeout(resolve, delayBetweenChunks));
+            }
+
+          } catch (chunkError) {
+            console.error(`Error processing chunk ${i + 1}:`, chunkError);
+            responses.push(`❌ Erro ao processar parte ${i + 1}: ${chunkError.message}`);
+          }
+        }
+
+        // Combine all responses
+        const finalResponse = combineResponses(responses, userMessage);
+        
+        console.log('Multi-chunk processing completed successfully');
+        return new Response(JSON.stringify({ response: finalResponse }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
-    
+
+    // Single request processing (small documents or single chunks)
     const requestBody: any = {
       model: model,
       messages: [{
         role: 'user',
-        content: processedMessage
+        content: isPdfContent && estimatedTokens <= limits.input * 0.3 ? contentToAnalyze : message
       }],
       max_completion_tokens: isNewerModel ? limits.output : undefined,
       max_tokens: !isNewerModel ? limits.output : undefined,
@@ -108,7 +294,7 @@ serve(async (req) => {
       requestBody.temperature = 0.7;
     }
 
-    console.log('Sending request to OpenAI with model:', model);
+    console.log('Sending single request to OpenAI with model:', model);
     console.log('Request config:', { 
       model, 
       hasMaxCompletionTokens: !!requestBody.max_completion_tokens,
@@ -132,10 +318,7 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const generatedText = data.choices?.[0]?.message?.content || 'Não foi possível gerar resposta';
-    
-    // Add prefix if message was processed in chunks
-    const finalResponse = responsePrefix + generatedText;
+    const finalResponse = data.choices?.[0]?.message?.content || 'Não foi possível gerar resposta';
 
     console.log('OpenAI response received successfully');
 
