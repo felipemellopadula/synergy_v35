@@ -211,7 +211,47 @@ serve(async (req) => {
       if (chunks.length === 1) {
         // Single chunk - process normally
         const prompt = createOptimizedPdfPrompt(chunks[0], userMessage);
-        contentToAnalyze = prompt;
+        
+        const requestBody: any = {
+          model: model,
+          messages: [{
+            role: 'user',
+            content: prompt
+          }],
+          max_completion_tokens: isNewerModel ? limits.output : undefined,
+          max_tokens: !isNewerModel ? limits.output : undefined,
+        };
+
+        // Only add temperature for legacy models
+        if (!isNewerModel) {
+          requestBody.temperature = 0.7;
+        }
+
+        console.log('Sending single chunk request to OpenAI with model:', model);
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          console.error('OpenAI API error:', errorData);
+          throw new Error(`Erro da API OpenAI: ${response.status} - ${errorData}`);
+        }
+
+        const data = await response.json();
+        const finalResponse = data.choices?.[0]?.message?.content || 'Não foi possível gerar resposta';
+
+        console.log('Single chunk response received successfully');
+        return new Response(JSON.stringify({ response: finalResponse }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+        
       } else {
         // Multiple chunks - process sequentially
         const responses: string[] = [];
@@ -278,12 +318,12 @@ serve(async (req) => {
       }
     }
 
-    // Single request processing (small documents or single chunks)
+    // Single request processing (small documents)
     const requestBody: any = {
       model: model,
       messages: [{
         role: 'user',
-        content: isPdfContent && estimatedTokens <= limits.input * 0.3 ? contentToAnalyze : message
+        content: message
       }],
       max_completion_tokens: isNewerModel ? limits.output : undefined,
       max_tokens: !isNewerModel ? limits.output : undefined,
