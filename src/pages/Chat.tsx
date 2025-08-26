@@ -715,7 +715,7 @@ const Chat = () => {
           messageWithPdf = generateComparativePrompt(currentInput, processedDocuments);
         } else if (attachedFiles.length > 0) {
           const pdfFiles = attachedFiles.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
-          const wordFiles = attachedFiles.filter(f => f.type.includes('word') || f.name.toLowerCase().endsWith('.docx'));
+          const wordFiles = attachedFiles.filter(f => f.type.includes('word') || f.name.toLowerCase().endsWith('.docx') || f.name.toLowerCase().endsWith('.doc'));
           const imageFiles = attachedFiles.filter(f => f.type.startsWith('image/'));
           
           if (pdfFiles.length > 0 || wordFiles.length > 0 || imageFiles.length > 0) {
@@ -879,17 +879,7 @@ const Chat = () => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
     
-    // Verificar se há arquivos .doc (não suportados)
-    const docFiles = files.filter(file => file.name.toLowerCase().endsWith('.doc') && !file.name.toLowerCase().endsWith('.docx'));
-    if (docFiles.length > 0) {
-      toast({
-        title: "Arquivos .doc não suportados",
-        description: `${docFiles.length} arquivo(s) .doc detectado(s). Por favor, converta para .docx ou use arquivos .docx diretamente.`,
-        variant: "destructive",
-      });
-      if (event.target) event.target.value = '';
-      return;
-    }
+    // Arquivos .doc e .docx são suportados
     
     // Verificar limite de 5 arquivos
     const totalFiles = attachedFiles.length + files.length;
@@ -908,107 +898,15 @@ const Chat = () => {
                          file.type === 'application/pdf' || 
                          file.type.includes('word') || 
                          file.name.toLowerCase().endsWith('.pdf') ||
-                         file.name.toLowerCase().endsWith('.docx'); // Removido .doc
+                         file.name.toLowerCase().endsWith('.docx') ||
+                         file.name.toLowerCase().endsWith('.doc');
       return isValidType && file.size <= 50 * 1024 * 1024; // 50MB limit
     });
     
     if (validFiles.length === 0) {
       toast({
         title: "Nenhum arquivo válido",
-        description: "Selecione apenas imagens, PDFs ou documentos Word .docx (máx. 50MB cada). Arquivos .doc não são suportados.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setAttachedFiles(prev => [...prev, ...validFiles]);
-    
-    // Ativar análise comparativa se houver mais de um arquivo
-    if (attachedFiles.length + validFiles.length > 1) {
-      setComparativeAnalysisEnabled(true);
-    }
-    
-    // Processar arquivos em paralelo
-    await processFilesInParallel(validFiles);
-    
-    if (event.target) event.target.value = '';
-  };
-
-  // Funções de drag and drop
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Só remove o drag state se saindo da área do textarea
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
-      setIsDragOver(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    if (droppedFiles.length === 0) return;
-    
-    // Processar arquivos arrastados
-    handleDroppedFiles(droppedFiles);
-  };
-
-  // Função para processar arquivos arrastados (sem toasts)
-  const handleDroppedFiles = async (files: File[]) => {
-    // Verificar se há arquivos .doc (não suportados)
-    const docFiles = files.filter(file => file.name.toLowerCase().endsWith('.doc') && !file.name.toLowerCase().endsWith('.docx'));
-    if (docFiles.length > 0) {
-      toast({
-        title: "Arquivos .doc não suportados",
-        description: `${docFiles.length} arquivo(s) .doc detectado(s). Por favor, converta para .docx ou use arquivos .docx diretamente.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Verificar limite de 5 arquivos
-    const totalFiles = attachedFiles.length + files.length;
-    if (totalFiles > 5) {
-      toast({
-        title: "Limite de arquivos excedido",
-        description: `Você pode anexar no máximo 5 arquivos. Atualmente: ${attachedFiles.length} + ${files.length} = ${totalFiles}`,
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Filtrar arquivos válidos
-    const validFiles = files.filter(file => {
-      const isValidType = file.type.startsWith('image/') || 
-                         file.type === 'application/pdf' || 
-                         file.type.includes('word') || 
-                         file.name.toLowerCase().endsWith('.pdf') ||
-                         file.name.toLowerCase().endsWith('.docx');
-      return isValidType && file.size <= 50 * 1024 * 1024; // 50MB limit
-    });
-    
-    if (validFiles.length === 0) {
-      toast({
-        title: "Nenhum arquivo válido",
-        description: "Arraste apenas imagens, PDFs ou documentos Word .docx (máx. 50MB cada). Arquivos .doc não são suportados.",
+        description: "Arraste apenas imagens, PDFs ou documentos Word (.doc/.docx, máx. 50MB cada).",
         variant: "destructive",
       });
       return;
@@ -1026,6 +924,74 @@ const Chat = () => {
   };
 
   // Função para processar múltiplos arquivos em paralelo
+  // Funções de drag and drop
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    
+    // Verificar limite de 5 arquivos
+    const totalFiles = attachedFiles.length + files.length;
+    if (totalFiles > 5) {
+      toast({
+        title: "Limite de arquivos excedido",
+        description: `Você pode anexar no máximo 5 arquivos. Atualmente: ${attachedFiles.length} + ${files.length} = ${totalFiles}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Filtrar arquivos válidos
+    const validFiles = files.filter(file => {
+      const isValidType = file.type.startsWith('image/') || 
+                         file.type === 'application/pdf' || 
+                         file.type.includes('word') || 
+                         file.name.toLowerCase().endsWith('.pdf') ||
+                         file.name.toLowerCase().endsWith('.docx') ||
+                         file.name.toLowerCase().endsWith('.doc');
+      return isValidType && file.size <= 50 * 1024 * 1024; // 50MB limit
+    });
+    
+    if (validFiles.length === 0) {
+      toast({
+        title: "Nenhum arquivo válido",
+        description: "Arraste apenas imagens, PDFs ou documentos Word (.doc/.docx, máx. 50MB cada).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setAttachedFiles(prev => [...prev, ...validFiles]);
+    
+    // Ativar análise comparativa se houver mais de um arquivo
+    if (attachedFiles.length + validFiles.length > 1) {
+      setComparativeAnalysisEnabled(true);
+    }
+    
+    // Processar arquivos em paralelo
+    await processFilesInParallel(validFiles);
+  };
+
   const processFilesInParallel = async (files: File[]) => {
     // Criar URLs de preview para imagens
     const newPreviewUrls = new Map(filePreviewUrls);
@@ -1072,7 +1038,7 @@ const Chat = () => {
             throw new Error(result.error || 'Erro ao processar PDF');
           }
           
-        } else if (file.type.includes('word') || file.name.toLowerCase().endsWith('.docx')) {
+        } else if (file.type.includes('word') || file.name.toLowerCase().endsWith('.docx') || file.name.toLowerCase().endsWith('.doc')) {
           console.log('Processing Word:', fileName, 'Size:', file.size);
           const result = await WordProcessor.processWord(file);
           if (result.success && result.content) {
@@ -1556,14 +1522,14 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                 )}
               <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                 <div className="flex-1 relative">
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,.pdf,.docx" max="5" />
+                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" multiple accept="image/*,.pdf,.docx,.doc" max="5" />
                   <div className="absolute left-2 top-3 z-10">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button type="button" variant="ghost" size="icon" className="h-8 w-8"><Plus className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent side="top" align="start" className="mb-2">
-                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer"><Paperclip className="h-4 w-4 mr-2" />Anexar (.pdf, .docx, imagens)</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer"><Paperclip className="h-4 w-4 mr-2" />Anexar (.pdf, .doc/.docx, imagens)</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setIsWebSearchMode(p => !p)} className="cursor-pointer"><Globe className="h-4 w-4 mr-2" />{isWebSearchMode ? 'Desativar Busca Web' : 'Busca Web'}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
