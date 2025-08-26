@@ -48,6 +48,10 @@ const ImagePage = () => {
     const canAttachImage = useMemo(() => model === "openai:1@1", [model]);
 
     useEffect(() => {
+        document.title = "Gerar Imagens com Ia";
+    }, []);
+
+    useEffect(() => {
         if (selectedFile) {
             const url = URL.createObjectURL(selectedFile);
             setPreviewUrl(url);
@@ -65,9 +69,6 @@ const ImagePage = () => {
 
     const selectedQualityInfo = useMemo(() => QUALITY_SETTINGS.find(q => q.id === quality)!, [quality]);
 
-    useEffect(() => {
-        document.title = "Gerar Imagens com IA | Synergy AI"; // SEO: title tag
-    }, []);
 
     // --- LÓGICA DE BUSCA DE HISTÓRICO CORRIGIDA ---
     useEffect(() => {
