@@ -787,11 +787,21 @@ const Chat = () => {
         const functionName = getEdgeFunctionName(internalModel);
         console.log(`Using edge function: ${functionName} for model: ${internalModel}`);
         
+        // Prepare conversation history for context (last 10 messages)
+        const conversationHistory = messages.slice(-10).map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+          files: msg.files || [],
+          timestamp: msg.timestamp.toISOString()
+        }));
+
         const { data: fnData, error: fnError } = await supabase.functions.invoke(functionName, { 
           body: { 
             message: messageWithPdf, 
             model: internalModel,
-            files: fileData.length > 0 ? fileData : undefined 
+            files: fileData.length > 0 ? fileData : undefined,
+            conversationHistory: conversationHistory,
+            contextEnabled: true
           }
         });
         if (fnError) throw fnError;

@@ -13,13 +13,15 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = 'gemini-2.0-flash-exp' } = await req.json();
+    const { message, model = 'gemini-2.0-flash-exp', conversationHistory = [], contextEnabled = false } = await req.json();
     
     console.log('Gemini Chat - Request received:', {
       model,
       messageLength: message?.length || 0,
       messagePreview: message?.substring(0, 200) + '...',
-      hasMessage: !!message
+      hasMessage: !!message,
+      contextEnabled,
+      historyLength: conversationHistory.length
     });
     
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
@@ -27,7 +29,30 @@ serve(async (req) => {
       throw new Error('GEMINI_API_KEY não configurada');
     }
 
-    console.log('Sending request to Gemini with model:', model);
+    // Build contents array with conversation history if context is enabled
+    let contents = [];
+    
+    if (contextEnabled && conversationHistory.length > 0) {
+      // Add conversation history for context
+      console.log('Building conversation context with', conversationHistory.length, 'previous messages');
+      
+      conversationHistory.forEach((historyMsg) => {
+        // Gemini uses different role names
+        const role = historyMsg.role === 'assistant' ? 'model' : 'user';
+        contents.push({
+          role: role,
+          parts: [{ text: historyMsg.content }]
+        });
+      });
+    }
+    
+    // Add current user message
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
+    });
+
+    console.log('Sending request to Gemini with model:', model, 'and', contents.length, 'messages');
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -35,11 +60,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: message
-          }]
-        }],
+        contents: contents,
         generationConfig: {
           temperature: 0.7,
           topK: 40,

@@ -31,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = 'claude-sonnet-4-20250514', files } = await req.json();
+    const { message, model = 'claude-sonnet-4-20250514', files, conversationHistory = [], contextEnabled = false } = await req.json();
     
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicApiKey) {
@@ -69,48 +69,72 @@ serve(async (req) => {
       }
     }
     
-    const estimatedTokens = estimateTokenCount(finalMessage);
+    // Build messages array with conversation history if context is enabled
+    let messages = [];
+    
+    if (contextEnabled && conversationHistory.length > 0) {
+      // Add conversation history for context
+      console.log('Building conversation context with', conversationHistory.length, 'previous messages');
+      
+      messages = conversationHistory.map((historyMsg) => ({
+        role: historyMsg.role,
+        content: historyMsg.content
+      }));
+    }
+    
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: finalMessage
+    });
+    
+    // Calculate total token count for the entire conversation
+    const totalText = messages.map(msg => msg.content).join('\n');
+    const estimatedTokens = estimateTokenCount(totalText);
     
     console.log('Token estimation:', { 
       estimatedTokens, 
       inputLimit: limits.input, 
       model,
-      messageLength: finalMessage.length,
-      hasPdfFiles: files && files.some(f => f.type === 'application/pdf')
+      messageLength: totalText.length,
+      hasPdfFiles: files && files.some(f => f.type === 'application/pdf'),
+      contextMessages: messages.length - 1
     });
 
-    let processedMessage = finalMessage;
+    let processedMessages = messages;
     let responsePrefix = '';
 
-    // If message is too large, split into chunks and summarize
-    if (estimatedTokens > limits.input * 0.6) { // Use 60% of limit for Claude
-      console.log('Message too large, processing in chunks...');
+    // If conversation is too large, truncate older messages but keep recent context
+    if (estimatedTokens > limits.input * 0.6) {
+      console.log('Conversation too large, truncating older messages...');
       
-      // Claude models have high context window, use larger chunks
-      let maxChunkTokens;
-      if (model.includes('haiku')) {
-        maxChunkTokens = Math.min(25000, Math.floor(limits.input * 0.4)); // Smaller chunks for Haiku
-      } else {
-        maxChunkTokens = Math.min(40000, Math.floor(limits.input * 0.5)); // Larger chunks for Opus/Sonnet
+      // Keep the current message and try to fit as many recent messages as possible
+      const currentMessage = messages[messages.length - 1];
+      let keptMessages = [currentMessage];
+      let currentTokens = estimateTokenCount(currentMessage.content);
+      
+      // Add messages from most recent backwards until we hit the limit
+      for (let i = messages.length - 2; i >= 0; i--) {
+        const msgTokens = estimateTokenCount(messages[i].content);
+        if (currentTokens + msgTokens < limits.input * 0.6) {
+          keptMessages.unshift(messages[i]);
+          currentTokens += msgTokens;
+        } else {
+          break;
+        }
       }
       
-      const chunks = splitIntoChunks(finalMessage, maxChunkTokens);
+      processedMessages = keptMessages;
       
-      if (chunks.length > 1) {
-        responsePrefix = `⚠️ Documento muito grande para ${model}. Processando em ${chunks.length} partes:\n\n`;
-        
-        // Process first chunk with instructions to summarize
-        processedMessage = `Analise e resuma este trecho de um documento extenso (parte 1 de ${chunks.length}). Foque nos pontos principais:\n\n${chunks[0]}`;
+      if (keptMessages.length < messages.length) {
+        responsePrefix = `ℹ️ Mantendo contexto das últimas ${keptMessages.length - 1} mensagens da conversa.\n\n`;
       }
     }
     
     const requestBody = {
       model: model,
       max_tokens: limits.output,
-      messages: [{
-        role: 'user',
-        content: processedMessage
-      }]
+      messages: processedMessages
     };
 
     console.log('Sending request to Anthropic with model:', model);

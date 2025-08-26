@@ -31,13 +31,15 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = 'gpt-5-2025-08-07' } = await req.json();
+    const { message, model = 'gpt-5-2025-08-07', conversationHistory = [], contextEnabled = false } = await req.json();
     
     console.log('OpenAI Chat - Request received:', {
       model,
       messageLength: message?.length || 0,
       messagePreview: message?.substring(0, 200) + '...',
-      hasMessage: !!message
+      hasMessage: !!message,
+      contextEnabled,
+      historyLength: conversationHistory.length
     });
     
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -59,46 +61,71 @@ serve(async (req) => {
     };
 
     const limits = getModelLimits(model);
-    const estimatedTokens = estimateTokenCount(message);
+    
+    // Build messages array with conversation history if context is enabled
+    let messages = [];
+    
+    if (contextEnabled && conversationHistory.length > 0) {
+      // Add conversation history for context
+      console.log('Building conversation context with', conversationHistory.length, 'previous messages');
+      
+      messages = conversationHistory.map((historyMsg) => ({
+        role: historyMsg.role,
+        content: historyMsg.content
+      }));
+    }
+    
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: message
+    });
+    
+    // Calculate total token count for the entire conversation
+    const totalText = messages.map(msg => msg.content).join('\n');
+    const estimatedTokens = estimateTokenCount(totalText);
     
     console.log('Token estimation:', { 
       estimatedTokens, 
       inputLimit: limits.input, 
       model,
-      messageLength: message.length 
+      messageLength: totalText.length,
+      contextMessages: messages.length - 1
     });
 
-    let processedMessage = message;
+    let processedMessages = messages;
     let responsePrefix = '';
 
-    // If message is too large, split into chunks and summarize
-    if (estimatedTokens > limits.input * 0.4) { // Use 40% of limit to avoid TPM limits
-      console.log('Message too large, processing in chunks...');
+    // If conversation is too large, truncate older messages but keep recent context
+    if (estimatedTokens > limits.input * 0.4) {
+      console.log('Conversation too large, truncating older messages...');
       
-      // For GPT-5 models, use smaller chunks due to TPM limits
-      let maxChunkTokens;
-      if (model.includes('gpt-5')) {
-        maxChunkTokens = Math.min(15000, Math.floor(limits.input * 0.3)); // Much smaller chunks for GPT-5
-      } else {
-        maxChunkTokens = Math.floor(limits.input * 0.6);
+      // Keep the current message and try to fit as many recent messages as possible
+      const currentMessage = messages[messages.length - 1];
+      let keptMessages = [currentMessage];
+      let currentTokens = estimateTokenCount(currentMessage.content);
+      
+      // Add messages from most recent backwards until we hit the limit
+      for (let i = messages.length - 2; i >= 0; i--) {
+        const msgTokens = estimateTokenCount(messages[i].content);
+        if (currentTokens + msgTokens < limits.input * 0.4) {
+          keptMessages.unshift(messages[i]);
+          currentTokens += msgTokens;
+        } else {
+          break;
+        }
       }
       
-      const chunks = splitIntoChunks(message, maxChunkTokens);
+      processedMessages = keptMessages;
       
-      if (chunks.length > 1) {
-        responsePrefix = `⚠️ Documento muito grande para ${model}. Processando em ${chunks.length} partes:\n\n`;
-        
-        // Process first chunk with instructions to summarize
-        processedMessage = `Analise e resuma este trecho de um documento extenso (parte 1 de ${chunks.length}). Foque nos pontos principais:\n\n${chunks[0]}`;
+      if (keptMessages.length < messages.length) {
+        responsePrefix = `ℹ️ Mantendo contexto das últimas ${keptMessages.length - 1} mensagens da conversa.\n\n`;
       }
     }
     
     const requestBody: any = {
       model: model,
-      messages: [{
-        role: 'user',
-        content: processedMessage
-      }],
+      messages: processedMessages,
       max_completion_tokens: isNewerModel ? limits.output : undefined,
       max_tokens: !isNewerModel ? limits.output : undefined,
     };
