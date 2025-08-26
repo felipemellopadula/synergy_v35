@@ -787,8 +787,8 @@ const Chat = () => {
         const functionName = getEdgeFunctionName(internalModel);
         console.log(`Using edge function: ${functionName} for model: ${internalModel}`);
         
-        // Prepare conversation history for context (last 10 messages)
-        const conversationHistory = messages.slice(-10).map(msg => ({
+        // Prepare conversation history for context (last 20 messages)
+        const conversationHistory = messages.slice(-20).map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.content,
           files: msg.files || [],
