@@ -1098,21 +1098,12 @@ const Chat = () => {
     // Mostrar toast informativo se houver arquivos que falharam
     if (failed > 0) {
       const failedFiles = results.filter(r => !r.success);
-      const docFormatErrors = failedFiles.filter(f => f.error?.includes('.doc (formato antigo)')).length;
       
-      if (docFormatErrors > 0) {
-        toast({
-          title: `${docFormatErrors} arquivo(s) .doc não suportado(s)`,
-          description: "Arquivos .doc (formato antigo) não são suportados. Use arquivos .docx ou converta seus arquivos.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: `Erro ao processar ${failed} arquivo(s)`,
-          description: "Alguns arquivos não puderam ser processados. Verifique o formato e tente novamente.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: `Erro ao processar ${failed} arquivo(s)`,
+        description: "Alguns arquivos não puderam ser processados. Verifique o formato e tente novamente.",
+        variant: "destructive",
+      });
       
       console.error('Failed file processing:', failedFiles);
     }
