@@ -141,9 +141,23 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
 
     // Check if we have images and should use image analysis
     const hasImages = attachedFiles.some(file => file.type.startsWith('image/'));
+    console.log('=== IMAGE ANALYSIS CHECK ===');
+    console.log('hasImages:', hasImages);
+    console.log('attachedFiles:', attachedFiles);
+    console.log('selectedModel:', selectedModel);
+    console.log('Vision models include?:', ['OpenAI GPT-4o', 'Anthropic Claude', 'Google Gemini', 'xAI Grok'].includes(selectedModel));
     
-    if (hasImages && ['OpenAI GPT-4o', 'Anthropic Claude', 'Google Gemini', 'xAI Grok'].includes(selectedModel)) {
+    console.log('Vision models check. Available vision models: OpenAI, Anthropic, Google, xAI');
+    
+    // Check if selected model supports vision (image analysis)
+    const isVisionModel = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano', 'o4-mini', // OpenAI
+                          'claude-opus-4-20250514', 'claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', // Anthropic  
+                          'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', // Google
+                          'grok-4-0709', 'grok-3', 'grok-3-mini'].includes(selectedModel); // xAI
+    
+    if (hasImages && isVisionModel) {
       // Use image analysis function for vision models
+      console.log('Using image analysis function for vision model');
       const imageFile = attachedFiles.find(file => file.type.startsWith('image/'));
       if (imageFile) {
         const userMessage: Message = {
@@ -163,9 +177,15 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
           const base64Data = base64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
           
           let aiProvider = 'openai';
-          if (selectedModel.includes('Claude')) aiProvider = 'claude';
-          else if (selectedModel.includes('Gemini')) aiProvider = 'gemini';
-          else if (selectedModel.includes('Grok')) aiProvider = 'grok';
+          if (selectedModel.includes('claude')) aiProvider = 'claude';
+          else if (selectedModel.includes('gemini')) aiProvider = 'gemini';
+          else if (selectedModel.includes('grok')) aiProvider = 'grok';
+          else if (selectedModel.includes('deepseek')) aiProvider = 'deepseek';
+          
+          console.log('=== CALLING IMAGE ANALYSIS ===');
+          console.log('aiProvider:', aiProvider);
+          console.log('base64Data length:', base64Data.length);
+          console.log('prompt:', inputValue || 'Analise esta imagem e descreva o que você vê.');
           
           const response = await supabase.functions.invoke('image-analysis', {
             body: {
@@ -176,6 +196,8 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
             },
           });
 
+          console.log('Image analysis response:', response);
+          
           if (response.error) {
             throw new Error(response.error.message || 'Erro na análise da imagem');
           }
@@ -190,7 +212,9 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
 
           setMessages(prev => [...prev, aiMessage]);
         } catch (error) {
+          console.error('=== IMAGE ANALYSIS ERROR ===');
           console.error('Error analyzing image:', error);
+          console.error('Error details:', error.message, error.stack);
           const errorMessage: Message = {
             id: crypto.randomUUID(),
             content: 'Desculpe, ocorreu um erro ao analisar a imagem. Verifique se as chaves API estão configuradas corretamente.',

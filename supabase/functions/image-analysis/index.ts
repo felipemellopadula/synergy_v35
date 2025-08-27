@@ -22,11 +22,19 @@ serve(async (req) => {
   try {
     const { imageBase64, prompt, aiProvider = 'openai', analysisType = 'general' }: ImageAnalysisRequest = await req.json();
     
+    console.log('=== IMAGE ANALYSIS DEBUG ===');
+    console.log('Request received with:');
+    console.log('- imageBase64 length:', imageBase64?.length || 0);
+    console.log('- prompt:', prompt);
+    console.log('- aiProvider:', aiProvider);
+    console.log('- analysisType:', analysisType);
+    
     if (!imageBase64) {
+      console.log('ERROR: No image data provided');
       throw new Error('Image data is required');
     }
 
-    console.log(`Analyzing image with ${aiProvider} - Analysis type: ${analysisType}`);
+    console.log(`Starting image analysis with ${aiProvider} - Analysis type: ${analysisType}`);
 
     let response: string;
 
@@ -47,6 +55,10 @@ serve(async (req) => {
         throw new Error(`Unsupported AI provider: ${aiProvider}`);
     }
 
+    console.log('=== IMAGE ANALYSIS SUCCESS ===');
+    console.log('Analysis completed successfully');
+    console.log('Response length:', response?.length || 0);
+    
     return new Response(JSON.stringify({ 
       analysis: response,
       provider: aiProvider,
@@ -55,8 +67,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    console.error('=== IMAGE ANALYSIS ERROR ===');
     console.error('Error in image-analysis function:', error);
-    return new Response(JSON.stringify({ 
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    return new Response(JSON.stringify({
       error: error.message || 'Erro interno do servidor' 
     }), {
       status: 500,
@@ -66,10 +81,13 @@ serve(async (req) => {
 });
 
 async function analyzeWithOpenAI(imageBase64: string, prompt: string, analysisType: string): Promise<string> {
+  console.log('=== OPENAI ANALYSIS START ===');
   const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
   if (!OPENAI_API_KEY) {
+    console.log('ERROR: OPENAI_API_KEY not found');
     throw new Error('OPENAI_API_KEY is not configured');
   }
+  console.log('OpenAI API key found, length:', OPENAI_API_KEY.length);
 
   const systemPrompts = {
     general: 'Você é um assistente especializado em análise de imagens. Descreva o que vê de forma clara e objetiva.',
@@ -78,6 +96,7 @@ async function analyzeWithOpenAI(imageBase64: string, prompt: string, analysisTy
     creative: 'Você é um analista criativo de imagens. Explore aspectos artísticos, emocionais e interpretativos da imagem.'
   };
 
+  console.log('Making request to OpenAI with model: gpt-4o');
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -112,11 +131,14 @@ async function analyzeWithOpenAI(imageBase64: string, prompt: string, analysisTy
 
   if (!response.ok) {
     const errorData = await response.text();
-    console.error('OpenAI API error:', errorData);
+    console.error('OpenAI API error response:', errorData);
+    console.error('OpenAI API status:', response.status);
     throw new Error(`OpenAI API error: ${response.status}`);
   }
 
+  console.log('OpenAI request successful, parsing response...');
   const data = await response.json();
+  console.log('OpenAI response parsed successfully');
   return data.choices[0].message.content;
 }
 
