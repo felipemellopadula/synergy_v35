@@ -495,11 +495,20 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
                   : "Selecione um modelo primeiro"
               }
               disabled={!selectedModel || isProcessingFile}
-              onKeyPress={(e) => e.key === 'Enter' && !isProcessingFile && (!inputValue.trim() && !hasAttachedFile && !attachedFiles.length ? false : handleSendMessage())}
+              onKeyPress={(e) => {
+                console.log('Key pressed:', e.key);
+                if (e.key === 'Enter' && !isProcessingFile) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               className="flex-1 bg-background border-border"
             />
             <Button 
-              onClick={handleSendMessage}
+              onClick={() => {
+                console.log('Send button clicked!');
+                handleSendMessage();
+              }}
               disabled={(!inputValue.trim() && !hasAttachedFile && !attachedFiles.length) || !selectedModel || isLoading || isProcessingFile}
               className="bg-primary hover:bg-primary-glow text-primary-foreground"
             >
