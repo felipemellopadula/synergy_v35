@@ -709,6 +709,8 @@ const Chat = () => {
     }
 
     try {
+        // Don't convert synergy-ia yet, we need it for vision model detection
+        const originalModel = selectedModel;
         const internalModel = selectedModel === 'synergy-ia' ? 'gpt-4o-mini' : selectedModel;
         
         // Prepare message with file content
@@ -756,7 +758,8 @@ const Chat = () => {
             if (imageFiles.length > 0) {
               console.log('=== IMAGES DETECTED IN CHAT.TSX ===');
               console.log('imageFiles:', imageFiles);
-              console.log('selectedModel:', internalModel);
+              console.log('originalModel:', originalModel);
+              console.log('internalModel:', internalModel);
               
               // Check if model supports vision
               const visionModels = [
@@ -766,7 +769,7 @@ const Chat = () => {
                 'grok-4-0709', 'grok-3', 'grok-3-mini'
               ];
               
-              const isVisionModel = visionModels.includes(internalModel);
+              const isVisionModel = visionModels.includes(originalModel); // Use originalModel instead of internalModel
               console.log('isVisionModel:', isVisionModel);
               
               if (isVisionModel && imageFiles.length > 0) {
@@ -785,10 +788,10 @@ const Chat = () => {
                   const base64Data = base64.split(',')[1];
                   
                   let aiProvider = 'openai';
-                  if (internalModel === 'synergy-ia') aiProvider = 'openai';
-                  else if (internalModel.includes('claude')) aiProvider = 'claude';
-                  else if (internalModel.includes('gemini')) aiProvider = 'gemini';
-                  else if (internalModel.includes('grok')) aiProvider = 'grok';
+                  if (originalModel === 'synergy-ia') aiProvider = 'openai';
+                  else if (originalModel.includes('claude')) aiProvider = 'claude';
+                  else if (originalModel.includes('gemini')) aiProvider = 'gemini';
+                  else if (originalModel.includes('grok')) aiProvider = 'grok';
                   
                   console.log('Calling image-analysis with provider:', aiProvider);
                   
@@ -811,7 +814,7 @@ const Chat = () => {
                     content: analysisResult.analysis,
                     sender: 'bot',
                     timestamp: new Date(),
-                    model: internalModel,
+                    model: originalModel, // Use originalModel for display
                   };
 
                   setMessages(prev => [...prev, botMessage]);
