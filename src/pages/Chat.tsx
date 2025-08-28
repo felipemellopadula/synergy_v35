@@ -551,12 +551,6 @@ const Chat = () => {
   // Função para comparar com outro modelo
   const compareWithModel = async (messageId: string, modelToCompare: string, originalUserMessage: string) => {
     try {
-      // Mostrar toast de processamento
-      toast({
-        title: "Processando Comparação",
-        description: `Enviando para ${getModelDisplayName(modelToCompare)}...`,
-      });
-
       // Marcar como comparando
       setComparingModels(prev => ({
         ...prev,
@@ -646,11 +640,6 @@ const Chat = () => {
         };
         
         setMessages(prev => [...prev, compareMessage]);
-        
-        toast({
-          title: "Comparação concluída",
-          description: `Resposta do ${getModelDisplayName(modelToCompare)} adicionada.`,
-        });
       }
     } catch (error) {
       console.error('Erro na comparação:', error);
