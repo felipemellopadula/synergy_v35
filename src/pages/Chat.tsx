@@ -189,6 +189,7 @@ const Chat = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [sharedMessageId, setSharedMessageId] = useState<string | null>(null);
   const [comparingModels, setComparingModels] = useState<{ [messageId: string]: string[] }>({});
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -323,10 +324,12 @@ const Chat = () => {
     };
   }, []);
 
-  // Auto-scroll quando há uma nova mensagem ou durante streaming
+  // Auto-scroll quando há uma nova mensagem, mas não durante streaming
   useEffect(() => {
-    autoScrollToBottom();
-  }, [messages]);
+    if (!isStreamingResponse) {
+      autoScrollToBottom();
+    }
+  }, [messages, isStreamingResponse]);
     
   const convertToWordFormat = (text: string) => {
     if (!text) return text;
@@ -924,6 +927,7 @@ const Chat = () => {
             isStreaming: true 
         };
         setMessages(prev => [...newMessages, placeholderBotMessage]);
+        setIsStreamingResponse(true); // Marcar que está fazendo streaming
 
         let charIndex = 0;
         
@@ -946,12 +950,7 @@ const Chat = () => {
                      ? { ...msg, content: fullBotText.slice(0, nextIndex) } 
                      : msg
                  ));
-                 charIndex = nextIndex;
-                 
-                  // Auto-scroll durante o streaming se o usuário estiver próximo do final
-                  if (isNearBottom) {
-                    setTimeout(() => autoScrollToBottom(), 1);
-                  }
+                  charIndex = nextIndex;
             } else {
                 if (typingIntervalRef.current) {
                     clearInterval(typingIntervalRef.current);
@@ -961,6 +960,14 @@ const Chat = () => {
                 const finalBotMessage: Message = { ...placeholderBotMessage, content: fullBotText, isStreaming: false };
                 const finalMessages = [...newMessages, finalBotMessage];
                 setMessages(finalMessages);
+                setIsStreamingResponse(false); // Streaming finalizado
+                
+                // Scroll final após streaming completo
+                setTimeout(() => {
+                  if (isNearBottom && messagesEndRef.current) {
+                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }, 100);
                 
                 upsertConversation(finalMessages, convId);
                 setIsLoading(false);
@@ -972,6 +979,7 @@ const Chat = () => {
         toast({ title: "Erro", description: "Não foi possível enviar a mensagem.", variant: "destructive" });
         setMessages(newMessages);
         setIsLoading(false);
+        setIsStreamingResponse(false); // Reset streaming state on error
     }
   };
 
@@ -981,6 +989,7 @@ const Chat = () => {
       typingIntervalRef.current = null;
     }
     setIsLoading(false);
+    setIsStreamingResponse(false); // Reset streaming state
     setMessages((prev) =>
       prev.map((msg) =>
         msg.isStreaming ? { ...msg, isStreaming: false } : msg
