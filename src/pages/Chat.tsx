@@ -1,4 +1,4 @@
-import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square, Check, FileText, File, Image } from "lucide-react";
+import { MessageCircle, ArrowLeft, Paperclip, Mic, Globe, Star, Trash2, Plus, ChevronDown, ChevronUp, Copy, Menu, ArrowUp, ArrowDown, MoreHorizontal, Edit3, Square, Check, FileText, File, Image, Share, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import React, { useState, useRef, useEffect } from "react";
@@ -187,6 +187,8 @@ const Chat = () => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [sharedMessageId, setSharedMessageId] = useState<string | null>(null);
+  const [comparingModels, setComparingModels] = useState<{ [messageId: string]: string[] }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -408,6 +410,135 @@ const Chat = () => {
       setTimeout(() => {
         setCopiedMessageId(null);
       }, 2000);
+    }
+  };
+
+  // Função para compartilhar mensagem
+  const shareMessage = async (messageId: string, content: string) => {
+    try {
+      setSharedMessageId(messageId);
+      
+      // Gerar URL da conversa
+      const conversationUrl = currentConversationId 
+        ? `${window.location.origin}/chat?conversation=${currentConversationId}&message=${messageId}`
+        : `${window.location.origin}/chat?message=${messageId}`;
+      
+      await navigator.clipboard.writeText(conversationUrl);
+      
+      toast({
+        title: "Link copiado!",
+        description: "O link da resposta foi copiado para a área de transferência.",
+      });
+      
+      // Volta ao estado normal após 2 segundos
+      setTimeout(() => {
+        setSharedMessageId(null);
+      }, 2000);
+    } catch (error) {
+      console.error('Erro ao compartilhar:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível copiar o link.",
+        variant: "destructive"
+      });
+      
+      setTimeout(() => {
+        setSharedMessageId(null);
+      }, 2000);
+    }
+  };
+
+  // Função para enviar mensagem para IA (extraída da lógica principal)
+  const sendToAI = async (message: string, model: string): Promise<string> => {
+    const internalModel = model === 'synergy-ia' ? 'gpt-4o-mini' : model;
+    
+    const getEdgeFunctionName = (model: string) => {
+      if (model.includes('gpt-') || model.includes('o3') || model.includes('o4')) {
+        return 'openai-chat';
+      }
+      if (model.includes('gemini')) {
+        return 'gemini-chat';
+      }
+      if (model.includes('claude')) {
+        return 'anthropic-chat';
+      }
+      if (model.includes('grok')) {
+        return 'grok-chat';
+      }
+      if (model.includes('deepseek')) {
+        return 'deepseek-chat';
+      }
+      if (model.includes('llama')) {
+        return 'apillm-chat';
+      }
+      return 'ai-chat';
+    };
+
+    const functionName = getEdgeFunctionName(internalModel);
+    
+    const { data: fnData, error: fnError } = await supabase.functions.invoke(functionName, { 
+      body: { 
+        message, 
+        model: internalModel,
+        conversationHistory: [],
+        contextEnabled: false
+      }
+    });
+    
+    if (fnError) throw fnError;
+    
+    const data = fnData as any;
+    return typeof data.response === 'string' ? data.response : data.response?.content || 'Erro ao processar mensagem.';
+  };
+
+  // Função para comparar com outro modelo
+  const compareWithModel = async (messageId: string, modelToCompare: string, originalUserMessage: string) => {
+    try {
+      // Marcar como comparando
+      setComparingModels(prev => ({
+        ...prev,
+        [messageId]: [...(prev[messageId] || []), modelToCompare]
+      }));
+
+      // Enviar mensagem para o modelo de comparação
+      const response = await sendToAI(originalUserMessage, modelToCompare);
+      
+      if (response) {
+        // Adicionar resposta de comparação às mensagens
+        const compareMessage: Message = {
+          id: `compare_${Date.now()}_${modelToCompare}`,
+          content: response,
+          sender: 'bot',
+          timestamp: new Date(),
+          model: modelToCompare
+        };
+        
+        setMessages(prev => [...prev, compareMessage]);
+        
+        toast({
+          title: "Comparação concluída",
+          description: `Resposta do ${getModelDisplayName(modelToCompare)} adicionada.`,
+        });
+      }
+    } catch (error) {
+      console.error('Erro na comparação:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível fazer a comparação.",
+        variant: "destructive"
+      });
+    } finally {
+      // Remover do estado de comparação
+      setComparingModels(prev => {
+        const newState = { ...prev };
+        if (newState[messageId]) {
+          newState[messageId] = newState[messageId].filter(m => m !== modelToCompare);
+          if (newState[messageId].length === 0) {
+            delete newState[messageId];
+          }
+        }
+        return newState;
+      });
     }
   };
 
@@ -1287,24 +1418,80 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                                <MarkdownRenderer content={message.content} isUser={false} />
                                {message.isStreaming && <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />}
                              </div>
-                            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                              <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="icon" 
-                                          onClick={() => copyWithFormatting(message.content, false, message.id)} 
-                                          className="h-7 w-7 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
-                                        >
-                                          {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Copiar com formatação</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                            </div>
+                             <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                               <p className="text-xs opacity-70">{getModelDisplayName(message.model)}</p>
+                                   <TooltipProvider>
+                                     <Tooltip>
+                                       <TooltipTrigger asChild>
+                                         <Button 
+                                           variant="ghost" 
+                                           size="icon" 
+                                           onClick={() => copyWithFormatting(message.content, false, message.id)} 
+                                           className="h-7 w-7 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
+                                         >
+                                           {copiedMessageId === message.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                         </Button>
+                                       </TooltipTrigger>
+                                       <TooltipContent>Copiar com formatação</TooltipContent>
+                                     </Tooltip>
+                                   </TooltipProvider>
+                             </div>
+                             {/* Botões de ação como no Poe */}
+                             <div className="flex items-center gap-2 pt-3 border-t border-border/30">
+                               <TooltipProvider>
+                                 <Tooltip>
+                                   <TooltipTrigger asChild>
+                                     <Button
+                                       variant={sharedMessageId === message.id ? "default" : "outline"}
+                                       size="sm"
+                                       onClick={() => shareMessage(message.id, message.content)}
+                                       className="flex items-center gap-2 text-xs h-8"
+                                     >
+                                       <Share className="h-3 w-3" />
+                                       {sharedMessageId === message.id ? "Link copiado!" : "Compartilhar"}
+                                     </Button>
+                                   </TooltipTrigger>
+                                   <TooltipContent>Copiar link de compartilhamento</TooltipContent>
+                                 </Tooltip>
+                               </TooltipProvider>
+                               
+                               {/* Botões de comparação */}
+                               <div className="flex items-center gap-1">
+                                 {['gemini-2.5-flash', 'claude-opus-4-20250514', 'grok-4'].map((model) => {
+                                   const isComparing = comparingModels[message.id]?.includes(model);
+                                   const userMessage = messages.find(m => m.sender === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content || '';
+                                   
+                                   return (
+                                     <TooltipProvider key={model}>
+                                       <Tooltip>
+                                         <TooltipTrigger asChild>
+                                           <Button
+                                             variant="outline"
+                                             size="sm"
+                                             onClick={() => compareWithModel(message.id, model, userMessage)}
+                                             disabled={isComparing || !userMessage}
+                                             className="flex items-center gap-1 text-xs h-8 px-2"
+                                           >
+                                             {isComparing ? (
+                                               <RefreshCw className="h-3 w-3 animate-spin" />
+                                             ) : (
+                                               <div className="flex items-center gap-1">
+                                                 <RefreshCw className="h-3 w-3" />
+                                                 {model === 'gemini-2.5-flash' ? 'Gemini' : 
+                                                  model === 'claude-opus-4-20250514' ? 'Claude' : 'Grok'}
+                                               </div>
+                                             )}
+                                           </Button>
+                                         </TooltipTrigger>
+                                         <TooltipContent>
+                                           Comparar com {getModelDisplayName(model)}
+                                         </TooltipContent>
+                                       </Tooltip>
+                                     </TooltipProvider>
+                                   );
+                                 })}
+                               </div>
+                             </div>
                           </div>
                         </div>
                       </>
