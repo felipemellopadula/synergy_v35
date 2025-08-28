@@ -135,9 +135,7 @@ const SavedVideo = ({ url, onDelete }: { url: string; onDelete: (url: string) =>
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Tem certeza que deseja excluir este vídeo?")) {
-      onDelete(url);
-    }
+    onDelete(url);
   };
 
   return (
