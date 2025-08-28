@@ -385,11 +385,6 @@ const VideoPage = () => {
       }
 
       urlSetter(publicData.publicUrl);
-      
-      toast({
-        title: "Upload concluído",
-        description: "Imagem enviada com sucesso.",
-      });
     } catch (e: any) {
       console.error('Upload error:', e);
       toast({ 
