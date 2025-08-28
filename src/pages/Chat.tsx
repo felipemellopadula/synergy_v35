@@ -570,22 +570,24 @@ const Chat = () => {
       }
 
       // Encontrar a mensagem do usuário que originou essa resposta do bot
+      // A mensagem do usuário é sempre a anterior à resposta do bot na sequência
       const botMessageIndex = messages.findIndex(m => m.id === messageId);
-      const previousUserMessage = messages.slice(0, botMessageIndex).reverse().find(m => m.sender === 'user');
+      const immediateUserMessage = botMessageIndex > 0 ? messages[botMessageIndex - 1] : null;
       
-      if (!previousUserMessage) {
-        throw new Error('Mensagem do usuário não encontrada');
+      if (!immediateUserMessage || immediateUserMessage.sender !== 'user') {
+        throw new Error('Mensagem do usuário não encontrada ou sequência inválida');
       }
 
-      let messageToSend = originalUserMessage;
+      // Usar o conteúdo da mensagem do usuário que originou esta resposta
+      const messageToSend = immediateUserMessage.content;
       let filesToSend: any[] = [];
       
       // Se a mensagem original tinha arquivos anexados, incluir no envio de comparação
-      if (previousUserMessage.files && previousUserMessage.files.length > 0) {
-        console.log('Arquivos detectados na mensagem original:', previousUserMessage.files);
+      if (immediateUserMessage.files && immediateUserMessage.files.length > 0) {
+        console.log('Arquivos detectados na mensagem original:', immediateUserMessage.files);
         
         // Buscar conteúdo processado dos arquivos
-        filesToSend = previousUserMessage.files.map(file => {
+        filesToSend = immediateUserMessage.files.map(file => {
           const fileData: any = {
             name: file.name,
             type: file.type,
@@ -631,7 +633,7 @@ const Chat = () => {
       }
 
       // Enviar mensagem para o modelo de comparação com arquivos
-      const response = await sendToAIWithFiles(originalUserMessage, modelToCompare, filesToSend);
+      const response = await sendToAIWithFiles(messageToSend, modelToCompare, filesToSend);
       
       if (response) {
         // Adicionar resposta de comparação às mensagens
@@ -1591,59 +1593,59 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                                  </Tooltip>
                                </TooltipProvider>
                                
-                                {/* Botões de comparação - só mostrar se não há anexos na mensagem anterior do usuário */}
-                                {(() => {
-                                  // Encontrar a mensagem anterior do usuário para verificar se tem anexos
-                                  const messageIndex = messages.findIndex(m => m.id === message.id);
-                                  const previousUserMessage = messages.slice(0, messageIndex).reverse().find(m => m.sender === 'user');
-                                  const hasAttachments = previousUserMessage?.files && previousUserMessage.files.length > 0;
-                                  
-                                  // Só mostrar botões se não há anexos
-                                  if (hasAttachments) {
-                                    return null;
-                                  }
-                                  
-                                  return (
-                                    <div className="flex items-center gap-1">
-                                      {['gemini-2.5-flash', 'claude-opus-4-20250514', 'grok-4'].map((model) => {
-                                        const isComparing = comparingModels[message.id]?.includes(model);
-                                        const userMessage = messages.find(m => m.sender === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content || '';
-                                        
-                                        return (
-                                          <TooltipProvider key={model}>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                 <Button
-                                                   variant="outline"
-                                                   size="sm"
-                                                   onClick={() => compareWithModel(message.id, model, userMessage)}
-                                                   disabled={isComparing || !userMessage}
-                                                   className="flex items-center gap-1 text-xs h-8 px-2"
-                                                 >
-                                                   {isComparing ? (
-                                                     <div className="flex items-center gap-1">
-                                                       <RefreshCw className="h-3 w-3 animate-spin" />
-                                                       <span>Processando...</span>
-                                                     </div>
-                                                   ) : (
-                                                     <div className="flex items-center gap-1">
-                                                       <RefreshCw className="h-3 w-3" />
-                                                       {model === 'gemini-2.5-flash' ? 'Gemini' : 
-                                                        model === 'claude-opus-4-20250514' ? 'Claude' : 'Grok'}
-                                                     </div>
-                                                   )}
-                                                 </Button>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                Comparar com {getModelDisplayName(model)}
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          </TooltipProvider>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                })()}
+                                 {/* Botões de comparação - só mostrar se não há anexos na mensagem anterior do usuário */}
+                                 {(() => {
+                                   // Encontrar a mensagem do usuário que originou esta resposta
+                                   const messageIndex = messages.findIndex(m => m.id === message.id);
+                                   const immediateUserMessage = messageIndex > 0 ? messages[messageIndex - 1] : null;
+                                   const hasAttachments = immediateUserMessage?.files && immediateUserMessage.files.length > 0;
+                                   
+                                   // Só mostrar botões se não há anexos
+                                   if (hasAttachments || !immediateUserMessage || immediateUserMessage.sender !== 'user') {
+                                     return null;
+                                   }
+                                   
+                                   return (
+                                     <div className="flex items-center gap-1">
+                                       {['gemini-2.5-flash', 'claude-opus-4-20250514', 'grok-4'].map((model) => {
+                                         const isComparing = comparingModels[message.id]?.includes(model);
+                                         const userMessage = immediateUserMessage.content;
+                                         
+                                         return (
+                                           <TooltipProvider key={model}>
+                                             <Tooltip>
+                                               <TooltipTrigger asChild>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => compareWithModel(message.id, model, userMessage)}
+                                                    disabled={isComparing || !userMessage}
+                                                    className="flex items-center gap-1 text-xs h-8 px-2"
+                                                  >
+                                                    {isComparing ? (
+                                                      <div className="flex items-center gap-1">
+                                                        <RefreshCw className="h-3 w-3 animate-spin" />
+                                                        <span>Processando...</span>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="flex items-center gap-1">
+                                                        <RefreshCw className="h-3 w-3" />
+                                                        {model === 'gemini-2.5-flash' ? 'Gemini' : 
+                                                         model === 'claude-opus-4-20250514' ? 'Claude' : 'Grok'}
+                                                      </div>
+                                                    )}
+                                                  </Button>
+                                               </TooltipTrigger>
+                                               <TooltipContent>
+                                                 Comparar com {getModelDisplayName(model)}
+                                               </TooltipContent>
+                                             </Tooltip>
+                                           </TooltipProvider>
+                                         );
+                                       })}
+                                     </div>
+                                   );
+                                 })()}
                              </div>
                           </div>
                         </div>
