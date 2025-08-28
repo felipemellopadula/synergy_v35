@@ -276,15 +276,46 @@ const VideoPage = () => {
     const urlSetter = isStart ? setFrameStartUrl : setFrameEndUrl;
     setter(true);
 
-    ensureLocalStorageSpace();
-
     try {
+      // Import cleanup functions
+      const { prepareStorageForUpload } = await import("@/utils/imageStore");
+      
+      // Proactive cleanup before upload
+      await prepareStorageForUpload();
+      ensureLocalStorageSpace();
+
       const { data, error } = await supabase.storage.from("images").upload(`${Date.now()}-${file.name}`, file);
       if (error) throw error;
       const { data: publicData } = supabase.storage.from("images").getPublicUrl(data.path);
       urlSetter(publicData.publicUrl);
-    } catch (e) {
-      toast({ title: "Erro no upload", description: "Tente novamente.", variant: "destructive" });
+    } catch (e: any) {
+      console.error('Upload error:', e);
+      
+      // If upload fails due to storage issues, try cleanup and retry once
+      if (e.message?.includes('storage') || e.message?.includes('quota') || e.message?.includes('space')) {
+        try {
+          const { prepareStorageForUpload } = await import("@/utils/imageStore");
+          await prepareStorageForUpload();
+          ensureLocalStorageSpace();
+          
+          // Retry upload after cleanup
+          const { data, error } = await supabase.storage.from("images").upload(`${Date.now()}-retry-${file.name}`, file);
+          if (error) throw error;
+          const { data: publicData } = supabase.storage.from("images").getPublicUrl(data.path);
+          urlSetter(publicData.publicUrl);
+          
+          toast({ title: "Upload realizado", description: "Imagem carregada após limpeza automática." });
+          return;
+        } catch (retryError) {
+          console.error('Retry upload failed:', retryError);
+        }
+      }
+      
+      toast({ 
+        title: "Erro no upload", 
+        description: "Tente novamente. Se persistir, limpe o cache do navegador.", 
+        variant: "destructive" 
+      });
     } finally {
       setter(false);
     }
