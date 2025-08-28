@@ -1591,45 +1591,59 @@ Por favor, forneça uma resposta abrangente que integre informações de todos o
                                  </Tooltip>
                                </TooltipProvider>
                                
-                               {/* Botões de comparação */}
-                               <div className="flex items-center gap-1">
-                                 {['gemini-2.5-flash', 'claude-opus-4-20250514', 'grok-4'].map((model) => {
-                                   const isComparing = comparingModels[message.id]?.includes(model);
-                                   const userMessage = messages.find(m => m.sender === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content || '';
-                                   
-                                   return (
-                                     <TooltipProvider key={model}>
-                                       <Tooltip>
-                                         <TooltipTrigger asChild>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => compareWithModel(message.id, model, userMessage)}
-                                              disabled={isComparing || !userMessage}
-                                              className="flex items-center gap-1 text-xs h-8 px-2"
-                                            >
-                                              {isComparing ? (
-                                                <div className="flex items-center gap-1">
-                                                  <RefreshCw className="h-3 w-3 animate-spin" />
-                                                  <span>Processando...</span>
-                                                </div>
-                                              ) : (
-                                                <div className="flex items-center gap-1">
-                                                  <RefreshCw className="h-3 w-3" />
-                                                  {model === 'gemini-2.5-flash' ? 'Gemini' : 
-                                                   model === 'claude-opus-4-20250514' ? 'Claude' : 'Grok'}
-                                                </div>
-                                              )}
-                                            </Button>
-                                         </TooltipTrigger>
-                                         <TooltipContent>
-                                           Comparar com {getModelDisplayName(model)}
-                                         </TooltipContent>
-                                       </Tooltip>
-                                     </TooltipProvider>
-                                   );
-                                 })}
-                               </div>
+                                {/* Botões de comparação - só mostrar se não há anexos na mensagem anterior do usuário */}
+                                {(() => {
+                                  // Encontrar a mensagem anterior do usuário para verificar se tem anexos
+                                  const messageIndex = messages.findIndex(m => m.id === message.id);
+                                  const previousUserMessage = messages.slice(0, messageIndex).reverse().find(m => m.sender === 'user');
+                                  const hasAttachments = previousUserMessage?.files && previousUserMessage.files.length > 0;
+                                  
+                                  // Só mostrar botões se não há anexos
+                                  if (hasAttachments) {
+                                    return null;
+                                  }
+                                  
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      {['gemini-2.5-flash', 'claude-opus-4-20250514', 'grok-4'].map((model) => {
+                                        const isComparing = comparingModels[message.id]?.includes(model);
+                                        const userMessage = messages.find(m => m.sender === 'user' && messages.indexOf(m) < messages.indexOf(message))?.content || '';
+                                        
+                                        return (
+                                          <TooltipProvider key={model}>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                 <Button
+                                                   variant="outline"
+                                                   size="sm"
+                                                   onClick={() => compareWithModel(message.id, model, userMessage)}
+                                                   disabled={isComparing || !userMessage}
+                                                   className="flex items-center gap-1 text-xs h-8 px-2"
+                                                 >
+                                                   {isComparing ? (
+                                                     <div className="flex items-center gap-1">
+                                                       <RefreshCw className="h-3 w-3 animate-spin" />
+                                                       <span>Processando...</span>
+                                                     </div>
+                                                   ) : (
+                                                     <div className="flex items-center gap-1">
+                                                       <RefreshCw className="h-3 w-3" />
+                                                       {model === 'gemini-2.5-flash' ? 'Gemini' : 
+                                                        model === 'claude-opus-4-20250514' ? 'Claude' : 'Grok'}
+                                                     </div>
+                                                   )}
+                                                 </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                Comparar com {getModelDisplayName(model)}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
                              </div>
                           </div>
                         </div>
