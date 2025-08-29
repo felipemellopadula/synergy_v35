@@ -105,12 +105,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vindo de volta.",
+        description: "Redirecionando...",
       });
       onClose();
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1000);
+      // Let AuthContext handle the redirect automatically
     } catch (error: any) {
       console.error("Login error:", error);
       toast({

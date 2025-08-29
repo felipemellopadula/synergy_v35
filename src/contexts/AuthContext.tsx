@@ -110,36 +110,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      // Quick check for updates needed
+      // Set profile immediately for fast UI response
+      setProfile(data);
+
+      // Check for updates needed and update in background
       const desiredName = deriveNameFromMetadata(currentUser);
       const desiredAvatar = extractAvatarFromUser(currentUser);
       const needsNameUpdate = (!data.name || data.name === 'Usuário') && desiredName && desiredName !== data.name;
       const needsAvatarUpdate = (!data.avatar_url || data.avatar_url.length === 0) && desiredAvatar;
 
       if (needsNameUpdate || needsAvatarUpdate) {
-        // Perform async update without blocking UI
+        // Update in background without blocking
         const updates: Partial<Profile> = {};
         if (needsNameUpdate) updates.name = desiredName;
         if (needsAvatarUpdate) updates.avatar_url = desiredAvatar;
-
-        setProfile(data); // Set current data immediately
         
-        // Update in background
-        supabase
-          .from('profiles')
-          .update(updates)
-          .eq('id', userId)
-          .select('*')
-          .single()
-          .then(({ data: updated, error: updateError }) => {
-            if (updateError) {
-              console.error('Error updating profile:', updateError);
-            } else if (updated) {
-              setProfile(updated);
-            }
-          });
-      } else {
-        setProfile(data);
+        setTimeout(() => {
+          supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId)
+            .select('*')
+            .single()
+            .then(({ data: updated, error: updateError }) => {
+              if (updateError) {
+                console.error('Error updating profile:', updateError);
+              } else if (updated) {
+                setProfile(updated);
+              }
+            });
+        }, 0);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -155,37 +155,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Check for existing session first (faster)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user);
-      }
-    });
-
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (!mounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          fetchProfile(session.user.id, session.user);
+          // Fetch profile in background, don't await
+          setTimeout(() => {
+            fetchProfile(session.user.id, session.user);
+          }, 0);
           
-          // Redirect to dashboard after successful Google auth ONLY
-          if (event === 'SIGNED_IN' && 
-              window.location.pathname === '/' && 
-              session.user.app_metadata?.provider === 'google') {
-            setTimeout(() => {
-              window.location.href = '/dashboard';
-            }, 100);
+          // Immediate redirect for login events
+          if (event === 'SIGNED_IN' && window.location.pathname === '/') {
+            window.location.href = '/dashboard';
           }
         } else {
           setProfile(null);
@@ -196,6 +182,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+      
+      if (session?.user) {
+        // Fetch profile in background
+        setTimeout(() => {
+          fetchProfile(session.user.id, session.user);
+        }, 0);
+      }
+    });
 
     return () => {
       mounted = false;
@@ -209,11 +211,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password,
     });
     
-    if (!error) {
-      // Redirect to dashboard after successful login
-      window.location.href = '/dashboard';
-    }
-    
+    // Let onAuthStateChange handle the redirect automatically
     return { error };
   };
 
