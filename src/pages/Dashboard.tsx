@@ -1,5 +1,5 @@
 import { useNavigate, Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import {
   MessageCircle,
   Video,
@@ -12,16 +12,27 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { UserProfile } from "@/components/UserProfile";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Lazy load UserProfile to improve initial render
+const UserProfile = lazy(() => import("@/components/UserProfile").then(module => ({ default: module.UserProfile })));
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
 
   useEffect(() => {
     document.title = "Synergy Ai Hub";
   }, []);
+
+  // Show loading state while user is being fetched
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const handleSignOut = async () => {
     await signOut();
@@ -103,20 +114,24 @@ const Dashboard = () => {
                 src="/lovable-uploads/c26d1b3b-b8c2-4bbf-9902-d76ebe9534f5.png"
                 alt="Synergy AI logo escuro"
                 className="h-8 w-auto block dark:hidden"
-                loading="eager"
+                loading="lazy"
+                decoding="async"
               />
               {/* Logo para tema ESCURO (mostra no dark) */}
               <img
                 src="/lovable-uploads/95128e47-ede1-4ceb-a2f2-4d0c2ed4eb80.png"
                 alt="Synergy AI logo branco"
                 className="h-8 w-auto hidden dark:block"
-                loading="eager"
+                loading="lazy" 
+                decoding="async"
               />
             </Link>
           </div>
 
           <div className="flex items-center gap-4">
-            <UserProfile />
+            <Suspense fallback={<div className="w-8 h-8 animate-pulse bg-muted rounded-full" />}>
+              <UserProfile />
+            </Suspense>
             <ThemeToggle />
             <Button
               variant="outline"

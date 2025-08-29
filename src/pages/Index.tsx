@@ -281,8 +281,6 @@ const Index = () => {
                 className="h-8 w-auto"
                 loading="eager"
                 decoding="async"
-                // Alta prioridade para melhorar LCP do topo
-                fetchPriority="high"
               />
             </a>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">

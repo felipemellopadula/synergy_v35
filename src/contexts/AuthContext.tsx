@@ -181,7 +181,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           // Redirect to dashboard after successful Google auth
           if (event === 'SIGNED_IN' && window.location.pathname === '/') {
-            window.location.href = '/dashboard';
+            // Use navigate instead of window.location for faster navigation
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 100);
           }
         } else {
           setProfile(null);
