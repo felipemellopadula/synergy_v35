@@ -348,53 +348,47 @@ const UserMessage = React.memo(
     ) => JSX.Element;
   }) => {
     return (
-      <div className="flex items-start gap-2 sm:gap-3 justify-end w-full">
-        {/* Botão copiar */}
-        <div className="flex-shrink-0 self-start">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 mt-1 hover:bg-muted/80 hover:scale-105 transition-all duration-200"
-                  onClick={() => onCopy(message.content, true, message.id)}
-                >
-                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Copiar</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-        
-        {/* Bubble da mensagem do usuário */}
-        <div className="inline-block w-full sm:w-auto sm:max-w-[90%] rounded-lg px-4 py-3 bg-primary text-primary-foreground">
-          <div className="space-y-3">
-            {message.files && (
-              <div className="flex flex-wrap gap-2 mb-3 max-w-full">
-                {message.files.map((file, idx) => (
-                  <div key={idx}>
-                    {renderFileIcon(file.name, file.type, file.url)}
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
-              <Suspense
-                fallback={<div className="h-4 w-24 bg-muted rounded" />}
+      <div className="flex items-start justify-end w-full gap-2">
+        {/* Botão copiar à esquerda */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 mt-1 opacity-50 hover:opacity-100 transition-opacity"
+                onClick={() => onCopy(message.content, true, message.id)}
               >
-                <MarkdownRendererLazy
-                  content={message.content}
-                  isUser={true}
-                />
-              </Suspense>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copiar</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        
+        {/* Mensagem do usuário */}
+        <div className="max-w-[85%] rounded-lg px-4 py-3 bg-primary text-primary-foreground">
+          {message.files && message.files.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {message.files.map((file, idx) => (
+                <div key={idx}>
+                  {renderFileIcon(file.name, file.type, file.url)}
+                </div>
+              ))}
             </div>
+          )}
+          <div className="text-sm break-words whitespace-pre-wrap">
+            <Suspense fallback={<div className="h-4 w-24 bg-muted/20 rounded" />}>
+              <MarkdownRendererLazy content={message.content} isUser={true} />
+            </Suspense>
           </div>
         </div>
         
+        {/* Avatar do usuário */}
         <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="bg-muted text-foreground">U</AvatarFallback>
+          <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+            U
+          </AvatarFallback>
         </Avatar>
       </div>
     );
