@@ -1389,13 +1389,16 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         const reasoning =
           typeof data.response === "string" ? "" : data.response?.reasoning;
 
-        // Primeiro desativa loading (três pontinhos) e adiciona placeholder vazio
+        // Desativa loading e cria placeholder já com primeiro chunk
         setIsLoading(false);
         
         const botMessageId = (Date.now() + 1).toString();
+        const chunkSize = Math.max(20, Math.ceil(fullBotText.length / 50));
+        const firstChunk = fullBotText.slice(0, chunkSize);
+        
         const placeholderBotMessage: Message = {
           id: botMessageId,
-          content: "",
+          content: firstChunk, // Já começa com conteúdo
           sender: "bot",
           timestamp: new Date(),
           model: selectedModel,
@@ -1406,50 +1409,62 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         setMessages((prev) => [...prev, placeholderBotMessage]);
         setIsStreamingResponse(true);
 
-        // Streaming ultra rápido com setInterval
-        let index = 0;
+        // Continua streaming do resto do texto
+        let index = chunkSize;
         const total = fullBotText.length;
-        // Chunk muito grande para digitação ultra rápida
-        const chunkSize = Math.max(20, Math.ceil(total / 50)); // Pelo menos 20 chars por vez, máximo 50 updates
         
-        let typingIntervalId: NodeJS.Timeout;
+        if (index < total) {
+          const typingIntervalId = setInterval(() => {
+            if (index < total) {
+              const nextIndex = Math.min(index + chunkSize, total);
+              const partial = fullBotText.slice(0, nextIndex);
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botMessageId ? { ...msg, content: partial } : msg
+                )
+              );
+              index = nextIndex;
+            } else {
+              clearInterval(typingIntervalId);
+              const finalBotMessage: Message = {
+                ...placeholderBotMessage,
+                content: fullBotText,
+                isStreaming: false,
+              };
+              const finalMessages = [...newMessages, finalBotMessage];
 
-        const step = () => {
-          if (index < total) {
-            const nextIndex = Math.min(index + chunkSize, total);
-            const partial = fullBotText.slice(0, nextIndex);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === botMessageId ? { ...msg, content: partial } : msg
-              )
-            );
-            index = nextIndex;
-          } else {
-            clearInterval(typingIntervalId);
+              startTransition(() => {
+                setMessages(finalMessages);
+                setIsStreamingResponse(false);
+              });
+
+              setTimeout(() => {
+                if (isNearBottom && messagesEndRef.current) {
+                  messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+                }
+              }, 80);
+
+              upsertConversation(finalMessages, convId);
+            }
+          }, 1);
+        } else {
+          // Texto muito curto, finaliza imediatamente
+          setTimeout(() => {
             const finalBotMessage: Message = {
               ...placeholderBotMessage,
               content: fullBotText,
               isStreaming: false,
             };
             const finalMessages = [...newMessages, finalBotMessage];
-
+            
             startTransition(() => {
               setMessages(finalMessages);
               setIsStreamingResponse(false);
             });
-
-            setTimeout(() => {
-              if (isNearBottom && messagesEndRef.current) {
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-              }
-            }, 80);
-
+            
             upsertConversation(finalMessages, convId);
-            // isLoading já foi desativado antes do streaming
-          }
-        };
-
-        typingIntervalId = setInterval(step, 1); // Ultra rápido - 1ms interval
+          }, 50);
+        }
       } catch (error: any) {
         console.error("Error sending message:", error);
         toast({
