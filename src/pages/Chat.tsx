@@ -435,15 +435,13 @@ const BotMessage = React.memo(
     const [isTyping, setIsTyping] = useState(false);
 
     useEffect(() => {
-      // Apenas exibe o conteúdo diretamente - o streaming é gerenciado no componente principal
       setDisplayedContent(message.content);
-      setIsTyping(message.isStreaming);
+      setIsTyping(!!message.isStreaming);
     }, [message.content, message.isStreaming]);
 
-    // Não renderizar se não há conteúdo para mostrar
-    if (!message.content && !message.isStreaming) {
-      return null;
-    }
+    // [FIX] Não renderiza a bolha se não houver conteúdo ainda
+    const hasText = (displayedContent || "").trim().length > 0;
+    if (!hasText) return null;
 
     return (
       <>
@@ -478,19 +476,19 @@ const BotMessage = React.memo(
                   )}
                 </div>
               )}
+
               <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
-                {/* Renderiza apenas se há conteúdo para mostrar ou está digitando */}
-                {displayedContent || (message.isStreaming || isTyping) ? (
-                  <Suspense fallback={null}>
-                    <MarkdownRendererLazy
-                      content={displayedContent}
-                      isUser={false}
-                    />
-                  </Suspense>
-                ) : null}
-                {(message.isStreaming || isTyping) && (
-                  <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />
-                )}
+                {/* [FIX] Fallback mostra texto puro enquanto o MarkdownRenderer carrega */}
+                <Suspense
+                  fallback={
+                    <div className="whitespace-pre-wrap break-words">
+                      {displayedContent}
+                    </div>
+                  }
+                >
+                  <MarkdownRendererLazy content={displayedContent} isUser={false} />
+                </Suspense>
+                {/* (cursor removido para evitar "box vazio") */}
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border/50 gap-2 flex-wrap">
@@ -679,6 +677,8 @@ const Chat: React.FC = () => {
   // Efeitos iniciais
   useEffect(() => {
     document.title = "Gerar textos com Ia";
+    // [FIX] Prefetch do renderer para evitar "box cinza" sem conteúdo
+    import("@/components/MarkdownRenderer").catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1152,6 +1152,12 @@ Forneça uma resposta abrangente que integre informações de todos os documento
       if ((!inputValue.trim() && attachedFiles.length === 0) || isLoading)
         return;
 
+      // [FIX] Cancela qualquer streaming anterior antes de iniciar outro
+      if (streamingRafRef.current) {
+        cancelAnimationFrame(streamingRafRef.current);
+        streamingRafRef.current = null;
+      }
+
       const currentInput = inputValue;
       const currentFiles = [...attachedFiles];
 
@@ -1389,86 +1395,96 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         const reasoning =
           typeof data.response === "string" ? "" : data.response?.reasoning;
 
-        // Desativa loading primeiro
-        setIsLoading(false);
-        
+        // [CHANGE] Não desligar o isLoading ainda. Vamos montar a bolha já com conteúdo.
         const botMessageId = (Date.now() + 1).toString();
-        const chunkSize = Math.max(20, Math.ceil(fullBotText.length / 50));
-        
-        // Pequeno delay antes de mostrar o box com conteúdo
-        setTimeout(() => {
-          const firstChunk = fullBotText.slice(0, chunkSize);
-          
-          const placeholderBotMessage: Message = {
-            id: botMessageId,
-            content: firstChunk,
-            sender: "bot",
-            timestamp: new Date(),
-            model: selectedModel,
-            reasoning: reasoning || undefined,
-            isStreaming: true,
-          };
 
+        // [FIX] Chunk inicial grande + rAF para streaming ultra-rápido
+        const totalLen = fullBotText.length;
+        const chunkSize = Math.max(80, Math.ceil(totalLen / 12));
+        const firstIndex = Math.min(chunkSize, totalLen);
+        const firstChunk = fullBotText.slice(0, firstIndex);
+
+        const placeholderBotMessage: Message = {
+          id: botMessageId,
+          content: firstChunk,
+          sender: "bot",
+          timestamp: new Date(),
+          model: selectedModel,
+          reasoning: reasoning || undefined,
+          isStreaming: totalLen > firstIndex,
+        };
+
+        startTransition(() => {
           setMessages((prev) => [...prev, placeholderBotMessage]);
           setIsStreamingResponse(true);
+          setIsLoading(false); // [FIX] só agora some o "pensando..."
+        });
 
-          // Continua streaming do resto do texto
-          let index = chunkSize;
-          const total = fullBotText.length;
-          
-          if (index < total) {
-            const typingIntervalId = setInterval(() => {
-              if (index < total) {
-                const nextIndex = Math.min(index + chunkSize, total);
-                const partial = fullBotText.slice(0, nextIndex);
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === botMessageId ? { ...msg, content: partial } : msg
-                  )
-                );
-                index = nextIndex;
-              } else {
-                clearInterval(typingIntervalId);
-                const finalBotMessage: Message = {
-                  ...placeholderBotMessage,
-                  content: fullBotText,
-                  isStreaming: false,
-                };
-                const finalMessages = [...newMessages, finalBotMessage];
-
-                startTransition(() => {
-                  setMessages(finalMessages);
-                  setIsStreamingResponse(false);
-                });
-
-                setTimeout(() => {
-                  if (isNearBottom && messagesEndRef.current) {
-                    messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-                  }
-                }, 80);
-
-                upsertConversation(finalMessages, convId);
-              }
-            }, 1);
-          } else {
-            // Texto muito curto, finaliza imediatamente
-            setTimeout(() => {
-              const finalBotMessage: Message = {
-                ...placeholderBotMessage,
-                content: fullBotText,
-                isStreaming: false,
-              };
-              const finalMessages = [...newMessages, finalBotMessage];
-              
-              startTransition(() => {
-                setMessages(finalMessages);
-                setIsStreamingResponse(false);
-              });
-              
-              upsertConversation(finalMessages, convId);
-            }, 50);
+        // Auto-scroll após inserir o primeiro chunk
+        requestAnimationFrame(() => {
+          if (isNearBottom && messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
           }
-        }, 100);
+        });
+
+        // Streaming com requestAnimationFrame
+        let index = firstIndex;
+        const streamStep = () => {
+          if (index >= totalLen) {
+            streamingRafRef.current = null;
+            const finalBotMessage: Message = {
+              ...placeholderBotMessage,
+              content: fullBotText,
+              isStreaming: false,
+            };
+            const finalMessages = [...newMessages, finalBotMessage];
+
+            startTransition(() => {
+              setMessages(finalMessages);
+              setIsStreamingResponse(false);
+            });
+
+            // scroll suave no final
+            requestAnimationFrame(() => {
+              if (isNearBottom && messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+              }
+            });
+
+            upsertConversation(finalMessages, convId);
+            return;
+          }
+
+          const nextIndex = Math.min(index + chunkSize, totalLen);
+          const partial = fullBotText.slice(0, nextIndex);
+
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === botMessageId ? { ...msg, content: partial } : msg
+            )
+          );
+
+          index = nextIndex;
+          streamingRafRef.current = requestAnimationFrame(streamStep);
+        };
+
+        // Inicia streaming somente se houver mais a renderizar
+        if (index < totalLen) {
+          streamingRafRef.current = requestAnimationFrame(streamStep);
+        } else {
+          // texto curto: já finaliza
+          const finalBotMessage: Message = {
+            ...placeholderBotMessage,
+            content: fullBotText,
+            isStreaming: false,
+          };
+          const finalMessages = [...newMessages, finalBotMessage];
+          startTransition(() => {
+            setMessages(finalMessages);
+            setIsStreamingResponse(false);
+          });
+          upsertConversation(finalMessages, convId);
+        }
       } catch (error: any) {
         console.error("Error sending message:", error);
         toast({
