@@ -496,14 +496,15 @@ const BotMessage = React.memo(
                 </div>
               )}
               <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
-                <Suspense
-                  fallback={<div className="h-4 w-24 bg-muted rounded" />}
-                >
-                  <MarkdownRendererLazy
-                    content={displayedContent}
-                    isUser={false}
-                  />
-                </Suspense>
+                {/* Renderiza apenas se há conteúdo para mostrar ou está digitando */}
+                {displayedContent || (message.isStreaming || isTyping) ? (
+                  <Suspense fallback={null}>
+                    <MarkdownRendererLazy
+                      content={displayedContent}
+                      isUser={false}
+                    />
+                  </Suspense>
+                ) : null}
                 {(message.isStreaming || isTyping) && (
                   <span className="inline-block w-2 h-4 bg-current ml-1 animate-pulse" />
                 )}
