@@ -197,28 +197,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       (event, session) => {
         if (!mounted) return;
         
+        console.log('Auth state change:', event, session?.user?.email);
+        
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (session?.user) {
-          // For Google OAuth, fetch profile immediately to show optimistic UI
-          // For others, fetch in background  
-          const isGoogleOAuth = session.user.app_metadata?.provider === 'google';
-          if (isGoogleOAuth && event === 'SIGNED_IN') {
+        if (session?.user && event !== 'SIGNED_OUT') {
+          setTimeout(() => {
             fetchProfile(session.user.id, session.user);
-          } else {
-            setTimeout(() => {
-              fetchProfile(session.user.id, session.user);
-            }, 0);
-          }
+          }, 0);
           
-          // Immediate redirect for login events
+          // Redirect to dashboard only for explicit sign-in events
           if (event === 'SIGNED_IN' && window.location.pathname === '/') {
             window.location.href = '/dashboard';
           }
         } else {
           setProfile(null);
-          // Redirect to homepage only on explicit signout and if not already there
+          // Only redirect if explicitly signed out
           if (event === 'SIGNED_OUT' && window.location.pathname !== '/') {
             window.location.replace('/');
           }
@@ -226,7 +221,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     );
 
-    // Check for existing session
+    // Check for existing session only once on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       
@@ -235,15 +230,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
       
       if (session?.user) {
-        // Fetch profile - immediate for Google OAuth on page load, background for others
-        const isGoogleOAuth = session.user.app_metadata?.provider === 'google';
-        if (isGoogleOAuth) {
+        setTimeout(() => {
           fetchProfile(session.user.id, session.user);
-        } else {
-          setTimeout(() => {
-            fetchProfile(session.user.id, session.user);
-          }, 0);
-        }
+        }, 0);
       }
     });
 
@@ -296,32 +285,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     try {
+      console.log('Starting logout process...');
+      
       // Primeiro fazer logout no Supabase para limpar tokens/storage
-      await supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut();
       
-      // Aguardar um pouco para garantir que o logout foi processado
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Limpar localStorage manualmente se necessário
-      localStorage.removeItem('supabase.auth.token');
+      // Limpar qualquer storage local manualmente
+      localStorage.removeItem('sb-myqgnnqltemfpzdxwybj-auth-token');
       sessionStorage.clear();
       
-      // Limpar estado local
-      setUser(null);
-      setSession(null);
-      setProfile(null);
+      // Aguardar um pouco para garantir que o logout foi processado
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      // Redirecionamento após garantir que tudo foi limpo
-      window.location.replace('/');
+      console.log('Logout completed, redirecting...');
+      
+      // Redirecionamento forçado
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
       // Forçar limpeza em caso de erro
       localStorage.clear();
       sessionStorage.clear();
-      setUser(null);
-      setSession(null);
-      setProfile(null);
-      window.location.replace('/');
+      window.location.href = '/';
     }
   };
 
