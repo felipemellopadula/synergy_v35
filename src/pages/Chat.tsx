@@ -348,36 +348,7 @@ const UserMessage = React.memo(
     ) => JSX.Element;
   }) => {
     return (
-      <>
-        {/* Bubble da mensagem do usuário */}
-        <div className="flex-1 min-w-0 flex justify-end">
-          <div className="inline-block w-full sm:w-auto sm:max-w-[90%] rounded-lg px-4 py-3 bg-primary text-primary-foreground">
-            <div className="space-y-3">
-              {message.files && (
-                <div className="flex flex-wrap gap-2 mb-3 max-w-full">
-                  {message.files.map((file, idx) => (
-                    <div key={idx}>
-                      {renderFileIcon(file.name, file.type, file.url)}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
-                <Suspense
-                  fallback={<div className="h-4 w-24 bg-muted rounded" />}
-                >
-                  <MarkdownRendererLazy
-                    content={message.content}
-                    isUser={true}
-                  />
-                </Suspense>
-              </div>
-            </div>
-          </div>
-        </div>
-        <Avatar className="h-8 w-8 shrink-0 ml-0.5">
-          <AvatarFallback className="bg-muted text-foreground">U</AvatarFallback>
-        </Avatar>
+      <div className="flex items-start gap-2 sm:gap-3 justify-end w-full">
         {/* Botão copiar */}
         <div className="flex-shrink-0 self-start">
           <TooltipProvider>
@@ -396,7 +367,36 @@ const UserMessage = React.memo(
             </Tooltip>
           </TooltipProvider>
         </div>
-      </>
+        
+        {/* Bubble da mensagem do usuário */}
+        <div className="inline-block w-full sm:w-auto sm:max-w-[90%] rounded-lg px-4 py-3 bg-primary text-primary-foreground">
+          <div className="space-y-3">
+            {message.files && (
+              <div className="flex flex-wrap gap-2 mb-3 max-w-full">
+                {message.files.map((file, idx) => (
+                  <div key={idx}>
+                    {renderFileIcon(file.name, file.type, file.url)}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
+              <Suspense
+                fallback={<div className="h-4 w-24 bg-muted rounded" />}
+              >
+                <MarkdownRendererLazy
+                  content={message.content}
+                  isUser={true}
+                />
+              </Suspense>
+            </div>
+          </div>
+        </div>
+        
+        <Avatar className="h-8 w-8 shrink-0">
+          <AvatarFallback className="bg-muted text-foreground">U</AvatarFallback>
+        </Avatar>
+      </div>
     );
   }
 );
@@ -2053,8 +2053,8 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                   return (
                     <div
                       key={message.id}
-                      className={`w-full flex items-start sm:items-start gap-2 sm:gap-3 ${
-                        message.sender === "user" ? "justify-end" : ""
+                      className={`w-full flex items-start sm:items-start gap-0 ${
+                        message.sender === "user" ? "" : "gap-2 sm:gap-3"
                       }`}
                     >
                       {message.sender === "bot" ? (
