@@ -539,20 +539,12 @@ const ImagePage = () => {
 
                         {/* Modal de ampliação da imagem principal */}
                         <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-                            <DialogContent className="max-w-7xl max-h-[90vh] p-0">
-                                <div className="relative">
-                                    <img 
-                                        src={images.length > 0 ? getImageUrl(images[0]) : ''} 
-                                        alt={images.length > 0 ? `Imagem gerada: ${images[0].prompt}` : ''} 
-                                        className="w-full h-auto max-h-[85vh] object-contain" 
-                                    />
-                                    <button
-                                        onClick={() => setIsImageModalOpen(false)}
-                                        className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition-colors"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                </div>
+                            <DialogContent className="max-w-7xl max-h-[90vh] p-2">
+                                <img 
+                                    src={images.length > 0 ? getImageUrl(images[0]) : ''} 
+                                    alt={images.length > 0 ? `Imagem gerada: ${images[0].prompt}` : ''} 
+                                    className="w-full h-auto max-h-[85vh] object-contain rounded-lg" 
+                                />
                             </DialogContent>
                         </Dialog>
                     </div>
