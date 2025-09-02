@@ -203,9 +203,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Set loading to false immediately for fast page load
-    setLoading(false);
-
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -215,6 +212,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false); // Set loading false here after auth state is known
         
         if (session?.user && event !== 'SIGNED_OUT') {
           setTimeout(() => {
@@ -243,21 +241,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     );
 
-    // Check for existing session in background (non-blocking)
-    setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!mounted) return;
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id, session.user);
-          }, 0);
-        }
-      });
-    }, 0);
+    // Check for existing session in background
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      console.log('Initial session check:', session?.user?.email || 'No user');
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false); // Set loading false after initial check
+      
+      if (session?.user) {
+        setTimeout(() => {
+          fetchProfile(session.user.id, session.user);
+        }, 0);
+      }
+    });
 
     return () => {
       mounted = false;
