@@ -192,6 +192,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
+    // Set loading to false immediately for fast page load
+    setLoading(false);
+
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -221,20 +224,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     );
 
-    // Check for existing session only once on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      
-      if (session?.user) {
-        setTimeout(() => {
-          fetchProfile(session.user.id, session.user);
-        }, 0);
-      }
-    });
+    // Check for existing session in background (non-blocking)
+    setTimeout(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id, session.user);
+          }, 0);
+        }
+      });
+    }, 0);
 
     return () => {
       mounted = false;
