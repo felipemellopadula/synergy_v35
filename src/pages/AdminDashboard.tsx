@@ -82,23 +82,28 @@ const AdminDashboard = () => {
     const uniqueUsers = new Set<string>();
 
     data.forEach((usage) => {
-      const messageLength = usage.message_content?.length || 0;
-      const tokens = Math.max(usage.tokens_used, charsToTokens(messageLength));
+      // Input: convert message content characters to tokens (4 chars = 1 token)
+      const inputCharacters = usage.message_content?.length || 0;
+      const inputTokens = charsToTokens(inputCharacters);
       
-      // Assume 70% input, 30% output for cost calculation
-      const inputTokens = Math.floor(tokens * 0.7);
-      const outputTokens = Math.floor(tokens * 0.3);
+      // Output: estimate IA response tokens (typically 2-3x input size)
+      // Since we don't have the actual IA response, we estimate based on input
+      const outputTokens = Math.floor(inputTokens * 2.5); // Conservative estimate
       
+      // Calculate costs using correct pricing per token type
       const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input');
       const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output');
-      const cost = inputCost + outputCost;
+      const totalCostForTransaction = inputCost + outputCost;
       
-      // Revenue with 200% markup (3x cost = 200% profit margin)
-      const revenue = cost * 3;
+      // Total tokens used (input + estimated output)
+      const totalTokensForTransaction = inputTokens + outputTokens;
       
-      totalCost += cost;
+      // Revenue calculation: cost + 200% profit margin = 3x cost
+      const revenue = totalCostForTransaction * 3;
+      
+      totalCost += totalCostForTransaction;
       totalRevenue += revenue;
-      totalTokens += tokens;
+      totalTokens += totalTokensForTransaction;
       
       if (usage.user_id) {
         uniqueUsers.add(usage.user_id);
@@ -251,15 +256,24 @@ const AdminDashboard = () => {
             {recentUsage.length > 0 ? (
               <div className="space-y-4">
                 {recentUsage.map((usage) => {
-                  const messageLength = usage.message_content?.length || 0;
-                  const tokens = Math.max(usage.tokens_used, charsToTokens(messageLength));
-                  const inputTokens = Math.floor(tokens * 0.7);
-                  const outputTokens = Math.floor(tokens * 0.3);
+                  // Input: convert message content characters to tokens (4 chars = 1 token)
+                  const inputCharacters = usage.message_content?.length || 0;
+                  const inputTokens = charsToTokens(inputCharacters);
+                  
+                  // Output: estimate IA response tokens (typically 2-3x input size)
+                  const outputTokens = Math.floor(inputTokens * 2.5);
+                  
+                  // Calculate costs using correct pricing per token type
                   const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input');
                   const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output');
-                  const cost = inputCost + outputCost;
-                  const revenue = cost * 3;
-                  const profit = revenue - cost;
+                  const totalCost = inputCost + outputCost;
+                  
+                  // Total tokens used (input + estimated output)
+                  const totalTokens = inputTokens + outputTokens;
+                  
+                  // Revenue calculation: cost + 200% profit margin = 3x cost
+                  const revenue = totalCost * 3;
+                  const profit = revenue - totalCost;
 
                   return (
                     <div key={usage.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
@@ -267,10 +281,10 @@ const AdminDashboard = () => {
                         <div className="flex items-center gap-4 mb-2">
                           <span className="font-medium text-sm">{usage.model_name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {tokens.toLocaleString()} tokens
+                            {totalTokens.toLocaleString()} tokens
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {messageLength.toLocaleString()} caracteres
+                            {inputCharacters.toLocaleString()} caracteres
                           </span>
                         </div>
                       </div>
@@ -279,7 +293,7 @@ const AdminDashboard = () => {
                           +${profit.toFixed(4)}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          Custo: ${cost.toFixed(4)} → Receita: ${revenue.toFixed(4)}
+                          Custo: ${totalCost.toFixed(4)} → Receita: ${revenue.toFixed(4)}
                         </div>
                       </div>
                     </div>
