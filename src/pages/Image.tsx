@@ -46,11 +46,17 @@ const IDEOGRAM_QUALITY_SETTINGS = [
     { id: "10:21", label: "10:21 (Ultra-Tall / Portrait)", width: 762, height: 1600, steps: 15 },
 ];
 
+const GEMINI_QUALITY_SETTINGS = [
+    { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
+];
+
 const MODELS = [
     { id: "openai:1@1", label: "Gpt-Image 1" },
     { id: "ideogram:4@1", label: "Ideogram 3.0" },
     { id: "runware:108@1", label: "Qwen-Image" },
     { id: "bfl:3@1", label: "FLUX.1 Kontext [max]" },
+  { id: "google:4@1", label: "Gemini Flash Image 2.5" },
+  
 ];
 
 const MAX_IMAGES_TO_FETCH = 10;
