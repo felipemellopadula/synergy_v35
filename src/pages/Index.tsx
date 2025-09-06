@@ -175,8 +175,8 @@ const Index = () => {
 
   // Logo único (evita baixar 2 imagens no topo). Mantém troca de tema.
   const logoSrc = isLight
-    ? "/images/logo-light-optimized.webp"
-    : "/images/logo-dark-optimized.webp";
+    ? "/images/logo-light-32px.webp"
+    : "/images/logo-dark-32px.webp";
 
   const handlePrimaryCta = useCallback(() => {
     if (user) navigate("/dashboard");
@@ -209,8 +209,8 @@ const Index = () => {
       otherLogo.decoding = "async";
       otherLogo.loading = "lazy";
       otherLogo.src = isLight
-        ? "/images/logo-dark-optimized.webp"
-        : "/images/logo-light-optimized.webp";
+        ? "/images/logo-dark-32px.webp"
+        : "/images/logo-light-32px.webp";
 
       // Metas
       const setMeta = (name: string, content: string) => {

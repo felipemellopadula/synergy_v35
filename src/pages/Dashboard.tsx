@@ -112,17 +112,21 @@ const Dashboard = () => {
 
               {/* Logo para tema CLARO (mostra no light) */}
               <img
-                src="/images/logo-light-optimized.webp"
+                src="/images/logo-light-32px.webp"
                 alt="Synergy AI logo escuro"
                 className="h-8 w-auto block dark:hidden"
+                width="32"
+                height="32"
                 loading="lazy"
                 decoding="async"
               />
               {/* Logo para tema ESCURO (mostra no dark) */}
               <img
-                src="/images/logo-dark-optimized.webp"
+                src="/images/logo-dark-32px.webp"
                 alt="Synergy AI logo branco"
                 className="h-8 w-auto hidden dark:block"
+                width="32"
+                height="32"
                 loading="lazy" 
                 decoding="async"
               />
