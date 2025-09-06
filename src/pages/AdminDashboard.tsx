@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { AdminStatsCards } from "@/components/AdminStatsCards";
+import { StorageCleanup } from "@/components/StorageCleanup";
 import { OpenAIPricingTable } from "@/components/OpenAIPricingTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -241,6 +242,11 @@ const AdminDashboard = () => {
 
         {/* Stats Cards */}
         <AdminStatsCards {...adminStats} />
+
+        {/* Storage Cleanup */}
+        <div className="mb-8">
+          <StorageCleanup />
+        </div>
 
         {/* OpenAI Pricing Table */}
         <div className="mb-8">
