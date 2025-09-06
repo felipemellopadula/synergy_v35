@@ -175,8 +175,8 @@ const Index = () => {
 
   // Logo único (evita baixar 2 imagens no topo). Mantém troca de tema.
   const logoSrc = isLight
-    ? "/lovable-uploads/d3026126-a31a-4979-b9d5-265db8e3f148.png"
-    : "/lovable-uploads/75b65017-8e97-493c-85a8-fe1b0f60ce9f.png";
+    ? "/images/logo-light-optimized.png"
+    : "/images/logo-dark-optimized.png";
 
   const handlePrimaryCta = useCallback(() => {
     if (user) navigate("/dashboard");
@@ -209,8 +209,8 @@ const Index = () => {
       otherLogo.decoding = "async";
       otherLogo.loading = "lazy";
       otherLogo.src = isLight
-        ? "/lovable-uploads/75b65017-8e97-493c-85a8-fe1b0f60ce9f.png"
-        : "/lovable-uploads/d3026126-a31a-4979-b9d5-265db8e3f148.png";
+        ? "/images/logo-dark-optimized.png"
+        : "/images/logo-light-optimized.png";
 
       // Metas
       const setMeta = (name: string, content: string) => {
@@ -282,6 +282,8 @@ const Index = () => {
                 src={logoSrc}
                 alt="Synergy AI logo"
                 className="h-8 w-auto"
+                width="32"
+                height="32"
                 loading="eager"
                 decoding="async"
               />
