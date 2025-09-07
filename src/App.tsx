@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { QueryClient } from "@tanstack/react-query";
 
 // Lazy load ALL heavy providers only when needed for authenticated routes
 const QueryClientProvider = lazy(() => 
@@ -39,10 +40,9 @@ const PageLoader = () => (
 );
 
 // Create queryClient lazily
-let queryClient: any = null;
+let queryClient: QueryClient | null = null;
 const getQueryClient = () => {
   if (!queryClient) {
-    const { QueryClient } = require("@tanstack/react-query");
     queryClient = new QueryClient();
   }
   return queryClient;
