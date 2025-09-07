@@ -24,14 +24,34 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks: {
+          // Core React libraries
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-toast'],
-          auth: ['@supabase/supabase-js', '@tanstack/react-query'],
+          
+          // Landing page specific (keep minimal)
+          landing: ['next-themes'],
+          
+          // Authentication and providers (only loaded when needed)
+          auth: ['@supabase/supabase-js'],
+          query: ['@tanstack/react-query'],
+          
+          // UI libraries (split by usage)
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          toast: ['@radix-ui/react-toast'],
+          tooltip: ['@radix-ui/react-tooltip'],
+          
+          // Content rendering (heavy for internal pages)
           icons: ['lucide-react'],
           markdown: ['react-markdown', 'react-syntax-highlighter', 'remark-gfm'],
+          
+          // Forms (internal pages only)
           forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+          
+          // Charts and analytics
           charts: ['recharts'],
+          
+          // File processing (heavy utilities)
+          fileProcessing: ['mammoth', 'pdfjs-dist', 'tesseract.js', 'browser-image-compression'],
         },
         assetFileNames: (assetInfo) => {
           if (!assetInfo.name) return `assets/[name]-[hash][extname]`;
