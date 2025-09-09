@@ -8,6 +8,7 @@ import { OpenAIPricingTable } from "@/components/OpenAIPricingTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Shield, AlertTriangle, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -44,6 +45,16 @@ const OPENAI_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-3.5-turbo': { input: 3.0, output: 6.0 }
 };
 
+// Gemini pricing per million tokens (USD) - Based on Google AI Studio pricing
+const GEMINI_PRICING: Record<string, { input: number; output: number }> = {
+  'gemini-2.0-flash-exp': { input: 0.30, output: 2.50 },
+  'gemini-1.5-pro': { input: 1.25, output: 10.00 },
+  'gemini-1.5-flash': { input: 0.30, output: 2.50 },
+  'gemini-1.5-flash-8b': { input: 0.10, output: 0.40 },
+  'gemini-pro': { input: 0.30, output: 2.50 },
+  'gemini-flash': { input: 0.30, output: 2.50 }
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user, isAdmin, loading: authLoading } = useAdminAuth();
@@ -56,19 +67,35 @@ const AdminDashboard = () => {
   });
   const [recentUsage, setRecentUsage] = useState<TokenUsage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini'>('openai');
 
   const charsToTokens = (chars: number): number => Math.ceil(chars / 4);
 
-  const getCostPerToken = (model: string, type: 'input' | 'output'): number => {
-    // Direct model match or fallback to gpt-4o-mini
+  const getCostPerToken = (model: string, type: 'input' | 'output', provider: 'openai' | 'gemini' = selectedProvider): number => {
     let modelKey = model.toLowerCase();
     
     // Handle SynergyAI mapping
     if (modelKey === 'synergyai') {
       modelKey = 'gpt-4o-mini';
+      provider = 'openai';
     }
     
-    // Find exact match or similar match
+    if (provider === 'gemini') {
+      // Check if it's a Gemini model
+      const isGeminiModel = modelKey.includes('gemini') || Object.keys(GEMINI_PRICING).some(key => 
+        modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
+      );
+      
+      if (isGeminiModel) {
+        const matchedKey = Object.keys(GEMINI_PRICING).find(key => 
+          modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
+        ) || 'gemini-1.5-flash';
+        
+        return GEMINI_PRICING[matchedKey][type] / 1_000_000;
+      }
+    }
+    
+    // Default to OpenAI pricing
     const matchedKey = Object.keys(OPENAI_PRICING).find(key => 
       modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
     ) || 'gpt-4o-mini';
@@ -91,9 +118,13 @@ const AdminDashboard = () => {
       // Since we don't have the actual IA response, we estimate based on input
       const outputTokens = Math.floor(inputTokens * 2.5); // Conservative estimate
       
+      // Detect provider based on model name
+      const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
+      const provider = isGeminiModel ? 'gemini' : 'openai';
+      
       // Calculate costs using correct pricing per token type
-      const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input');
-      const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output');
+      const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
+      const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output', provider);
       const totalCostForTransaction = inputCost + outputCost;
       
       // Total tokens used (input + estimated output)
@@ -248,9 +279,49 @@ const AdminDashboard = () => {
           <StorageCleanup />
         </div>
 
-        {/* OpenAI Pricing Table */}
+        {/* Provider Selection and Pricing Table */}
         <div className="mb-8">
-          <OpenAIPricingTable />
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Preços dos Modelos de IA</CardTitle>
+                <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini') => setSelectedProvider(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Selecionar provedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {selectedProvider === 'openai' && <OpenAIPricingTable />}
+              {selectedProvider === 'gemini' && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium">Modelo</th>
+                        <th className="text-right p-3 font-medium">Input ($/1M tokens)</th>
+                        <th className="text-right p-3 font-medium">Output ($/1M tokens)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(GEMINI_PRICING).map(([model, pricing]) => (
+                        <tr key={model} className="border-b">
+                          <td className="p-3 font-medium">{model}</td>
+                          <td className="text-right p-3">${pricing.input.toFixed(2)}</td>
+                          <td className="text-right p-3">${pricing.output.toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Recent Usage */}
@@ -269,9 +340,13 @@ const AdminDashboard = () => {
                   // Output: estimate IA response tokens (typically 2-3x input size)
                   const outputTokens = Math.floor(inputTokens * 2.5);
                   
+                  // Detect provider based on model name
+                  const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
+                  const provider = isGeminiModel ? 'gemini' : 'openai';
+                  
                   // Calculate costs using correct pricing per token type
-                  const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input');
-                  const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output');
+                  const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
+                  const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output', provider);
                   const totalCost = inputCost + outputCost;
                   
                   // Total tokens used (input + estimated output)
