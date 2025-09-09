@@ -85,6 +85,23 @@ Deno.serve(async (req) => {
     console.log(`Found ${buckets.length} buckets:`, buckets)
     console.log(`Raw bucket data:`, JSON.stringify(allBuckets, null, 2))
     
+    // Also try some common bucket names that might not be listed
+    const commonBuckets = ['temp', 'uploads', 'cache', 'thumbnails', 'previews', 'generated']
+    for (const testBucket of commonBuckets) {
+      if (!buckets.includes(testBucket)) {
+        console.log(`Testing for hidden bucket: ${testBucket}`)
+        try {
+          const { data: testFiles } = await supabaseClient.storage.from(testBucket).list('', { limit: 1 })
+          if (testFiles && testFiles.length > 0) {
+            console.log(`Found hidden bucket with files: ${testBucket}`)
+            buckets.push(testBucket)
+          }
+        } catch (err) {
+          // Bucket doesn't exist, ignore
+        }
+      }
+    }
+    
     const cutoffDate = new Date()
     if (!isManualCleanup) {
       cutoffDate.setDate(cutoffDate.getDate() - 1) // Remove files older than 1 day for automatic cleanup
@@ -122,8 +139,12 @@ Deno.serve(async (req) => {
         let offset = 0
         const batchSize = 1000
         
+        // Try different listing methods to catch all files
+        console.log(`Trying different listing approaches for ${bucketName}...`)
+        
+        // Method 1: Standard list
         while (true) {
-          console.log(`Fetching files from ${bucketName}, offset: ${offset}`)
+          console.log(`Method 1: Fetching files from ${bucketName}, offset: ${offset}`)
           
           const { data: files, error: listError } = await supabaseClient.storage
             .from(bucketName)
@@ -151,6 +172,29 @@ Deno.serve(async (req) => {
           if (files.length < batchSize) {
             break // No more files to fetch
           }
+        }
+        
+        // Method 2: List with different parameters to catch hidden files
+        console.log(`Method 2: Trying recursive listing for ${bucketName}...`)
+        try {
+          const { data: recursiveFiles, error: recursiveError } = await supabaseClient.storage
+            .from(bucketName)
+            .list('', {
+              limit: 10000,
+              sortBy: { column: 'name', order: 'asc' }
+            })
+            
+          if (!recursiveError && recursiveFiles) {
+            // Add files that weren't found in method 1
+            const existingNames = new Set(allFiles.map(f => f.name))
+            const newFiles = recursiveFiles.filter(f => !existingNames.has(f.name))
+            allFiles = allFiles.concat(newFiles)
+            if (newFiles.length > 0) {
+              console.log(`Method 2 found ${newFiles.length} additional files`)
+            }
+          }
+        } catch (recursiveErr) {
+          console.log(`Method 2 failed for ${bucketName}:`, recursiveErr)
         }
 
         bucketStats.totalFiles = allFiles.length
