@@ -187,9 +187,10 @@ const AdminDashboard = () => {
       const inputCharacters = usage.message_content?.length || 0;
       const inputTokens = charsToTokens(inputCharacters);
       
-      // Output: estimate IA response tokens (typically 2-3x input size)
+      // Output: estimate IA response tokens (realistic estimate)
       // Since we don't have the actual IA response, we estimate based on input
-      const outputTokens = Math.floor(inputTokens * 2.5); // Conservative estimate
+      // Typical IA responses are shorter than input for most queries
+      const outputTokens = Math.ceil(inputTokens * 0.5); // More realistic: response is usually 50% of input
       
       // Detect provider based on model name
       const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
@@ -249,12 +250,17 @@ const AdminDashboard = () => {
     });
 
     if (providerFilter === 'claude') {
-      console.log(`\n🔍 CLAUDE SUMMARY:`);
-      console.log(`Total Claude transactions processed: ${claudeTransactionCount}`);
+      console.log(`\n🔍 CLAUDE DETAILED ANALYSIS:`);
+      console.log(`Total Claude transactions: ${claudeTransactionCount}`);
       console.log(`Total Claude cost: $${totalCost.toFixed(6)}`);
       console.log(`Average cost per transaction: $${claudeTransactionCount > 0 ? (totalCost / claudeTransactionCount).toFixed(6) : '0'}`);
       
-      // Identify most expensive transaction types
+      // Analyze input vs output token ratios and costs
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let totalInputCost = 0;
+      let totalOutputCost = 0;
+      
       const expensiveTransactions = filteredData
         .filter(usage => {
           const modelKey = usage.model_name.toLowerCase();
@@ -265,26 +271,44 @@ const AdminDashboard = () => {
         .map(usage => {
           const inputCharacters = usage.message_content?.length || 0;
           const inputTokens = charsToTokens(inputCharacters);
-          const outputTokens = Math.ceil(inputTokens * 0.5); // Estimate
+          const outputTokens = Math.ceil(inputTokens * 0.5); // Current estimate
           
           const inputCostPerToken = getCostPerToken(usage.model_name, 'input', 'claude');
           const outputCostPerToken = getCostPerToken(usage.model_name, 'output', 'claude');
           
-          const cost = (inputTokens * inputCostPerToken) + (outputTokens * outputCostPerToken);
+          const inputCost = inputTokens * inputCostPerToken;
+          const outputCost = outputTokens * outputCostPerToken;
+          const totalCost = inputCost + outputCost;
+          
+          totalInputTokens += inputTokens;
+          totalOutputTokens += outputTokens;
+          totalInputCost += inputCost;
+          totalOutputCost += outputCost;
           
           return {
             model: usage.model_name,
             messageLength: inputCharacters,
-            cost: cost,
+            inputTokens,
+            outputTokens,
+            inputCost,
+            outputCost,
+            totalCost,
             date: usage.created_at
           };
         })
-        .sort((a, b) => b.cost - a.cost)
+        .sort((a, b) => b.totalCost - a.totalCost)
         .slice(0, 5);
+        
+      console.log(`\n📊 TOKEN BREAKDOWN:`);
+      console.log(`Total input tokens: ${totalInputTokens.toLocaleString()}`);
+      console.log(`Total output tokens: ${totalOutputTokens.toLocaleString()} (estimated)`);
+      console.log(`Input cost: $${totalInputCost.toFixed(6)}`);
+      console.log(`Output cost: $${totalOutputCost.toFixed(6)}`);
+      console.log(`Ratio output/input: ${totalInputTokens > 0 ? (totalOutputTokens/totalInputTokens).toFixed(2) : '0'}x`);
         
       console.log(`\n💰 Top 5 most expensive Claude transactions:`);
       expensiveTransactions.forEach((tx, i) => {
-        console.log(`${i + 1}. ${tx.model} - $${tx.cost.toFixed(6)} (${tx.messageLength} chars) - ${tx.date}`);
+        console.log(`${i + 1}. ${tx.model} - Total: $${tx.totalCost.toFixed(6)} | Input: $${tx.inputCost.toFixed(6)} (${tx.inputTokens} tokens) | Output: $${tx.outputCost.toFixed(6)} (${tx.outputTokens} tokens) | ${tx.messageLength} chars`);
       });
     }
 
