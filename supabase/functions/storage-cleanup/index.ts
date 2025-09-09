@@ -101,6 +101,8 @@ Deno.serve(async (req) => {
     console.log(`Target cutoff date: ${isManualCleanup ? 'ALL FILES (manual cleanup)' : cutoffDate.toISOString()}`)
     console.log(`Processing ${buckets.length} buckets: ${buckets.join(', ')}`)
     console.log(`=== CLEANUP MODE: ${isManualCleanup ? 'MANUAL (DELETE ALL FILES)' : 'AUTOMATIC (1 DAY CUTOFF)'} ===`)
+
+    for (const bucketName of buckets) {
       const bucketStartTime = Date.now()
       console.log(`\n--- Processing bucket: ${bucketName} ---`)
       
