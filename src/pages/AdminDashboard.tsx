@@ -159,6 +159,12 @@ const AdminDashboard = () => {
     console.log('Filtered records:', filteredData.length);
     console.log('Sample filtered data:', filteredData.slice(0, 3));
     
+    // For debugging Claude, let's see what models we have
+    if (providerFilter === 'claude') {
+      const claudeModels = filteredData.map(d => d.model_name);
+      console.log('Claude models in data:', [...new Set(claudeModels)]);
+    }
+    
     let totalCost = 0;
     let totalRevenue = 0;
     let totalTokens = 0;
@@ -192,17 +198,21 @@ const AdminDashboard = () => {
       // Revenue calculation: cost + 200% profit margin = 3x cost
       const revenue = totalCostForTransaction * 3;
       
-      // Debug logging for each provider
-      console.log(`Transaction for ${provider} model ${usage.model_name}:`, {
-        inputChars: inputCharacters,
-        inputTokens,
-        outputTokens,
-        inputCostPerToken: getCostPerToken(usage.model_name, 'input', provider),
-        outputCostPerToken: getCostPerToken(usage.model_name, 'output', provider),
-        inputCost: inputCost.toFixed(10),
-        outputCost: outputCost.toFixed(10),
-        totalCost: totalCostForTransaction.toFixed(10)
-      });
+      // Debug logging for each provider with detailed breakdown
+      if (provider === 'claude') {
+        console.log(`\n=== CLAUDE TRANSACTION BREAKDOWN ===`);
+        console.log(`Model: ${usage.model_name}`);
+        console.log(`Input characters: ${inputCharacters}`);
+        console.log(`Input tokens (chars/4): ${inputTokens}`);
+        console.log(`Output tokens (estimated): ${outputTokens}`);
+        console.log(`Input cost per token: $${getCostPerToken(usage.model_name, 'input', provider).toFixed(10)}`);
+        console.log(`Output cost per token: $${getCostPerToken(usage.model_name, 'output', provider).toFixed(10)}`);
+        console.log(`Input cost total: $${inputCost.toFixed(10)}`);
+        console.log(`Output cost total: $${outputCost.toFixed(10)}`);
+        console.log(`Total transaction cost: $${totalCostForTransaction.toFixed(10)}`);
+        console.log(`Revenue (3x cost): $${revenue.toFixed(10)}`);
+        console.log(`===================================\n`);
+      }
       
       totalCost += totalCostForTransaction;
       totalRevenue += revenue;
