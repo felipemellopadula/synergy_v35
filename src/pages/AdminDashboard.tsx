@@ -55,8 +55,19 @@ const GEMINI_PRICING: Record<string, { input: number; output: number }> = {
   'gemini-flash': { input: 0.30 / 1_000_000, output: 2.50 / 1_000_000 }
 };
 
-// Claude pricing per million tokens (USD) - Based on Anthropic pricing from user's table
+// Claude pricing per million tokens (USD) - Official Anthropic pricing (January 2025)
 const CLAUDE_PRICING: Record<string, { input: number; output: number }> = {
+  // Latest models
+  'claude-opus-4-20250514': { input: 15.0, output: 75.0 },
+  'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 }, // Using ≤200K token rate
+  'claude-3-5-haiku-20241022': { input: 0.8, output: 4.0 },
+  
+  // Legacy models with exact version numbers
+  'claude-3-opus-20240229': { input: 15.0, output: 75.0 },
+  'claude-3-5-sonnet-20241022': { input: 3.0, output: 15.0 },
+  'claude-3-haiku-20240307': { input: 0.25, output: 1.25 },
+  
+  // Generic model name matching (fallbacks)
   'claude-opus-4.1': { input: 15.0, output: 75.0 },
   'claude-opus-4': { input: 15.0, output: 75.0 },
   'claude-sonnet-4': { input: 3.0, output: 15.0 },
@@ -199,17 +210,31 @@ const AdminDashboard = () => {
       // Revenue calculation: cost + 200% profit margin = 3x cost
       const revenue = totalCostForTransaction * 3;
 
-      // Count Claude transactions and show only first few for debugging
+      // Debug Claude transactions in detail
       if (provider === 'claude') {
         claudeTransactionCount++;
-        if (claudeTransactionCount <= 3) {
+        
+        // Show detailed breakdown for first 3 transactions and any expensive ones
+        const showDetails = claudeTransactionCount <= 3 || totalCostForTransaction > 0.01;
+        
+        if (showDetails) {
           console.log(`\n=== CLAUDE TRANSACTION ${claudeTransactionCount} ===`);
           console.log(`Model: ${usage.model_name}`);
-          console.log(`Input characters: ${inputCharacters}`);
+          console.log(`Message content length: ${inputCharacters} characters`);
           console.log(`Input tokens (chars/4): ${inputTokens}`);
           console.log(`Output tokens (estimated): ${outputTokens}`);
+          console.log(`Input cost per token: $${getCostPerToken(usage.model_name, 'input', provider).toFixed(10)}`);
+          console.log(`Output cost per token: $${getCostPerToken(usage.model_name, 'output', provider).toFixed(10)}`);
+          console.log(`Input cost total: $${inputCost.toFixed(10)}`);
+          console.log(`Output cost total: $${outputCost.toFixed(10)}`);
           console.log(`Total transaction cost: $${totalCostForTransaction.toFixed(10)}`);
           console.log(`Running total so far: $${(totalCost + totalCostForTransaction).toFixed(10)}`);
+          
+          // Show expensive transactions
+          if (totalCostForTransaction > 0.01) {
+            console.log(`⚠️  HIGH COST TRANSACTION DETECTED!`);
+            console.log(`Message preview: "${usage.message_content.substring(0, 200)}..."`);
+          }
           console.log(`===================================\n`);
         }
       }
@@ -224,10 +249,43 @@ const AdminDashboard = () => {
     });
 
     if (providerFilter === 'claude') {
-      console.log(`\nCLAUDE SUMMARY:`);
+      console.log(`\n🔍 CLAUDE SUMMARY:`);
       console.log(`Total Claude transactions processed: ${claudeTransactionCount}`);
-      console.log(`Total Claude cost: $${totalCost.toFixed(10)}`);
-      console.log(`Average cost per transaction: $${(totalCost / claudeTransactionCount).toFixed(10)}`);
+      console.log(`Total Claude cost: $${totalCost.toFixed(6)}`);
+      console.log(`Average cost per transaction: $${claudeTransactionCount > 0 ? (totalCost / claudeTransactionCount).toFixed(6) : '0'}`);
+      
+      // Identify most expensive transaction types
+      const expensiveTransactions = filteredData
+        .filter(usage => {
+          const modelKey = usage.model_name.toLowerCase();
+          return modelKey.includes('claude') || Object.keys(CLAUDE_PRICING).some(key => 
+            modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
+          );
+        })
+        .map(usage => {
+          const inputCharacters = usage.message_content?.length || 0;
+          const inputTokens = charsToTokens(inputCharacters);
+          const outputTokens = Math.ceil(inputTokens * 0.5); // Estimate
+          
+          const inputCostPerToken = getCostPerToken(usage.model_name, 'input', 'claude');
+          const outputCostPerToken = getCostPerToken(usage.model_name, 'output', 'claude');
+          
+          const cost = (inputTokens * inputCostPerToken) + (outputTokens * outputCostPerToken);
+          
+          return {
+            model: usage.model_name,
+            messageLength: inputCharacters,
+            cost: cost,
+            date: usage.created_at
+          };
+        })
+        .sort((a, b) => b.cost - a.cost)
+        .slice(0, 5);
+        
+      console.log(`\n💰 Top 5 most expensive Claude transactions:`);
+      expensiveTransactions.forEach((tx, i) => {
+        console.log(`${i + 1}. ${tx.model} - $${tx.cost.toFixed(6)} (${tx.messageLength} chars) - ${tx.date}`);
+      });
     }
 
     console.log('Final calculated totals:', {
