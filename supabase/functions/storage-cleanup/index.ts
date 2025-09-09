@@ -72,7 +72,18 @@ Deno.serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseKey)
 
-    const buckets = ['images', 'documents', 'user-videos', 'video-refs']
+    // Get ALL available buckets, not just predefined ones
+    console.log('Fetching all available buckets...')
+    const { data: allBuckets, error: bucketsError } = await supabaseClient.storage.listBuckets()
+    
+    if (bucketsError) {
+      console.error('Error fetching buckets:', bucketsError)
+      throw new Error(`Failed to fetch buckets: ${bucketsError.message}`)
+    }
+    
+    const buckets = allBuckets?.map(bucket => bucket.name) || []
+    console.log(`Found ${buckets.length} buckets:`, buckets)
+    
     const cutoffDate = new Date()
     if (!isManualCleanup) {
       cutoffDate.setDate(cutoffDate.getDate() - 1) // Remove files older than 1 day for automatic cleanup
@@ -89,8 +100,7 @@ Deno.serve(async (req) => {
 
     console.log(`Target cutoff date: ${isManualCleanup ? 'ALL FILES (manual cleanup)' : cutoffDate.toISOString()}`)
     console.log(`Processing ${buckets.length} buckets: ${buckets.join(', ')}`)
-
-    for (const bucketName of buckets) {
+    console.log(`=== CLEANUP MODE: ${isManualCleanup ? 'MANUAL (DELETE ALL FILES)' : 'AUTOMATIC (1 DAY CUTOFF)'} ===`)
       const bucketStartTime = Date.now()
       console.log(`\n--- Processing bucket: ${bucketName} ---`)
       
@@ -153,13 +163,15 @@ Deno.serve(async (req) => {
 
         // Filter files based on cleanup type
         const filesToDelete = allFiles.filter(file => {
+          const fileSize = file.metadata?.size ? `${(file.metadata.size / (1024*1024)).toFixed(2)}MB` : 'unknown size'
+          
           if (isManualCleanup) {
-            console.log(`Manual cleanup: will delete ${file.name}`)
+            console.log(`Manual cleanup: will delete ${file.name} (${fileSize})`)
             return true // Delete ALL files in manual cleanup
           }
           
           if (!file.created_at) {
-            console.log(`File ${file.name} has no created_at timestamp, will delete (assuming old)`)
+            console.log(`File ${file.name} has no created_at timestamp, will delete (assuming old) - Size: ${fileSize}`)
             return true // Delete files without timestamp
           }
           
@@ -167,7 +179,7 @@ Deno.serve(async (req) => {
           const isOld = fileDate < cutoffDate
           
           if (isOld) {
-            console.log(`File to delete: ${file.name} (created: ${fileDate.toISOString()})`)
+            console.log(`File to delete: ${file.name} (created: ${fileDate.toISOString()}) - Size: ${fileSize}`)
           }
           
           return isOld
