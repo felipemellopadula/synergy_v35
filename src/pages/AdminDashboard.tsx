@@ -183,7 +183,7 @@ const AdminDashboard = () => {
 
         if (allUsage) {
           setAdminStats(calculateAdminStats(allUsage, selectedProvider));
-          setRecentUsage(allUsage.slice(0, 20)); // Show last 20 transactions
+          setRecentUsage(allUsage.slice(0, 15)); // Show last 15 transactions
         }
       } catch (error) {
         console.error('Error fetching admin data:', error);
