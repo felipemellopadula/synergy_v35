@@ -6,6 +6,7 @@ import { AdminStatsCards } from "@/components/AdminStatsCards";
 import { StorageCleanup } from "@/components/StorageCleanup";
 import { OpenAIPricingTable } from "@/components/OpenAIPricingTable";
 import { GrokPricingTable } from "@/components/GrokPricingTable";
+import { DeepSeekPricingTable } from "@/components/DeepSeekPricingTable";
 import UnifiedPricingTable from "@/components/UnifiedPricingTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +69,14 @@ const GROK_PRICING: Record<string, { input: number; output: number }> = {
   'grok-3-mini': { input: 0.30, output: 0.50 },
   'grok-beta': { input: 3.0, output: 15.0 }, // Fallback for beta versions
 };
+
+// DeepSeek pricing per million tokens (USD) - Official DeepSeek pricing
+const DEEPSEEK_PRICING: Record<string, { input: number; output: number }> = {
+  'deepseek-chat': { input: 0.56, output: 1.68 },
+  'deepseek-reasoner': { input: 0.56, output: 1.68 },
+  'deepseek-v3.1': { input: 0.56, output: 1.68 }, // Generic fallback
+  'deepseek': { input: 0.56, output: 1.68 }, // Generic fallback
+};
 const CLAUDE_PRICING: Record<string, { input: number; output: number }> = {
   // Latest models
   'claude-opus-4-20250514': { input: 15.0, output: 75.0 },
@@ -102,7 +111,7 @@ const AdminDashboard = () => {
   });
   const [recentUsage, setRecentUsage] = useState<TokenUsage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini' | 'claude' | 'grok' | 'todos'>('todos');
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'todos'>('todos');
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'year' | 'all'>('all');
 
   const getDateFilterRange = (period: 'today' | 'week' | 'month' | 'year' | 'all') => {
@@ -144,7 +153,7 @@ const AdminDashboard = () => {
 
   const charsToTokens = (chars: number): number => Math.ceil(chars / 4);
 
-  const getCostPerToken = (model: string, type: 'input' | 'output', provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'todos' = selectedProvider): number => {
+  const getCostPerToken = (model: string, type: 'input' | 'output', provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'todos' = selectedProvider): number => {
     let modelKey = model.toLowerCase();
     
     // Handle SynergyAI mapping
@@ -190,6 +199,26 @@ const AdminDashboard = () => {
       }
     }
     
+    if (provider === 'deepseek') {
+      // Check if it's a DeepSeek model
+      const isDeepSeekModel = modelKey.includes('deepseek') || Object.keys(DEEPSEEK_PRICING).some(key => 
+        modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
+      );
+      
+      if (isDeepSeekModel) {
+        // Sort keys by length (descending) to match more specific names first
+        const sortedKeys = Object.keys(DEEPSEEK_PRICING).sort((a, b) => b.length - a.length);
+        const matchedKey = sortedKeys.find(key => 
+          modelKey.includes(key.toLowerCase()) || key.toLowerCase().includes(modelKey)
+        ) || 'deepseek-chat';
+        
+        const costPerMillion = DEEPSEEK_PRICING[matchedKey][type];
+        const costPerToken = costPerMillion / 1000000; // Convert per million to unit price
+        console.log(`DeepSeek ${type} cost for ${model}: ${costPerMillion} per million = ${costPerToken} per token`);
+        return costPerToken;
+      }
+    }
+    
     if (provider === 'claude') {
       // Check if it's a Claude model
       const isClaudeModel = modelKey.includes('claude') || Object.keys(CLAUDE_PRICING).some(key => 
@@ -219,7 +248,7 @@ const AdminDashboard = () => {
     return cost;
   };
 
-  const calculateAdminStats = (data: TokenUsage[], providerFilter: 'openai' | 'gemini' | 'claude' | 'grok' | 'todos' = 'todos', period: 'today' | 'week' | 'month' | 'year' | 'all' = 'all'): AdminStats => {
+  const calculateAdminStats = (data: TokenUsage[], providerFilter: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'todos' = 'todos', period: 'today' | 'week' | 'month' | 'year' | 'all' = 'all'): AdminStats => {
     console.log('Calculating stats for provider:', providerFilter, 'period:', period);
     console.log('Total records:', data.length);
     
@@ -237,15 +266,17 @@ const AdminDashboard = () => {
     
     // Filter data based on selected provider
     if (providerFilter !== 'todos') {
-      filteredData = data.filter((usage) => {
+      filteredData = filteredData.filter((usage) => {
         const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
         const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
         const isGrokModel = usage.model_name.toLowerCase().includes('grok');
+        const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
         
         if (providerFilter === 'gemini') return isGeminiModel;
         if (providerFilter === 'claude') return isClaudeModel;
         if (providerFilter === 'grok') return isGrokModel;
-        return !isGeminiModel && !isClaudeModel && !isGrokModel; // OpenAI models
+        if (providerFilter === 'deepseek') return isDeepSeekModel;
+        return !isGeminiModel && !isClaudeModel && !isGrokModel && !isDeepSeekModel; // OpenAI models
       });
     }
     
@@ -278,11 +309,13 @@ const AdminDashboard = () => {
         const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
         const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
         const isGrokModel = usage.model_name.toLowerCase().includes('grok');
-        let provider: 'openai' | 'gemini' | 'claude' | 'grok' = 'openai';
+        const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
+        let provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' = 'openai';
         
         if (isGeminiModel) provider = 'gemini';
         else if (isClaudeModel) provider = 'claude';
         else if (isGrokModel) provider = 'grok';
+        else if (isDeepSeekModel) provider = 'deepseek';
         
         // Calculate costs using correct pricing per token type
         const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
@@ -406,6 +439,14 @@ const AdminDashboard = () => {
       
       const grokModels = [...new Set(filteredData.map(d => d.model_name))];
       console.log(`Grok models in data:`, grokModels);
+    } else if (providerFilter === 'deepseek') {
+      console.log(`\n🔍 DEEPSEEK DETAILED ANALYSIS:`);
+      console.log(`Total DeepSeek transactions: ${filteredData.length}`);
+      console.log(`Total DeepSeek cost: $${totalCost.toFixed(6)}`);
+      console.log(`Average cost per transaction: $${filteredData.length > 0 ? (totalCost / filteredData.length).toFixed(6) : '0'}`);
+      
+      const deepSeekModels = [...new Set(filteredData.map(d => d.model_name))];
+      console.log(`DeepSeek models in data:`, deepSeekModels);
     }
 
     console.log('Final calculated totals:', {
@@ -568,18 +609,19 @@ const AdminDashboard = () => {
                       <SelectItem value="year">Último ano</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini' | 'claude' | 'grok' | 'todos') => setSelectedProvider(value)}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Selecionar provedor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="gemini">Google Gemini</SelectItem>
-                      <SelectItem value="claude">Anthropic Claude</SelectItem>
-                      <SelectItem value="grok">xAI Grok</SelectItem>
-                    </SelectContent>
-                  </Select>
+                   <Select value={selectedProvider} onValueChange={(value: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'todos') => setSelectedProvider(value)}>
+                     <SelectTrigger className="w-[180px]">
+                       <SelectValue placeholder="Selecionar provedor" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="todos">Todos</SelectItem>
+                       <SelectItem value="openai">OpenAI</SelectItem>
+                       <SelectItem value="gemini">Google Gemini</SelectItem>
+                       <SelectItem value="claude">Anthropic Claude</SelectItem>
+                       <SelectItem value="grok">xAI Grok</SelectItem>
+                       <SelectItem value="deepseek">DeepSeek</SelectItem>
+                     </SelectContent>
+                   </Select>
                 </div>
               </div>
             </CardHeader>
@@ -601,13 +643,14 @@ const AdminDashboard = () => {
               <CardTitle>Preços dos Modelos de IA</CardTitle>
             </CardHeader>
             <CardContent>
-              <UnifiedPricingTable 
-                selectedProvider={selectedProvider}
-                openaiPricing={OPENAI_PRICING}
-                geminiPricing={GEMINI_PRICING}
-                claudePricing={CLAUDE_PRICING}
-                grokPricing={GROK_PRICING}
-              />
+               <UnifiedPricingTable 
+                 selectedProvider={selectedProvider}
+                 openaiPricing={OPENAI_PRICING}
+                 geminiPricing={GEMINI_PRICING}
+                 claudePricing={CLAUDE_PRICING}
+                 grokPricing={GROK_PRICING}
+                 deepseekPricing={DEEPSEEK_PRICING}
+               />
             </CardContent>
           </Card>
         </div>
@@ -619,10 +662,11 @@ const AdminDashboard = () => {
               Transações Recentes 
               {(selectedProvider !== 'todos' || selectedPeriod !== 'all') && (
                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                   ({selectedProvider !== 'todos' && `${selectedProvider === 'openai' ? 'OpenAI' : 
-                     selectedProvider === 'gemini' ? 'Google Gemini' : 
-                     selectedProvider === 'claude' ? 'Anthropic Claude' :
-                     selectedProvider === 'grok' ? 'xAI Grok' : selectedProvider}`}
+                     ({selectedProvider !== 'todos' && `${selectedProvider === 'openai' ? 'OpenAI' : 
+                       selectedProvider === 'gemini' ? 'Google Gemini' : 
+                       selectedProvider === 'claude' ? 'Anthropic Claude' :
+                       selectedProvider === 'grok' ? 'xAI Grok' :
+                       selectedProvider === 'deepseek' ? 'DeepSeek' : selectedProvider}`}
                    {selectedProvider !== 'todos' && selectedPeriod !== 'all' && ' • '}
                    {selectedPeriod !== 'all' && `${selectedPeriod === 'today' ? 'Hoje' :
                      selectedPeriod === 'week' ? 'Última semana' :
@@ -647,18 +691,20 @@ const AdminDashboard = () => {
               }
               
               // Then filter by provider
-              if (selectedProvider !== 'todos') {
-                filteredUsage = filteredUsage.filter((usage) => {
-                  const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
-                  const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
-                  const isGrokModel = usage.model_name.toLowerCase().includes('grok');
-                  
-                  if (selectedProvider === 'gemini') return isGeminiModel;
-                  if (selectedProvider === 'claude') return isClaudeModel;
-                  if (selectedProvider === 'grok') return isGrokModel;
-                  return !isGeminiModel && !isClaudeModel && !isGrokModel; // OpenAI models
-                });
-              }
+               if (selectedProvider !== 'todos') {
+                 filteredUsage = filteredUsage.filter((usage) => {
+                   const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
+                   const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
+                   const isGrokModel = usage.model_name.toLowerCase().includes('grok');
+                   const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
+                   
+                   if (selectedProvider === 'gemini') return isGeminiModel;
+                   if (selectedProvider === 'claude') return isClaudeModel;
+                   if (selectedProvider === 'grok') return isGrokModel;
+                   if (selectedProvider === 'deepseek') return isDeepSeekModel;
+                   return !isGeminiModel && !isClaudeModel && !isGrokModel && !isDeepSeekModel; // OpenAI models
+                 });
+               }
               
               return filteredUsage.length > 0 ? (
                 <div className="space-y-4">
@@ -670,15 +716,17 @@ const AdminDashboard = () => {
                   // Output: estimate IA response tokens (typically 2-3x input size)
                   const outputTokens = Math.floor(inputTokens * 2.5);
                   
-                  // Detect provider based on model name
-                  const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
-                  const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
-                  const isGrokModel = usage.model_name.toLowerCase().includes('grok');
-                  let provider: 'openai' | 'gemini' | 'claude' | 'grok' = 'openai';
-                  
-                  if (isGeminiModel) provider = 'gemini';
-                  else if (isClaudeModel) provider = 'claude';
-                  else if (isGrokModel) provider = 'grok';
+                   // Detect provider based on model name
+                   const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
+                   const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
+                   const isGrokModel = usage.model_name.toLowerCase().includes('grok');
+                   const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
+                   let provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' = 'openai';
+                   
+                   if (isGeminiModel) provider = 'gemini';
+                   else if (isClaudeModel) provider = 'claude';
+                   else if (isGrokModel) provider = 'grok';
+                   else if (isDeepSeekModel) provider = 'deepseek';
                   
                   // Calculate costs using correct pricing per token type
                   const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
@@ -726,10 +774,11 @@ const AdminDashboard = () => {
                          message += " para";
                          
                          if (selectedProvider !== 'todos') {
-                           const providerName = selectedProvider === 'openai' ? 'OpenAI' : 
-                                               selectedProvider === 'gemini' ? 'Google Gemini' : 
-                                               selectedProvider === 'claude' ? 'Anthropic Claude' :
-                                               selectedProvider === 'grok' ? 'xAI Grok' : selectedProvider;
+                             const providerName = selectedProvider === 'openai' ? 'OpenAI' : 
+                                                 selectedProvider === 'gemini' ? 'Google Gemini' : 
+                                                 selectedProvider === 'claude' ? 'Anthropic Claude' :
+                                                 selectedProvider === 'grok' ? 'xAI Grok' :
+                                                 selectedProvider === 'deepseek' ? 'DeepSeek' : selectedProvider;
                            message += ` ${providerName}`;
                          }
                          

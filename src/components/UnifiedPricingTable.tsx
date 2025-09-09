@@ -7,11 +7,12 @@ interface PricingData {
 }
 
 interface UnifiedPricingTableProps {
-  selectedProvider: 'openai' | 'gemini' | 'claude' | 'grok' | 'todos';
+  selectedProvider: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'todos';
   openaiPricing: Record<string, PricingData>;
   geminiPricing: Record<string, PricingData>;
   claudePricing: Record<string, PricingData>;
   grokPricing: Record<string, PricingData>;
+  deepseekPricing: Record<string, PricingData>;
 }
 
 export default function UnifiedPricingTable({ 
@@ -19,7 +20,8 @@ export default function UnifiedPricingTable({
   openaiPricing, 
   geminiPricing, 
   claudePricing, 
-  grokPricing 
+  grokPricing,
+  deepseekPricing
 }: UnifiedPricingTableProps) {
   
   const getAllModels = () => {
@@ -70,6 +72,17 @@ export default function UnifiedPricingTable({
           provider: 'xAI Grok',
           pricing,
           color: 'text-orange-400'
+        });
+      });
+    }
+
+    if (selectedProvider === 'todos' || selectedProvider === 'deepseek') {
+      Object.entries(deepseekPricing).forEach(([model, pricing]) => {
+        models.push({
+          name: model,
+          provider: 'DeepSeek',
+          pricing,
+          color: 'text-blue-400'
         });
       });
     }
