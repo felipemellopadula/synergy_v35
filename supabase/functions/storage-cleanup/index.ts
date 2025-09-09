@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
     
     const buckets = allBuckets?.map(bucket => bucket.name) || []
     console.log(`Found ${buckets.length} buckets:`, buckets)
+    console.log(`Raw bucket data:`, JSON.stringify(allBuckets, null, 2))
     
     const cutoffDate = new Date()
     if (!isManualCleanup) {
@@ -162,6 +163,7 @@ Deno.serve(async (req) => {
         }
 
         console.log(`Total files found in ${bucketName}: ${allFiles.length}`)
+        console.log(`First few files:`, allFiles.slice(0, 5).map(f => ({ name: f.name, created_at: f.created_at, size: f.metadata?.size })))
 
         // Filter files based on cleanup type
         const filesToDelete = allFiles.filter(file => {
