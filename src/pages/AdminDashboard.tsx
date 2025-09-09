@@ -364,8 +364,36 @@ const AdminDashboard = () => {
           uniqueUsers.add(usage.user_id);
         }
       } else {
-        // Skip old records with inflated fixed values to avoid wrong calculations
-        console.log(`Skipping old record with fixed tokens: ${usage.model_name} - ${usage.tokens_used} tokens`);
+        // Handle old records with fixed tokens - use fallback calculation for DeepSeek
+        const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
+        
+        if (isDeepSeekModel) {
+          // Use real DeepSeek pricing for old records
+          const inputCost = getCostPerToken(usage.model_name, 'input', 'deepseek');
+          const outputCost = getCostPerToken(usage.model_name, 'output', 'deepseek');
+          const avgCost = (inputCost + outputCost) / 2; // Use average cost
+          
+          // Estimate tokens from character count if available, otherwise use fixed value
+          const estimatedTokens = usage.message_content ? 
+            Math.ceil(usage.message_content.length / 4) : // 4 chars = 1 token
+            usage.tokens_used / 10; // Reduce inflated fixed value
+          
+          const totalCostForTransaction = estimatedTokens * avgCost;
+          const revenue = totalCostForTransaction * 3; // 200% profit margin
+          
+          console.log(`DeepSeek fallback calculation: ${usage.model_name} - ${estimatedTokens} tokens * ${avgCost} = $${totalCostForTransaction}`);
+          
+          totalCost += totalCostForTransaction;
+          totalRevenue += revenue;
+          totalTokens += estimatedTokens;
+          
+          if (usage.user_id) {
+            uniqueUsers.add(usage.user_id);
+          }
+        } else {
+          // Skip other old records with inflated fixed values
+          console.log(`Skipping old record with fixed tokens: ${usage.model_name} - ${usage.tokens_used} tokens`);
+        }
       }
     });
 
