@@ -1,8 +1,22 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import { createWorker } from 'tesseract.js';
+// Lazy load heavy PDF processing libraries
+let pdfjsLib: any = null;
+let tesseractLib: any = null;
 
-// Configurar o worker do PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+const loadPdfjs = async () => {
+  if (!pdfjsLib) {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjsLib = pdfjs;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  }
+  return pdfjsLib;
+};
+
+const loadTesseract = async () => {
+  if (!tesseractLib) {
+    tesseractLib = await import('tesseract.js');
+  }
+  return tesseractLib;
+};
 
 export interface PdfProcessResult {
   success: boolean;
@@ -37,7 +51,8 @@ export class PdfProcessor {
       let pdfDocument;
       try {
         // Tentar carregar o PDF
-        pdfDocument = await pdfjsLib.getDocument({
+        const pdfjs = await loadPdfjs();
+        pdfDocument = await pdfjs.getDocument({
           data: uint8Array,
           password: '', // Primeiro tentar sem senha
         }).promise;
@@ -98,7 +113,8 @@ export class PdfProcessor {
                 }).promise;
 
                 // Usar Tesseract para OCR
-                const worker = await createWorker('por+eng');
+                const tesseract = await loadTesseract();
+                const worker = await tesseract.createWorker('por+eng');
                 const { data: { text } } = await worker.recognize(canvas);
                 await worker.terminate();
 

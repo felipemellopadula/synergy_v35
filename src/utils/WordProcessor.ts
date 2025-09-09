@@ -1,4 +1,12 @@
-import * as mammoth from 'mammoth';
+// Lazy load mammoth library
+let mammothLib: any = null;
+
+const loadMammoth = async () => {
+  if (!mammothLib) {
+    mammothLib = await import('mammoth');
+  }
+  return mammothLib;
+};
 
 export interface WordProcessingResult {
   success: boolean;
@@ -56,16 +64,19 @@ export class WordProcessor {
           
           // Se não conseguiu extrair texto suficiente, tentar mammoth mesmo assim
           if (textContent.length < 50) {
+            const mammoth = await loadMammoth();
             result = await mammoth.extractRawText({ arrayBuffer });
           } else {
             result = { value: textContent, messages: [] };
           }
         } catch (docError) {
           console.warn('Erro ao processar .doc, tentando mammoth:', docError);
+          const mammoth = await loadMammoth();
           result = await mammoth.extractRawText({ arrayBuffer });
         }
       } else {
         // Para arquivos .docx, usar mammoth normalmente
+        const mammoth = await loadMammoth();
         result = await mammoth.extractRawText({ arrayBuffer });
       }
       
