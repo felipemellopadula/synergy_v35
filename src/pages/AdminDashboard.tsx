@@ -221,67 +221,66 @@ const AdminDashboard = () => {
         // Use real data from database (new system)
         inputTokens = usage.input_tokens;
         outputTokens = usage.output_tokens;
+        
+        // Detect provider based on model name
+        const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
+        const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
+        const isGrokModel = usage.model_name.toLowerCase().includes('grok');
+        let provider: 'openai' | 'gemini' | 'claude' | 'grok' = 'openai';
+        
+        if (isGeminiModel) provider = 'gemini';
+        else if (isClaudeModel) provider = 'claude';
+        else if (isGrokModel) provider = 'grok';
+        
+        // Calculate costs using correct pricing per token type
+        const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
+        const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output', provider);
+        const totalCostForTransaction = inputCost + outputCost;
+        
+        // Total tokens used (input + output)
+        const totalTokensForTransaction = inputTokens + outputTokens;
+        
+        // Revenue calculation: cost + 200% profit margin = 3x cost
+        const revenue = totalCostForTransaction * 3;
+
+        // Debug for selected provider
+        if (provider === 'claude') {
+          claudeTransactionCount++;
+          
+          // Show detailed breakdown for first 3 transactions and any expensive ones
+          const showDetails = claudeTransactionCount <= 3 || totalCostForTransaction > 0.01;
+          
+          if (showDetails) {
+            console.log(`\n=== CLAUDE TRANSACTION ${claudeTransactionCount} ===`);
+            console.log(`Model: ${usage.model_name}`);
+            console.log(`Input tokens (real data): ${inputTokens}`);
+            console.log(`Output tokens (real data): ${outputTokens}`);
+            console.log(`Has AI response data: ${usage.ai_response_content ? 'Yes' : 'No'}`);
+            console.log(`Input cost per token: $${getCostPerToken(usage.model_name, 'input', provider).toFixed(10)}`);
+            console.log(`Output cost per token: $${getCostPerToken(usage.model_name, 'output', provider).toFixed(10)}`);
+            console.log(`Input cost total: $${inputCost.toFixed(10)}`);
+            console.log(`Output cost total: $${outputCost.toFixed(10)}`);
+            console.log(`Total transaction cost: $${totalCostForTransaction.toFixed(10)}`);
+            console.log(`Running total so far: $${(totalCost + totalCostForTransaction).toFixed(10)}`);
+            
+            // Show expensive transactions
+            if (totalCostForTransaction > 0.01) {
+              console.log(`⚠️  HIGH COST TRANSACTION DETECTED!`);
+            }
+            console.log(`===================================\n`);
+          }
+        }
+        
+        totalCost += totalCostForTransaction;
+        totalRevenue += revenue;
+        totalTokens += totalTokensForTransaction;
+        
+        if (usage.user_id) {
+          uniqueUsers.add(usage.user_id);
+        }
       } else {
         // Skip old records with inflated fixed values to avoid wrong calculations
         console.log(`Skipping old record with fixed tokens: ${usage.model_name} - ${usage.tokens_used} tokens`);
-        return; // Skip this transaction entirely
-      }
-      
-      // Detect provider based on model name
-      const isGeminiModel = usage.model_name.toLowerCase().includes('gemini');
-      const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
-      const isGrokModel = usage.model_name.toLowerCase().includes('grok');
-      let provider: 'openai' | 'gemini' | 'claude' | 'grok' = 'openai';
-      
-      if (isGeminiModel) provider = 'gemini';
-      else if (isClaudeModel) provider = 'claude';
-      else if (isGrokModel) provider = 'grok';
-      
-      // Calculate costs using correct pricing per token type
-      const inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
-      const outputCost = outputTokens * getCostPerToken(usage.model_name, 'output', provider);
-      const totalCostForTransaction = inputCost + outputCost;
-      
-      // Total tokens used (input + output)
-      const totalTokensForTransaction = inputTokens + outputTokens;
-      
-      // Revenue calculation: cost + 200% profit margin = 3x cost
-      const revenue = totalCostForTransaction * 3;
-
-      // Debug for selected provider
-      if (provider === 'claude') {
-        claudeTransactionCount++;
-        
-        // Show detailed breakdown for first 3 transactions and any expensive ones
-        const showDetails = claudeTransactionCount <= 3 || totalCostForTransaction > 0.01;
-        
-        if (showDetails) {
-          console.log(`\n=== CLAUDE TRANSACTION ${claudeTransactionCount} ===`);
-          console.log(`Model: ${usage.model_name}`);
-          console.log(`Input tokens (real data): ${inputTokens}`);
-          console.log(`Output tokens (real data): ${outputTokens}`);
-          console.log(`Has AI response data: ${usage.ai_response_content ? 'Yes' : 'No'}`);
-          console.log(`Input cost per token: $${getCostPerToken(usage.model_name, 'input', provider).toFixed(10)}`);
-          console.log(`Output cost per token: $${getCostPerToken(usage.model_name, 'output', provider).toFixed(10)}`);
-          console.log(`Input cost total: $${inputCost.toFixed(10)}`);
-          console.log(`Output cost total: $${outputCost.toFixed(10)}`);
-          console.log(`Total transaction cost: $${totalCostForTransaction.toFixed(10)}`);
-          console.log(`Running total so far: $${(totalCost + totalCostForTransaction).toFixed(10)}`);
-          
-          // Show expensive transactions
-          if (totalCostForTransaction > 0.01) {
-            console.log(`⚠️  HIGH COST TRANSACTION DETECTED!`);
-          }
-          console.log(`===================================\n`);
-        }
-      }
-      
-      totalCost += totalCostForTransaction;
-      totalRevenue += revenue;
-      totalTokens += totalTokensForTransaction;
-      
-      if (usage.user_id) {
-        uniqueUsers.add(usage.user_id);
       }
     });
 
