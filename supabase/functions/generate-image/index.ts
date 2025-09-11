@@ -54,6 +54,8 @@ serve(async (req) => {
     
     // Modelos Google (como google:4@1 - Gemini Flash) não suportam width/height
     const isGoogleModel = model.startsWith('google:');
+    // Modelos que suportam dimensões altas
+    const isHighResModel = model === 'bytedance:5@0' || model === 'ideogram:4@1' || model === 'bfl:3@1';
     
     if (!isGoogleModel) {
       // Apenas definir dimensões para modelos que suportam
@@ -63,8 +65,10 @@ serve(async (req) => {
           width = w; height = h;
         }
       } else {
-        if (Number.isFinite(body.width)) width = Math.max(64, Math.min(2048, Number(body.width)));
-        if (Number.isFinite(body.height)) height = Math.max(64, Math.min(2048, Number(body.height)));
+        // Definir limites baseados no modelo
+        const maxDimension = isHighResModel ? 8192 : 2048;
+        if (Number.isFinite(body.width)) width = Math.max(64, Math.min(maxDimension, Number(body.width)));
+        if (Number.isFinite(body.height)) height = Math.max(64, Math.min(maxDimension, Number(body.height)));
       }
     }
 
