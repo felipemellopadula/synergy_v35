@@ -35,15 +35,23 @@ const KONTEXT_QUALITY_SETTINGS = [
 ];
 
 const SEEDREAM_QUALITY_SETTINGS = [
-    { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
-    { id: "21:9", label: "21:9 (Ultra-Wide / Landscape)", width: 1568, height: 672, steps: 15 },
-    { id: "16:9", label: "16:9 (Wide / Landscape)", width: 1392, height: 752, steps: 15 },
-    { id: "4:3", label: "4:3 (Standard / Landscape)", width: 1184, height: 880, steps: 15 },
-    { id: "3:2", label: "3:2 (Classic / Landscape)", width: 1248, height: 832, steps: 15 },
-    { id: "2:3", label: "2:3 (Classic / Portrait)", width: 832, height: 1248, steps: 15 },
-    { id: "3:4", label: "3:4 (Standard / Portrait)", width: 880, height: 1184, steps: 15 },
-    { id: "9:16", label: "9:16 (Tall / Portrait)", width: 752, height: 1392, steps: 15 },
-    { id: "9:21", label: "9:21 (Ultra-Tall / Portrait)", width: 672, height: 1568, steps: 15 },
+    { id: "1:1-1k", label: "1:1 (1K / Square)", width: 1024, height: 1024, steps: 15 },
+    { id: "1:1-2k", label: "1:1 (2K / Square)", width: 2048, height: 2048, steps: 15 },
+    { id: "1:1-4k", label: "1:1 (4K / Square)", width: 4096, height: 4096, steps: 15 },
+    { id: "4:3-2k", label: "4:3 (2K / Landscape)", width: 2304, height: 1728, steps: 15 },
+    { id: "4:3-4k", label: "4:3 (4K / Landscape)", width: 4608, height: 3456, steps: 15 },
+    { id: "16:9-2k", label: "16:9 (2K / Landscape)", width: 2560, height: 1440, steps: 15 },
+    { id: "16:9-4k", label: "16:9 (4K / Landscape)", width: 3840, height: 2160, steps: 15 },
+    { id: "3:2-2k", label: "3:2 (2K / Landscape)", width: 2400, height: 1600, steps: 15 },
+    { id: "3:2-4k", label: "3:2 (4K / Landscape)", width: 4800, height: 3200, steps: 15 },
+    { id: "21:9-2k", label: "21:9 (2K / Landscape)", width: 2560, height: 1097, steps: 15 },
+    { id: "21:9-4k", label: "21:9 (4K / Landscape)", width: 5120, height: 2194, steps: 15 },
+    { id: "3:4-2k", label: "3:4 (2K / Portrait)", width: 1728, height: 2304, steps: 15 },
+    { id: "3:4-4k", label: "3:4 (4K / Portrait)", width: 3456, height: 4608, steps: 15 },
+    { id: "9:16-2k", label: "9:16 (2K / Portrait)", width: 1440, height: 2560, steps: 15 },
+    { id: "9:16-4k", label: "9:16 (4K / Portrait)", width: 2160, height: 3840, steps: 15 },
+    { id: "2:3-2k", label: "2:3 (2K / Portrait)", width: 1600, height: 2400, steps: 15 },
+    { id: "2:3-4k", label: "2:3 (4K / Portrait)", width: 3200, height: 4800, steps: 15 },
 ];
 
 const IDEOGRAM_QUALITY_SETTINGS = [
@@ -99,9 +107,9 @@ const ImagePage = () => {
     const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     
-    // Habilita anexo para GPT, Ideogram e Kontext
+    // Habilita anexo para GPT, Ideogram, Kontext, Gemini-Flash e Seedream
     const canAttachImage = useMemo(() => 
-        model === "openai:1@1" || model === "ideogram:4@1" || model === "bfl:3@1", 
+        model === "openai:1@1" || model === "ideogram:4@1" || model === "bfl:3@1" || model === "google:4@1" || model === "bytedance:5@0", 
         [model]);
     
     // Seleciona as configurações de qualidade baseado no modelo
@@ -109,6 +117,7 @@ const ImagePage = () => {
         if (model === "bfl:3@1") return KONTEXT_QUALITY_SETTINGS;
         if (model === "ideogram:4@1") return IDEOGRAM_QUALITY_SETTINGS;
         if (model === "google:4@1") return GEMINI_QUALITY_SETTINGS;
+        if (model === "bytedance:5@0") return SEEDREAM_QUALITY_SETTINGS;
         return QUALITY_SETTINGS;
     }, [model]);
 
@@ -201,7 +210,7 @@ const ImagePage = () => {
                 height: selectedQualityInfo.height, 
                 numberResults: 1, 
                 outputFormat: "PNG", 
-                ...(inputImageBase64 && (model === "openai:1@1" || model === "ideogram:4@1" || model === "bfl:3@1") ? { inputImage: inputImageBase64 } : {}),
+                ...(inputImageBase64 && (model === "openai:1@1" || model === "ideogram:4@1" || model === "bfl:3@1" || model === "google:4@1" || model === "bytedance:5@0") ? { inputImage: inputImageBase64 } : {}),
             };
             
             const { data: apiData, error: apiError } = await supabase.functions.invoke('generate-image', { body });
@@ -429,7 +438,7 @@ const ImagePage = () => {
                                 </div>
                                 <div className="md:col-span-2">
                                     <Label>
-                                        {model === "bfl:3@1" || model === "ideogram:4@1" ? "Formato" : "Qualidade"}
+                                        {model === "bfl:3@1" || model === "ideogram:4@1" || model === "bytedance:5@0" ? "Formato" : "Qualidade"}
                                     </Label>
                                     <Select value={quality} onValueChange={setQuality}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -461,7 +470,7 @@ const ImagePage = () => {
                                             </Label>
                                           </TooltipTrigger>
                                             <TooltipContent>
-                                              <p>Disponível nos modelos GPT-Image 1, Ideogram 3.0 e FLUX.1 Kontext</p>
+                                              <p>Disponível nos modelos GPT-Image 1, Ideogram 3.0, FLUX.1 Kontext, Gemini Flash e Seedream 4.0</p>
                                             </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
