@@ -56,6 +56,7 @@ const MODELS = [
     { id: "runware:108@1", label: "Qwen-Image" },
     { id: "bfl:3@1", label: "FLUX.1 Kontext [max]" },
     { id: "google:4@1", label: "Gemini Flash Image 2.5" },
+  { id: "bytedance:5@0", label: "Seedream 4.0" }
 ];
 
 const MAX_IMAGES_TO_FETCH = 10;
