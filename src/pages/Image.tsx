@@ -34,6 +34,18 @@ const KONTEXT_QUALITY_SETTINGS = [
     { id: "9:21", label: "9:21 (Ultra-Tall / Portrait)", width: 672, height: 1568, steps: 15 },
 ];
 
+const SEEDREAM_QUALITY_SETTINGS = [
+    { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
+    { id: "21:9", label: "21:9 (Ultra-Wide / Landscape)", width: 1568, height: 672, steps: 15 },
+    { id: "16:9", label: "16:9 (Wide / Landscape)", width: 1392, height: 752, steps: 15 },
+    { id: "4:3", label: "4:3 (Standard / Landscape)", width: 1184, height: 880, steps: 15 },
+    { id: "3:2", label: "3:2 (Classic / Landscape)", width: 1248, height: 832, steps: 15 },
+    { id: "2:3", label: "2:3 (Classic / Portrait)", width: 832, height: 1248, steps: 15 },
+    { id: "3:4", label: "3:4 (Standard / Portrait)", width: 880, height: 1184, steps: 15 },
+    { id: "9:16", label: "9:16 (Tall / Portrait)", width: 752, height: 1392, steps: 15 },
+    { id: "9:21", label: "9:21 (Ultra-Tall / Portrait)", width: 672, height: 1568, steps: 15 },
+];
+
 const IDEOGRAM_QUALITY_SETTINGS = [
     { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
     { id: "21:10", label: "21:10 (Ultra-Wide / Landscape)", width: 1600, height: 762, steps: 15 },
