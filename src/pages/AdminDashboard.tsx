@@ -365,7 +365,9 @@ const AdminDashboard = () => {
           // Debug log for image cost calculation
           console.log(`🖼️ Image model detected: ${usage.model_name}`);
           console.log(`🔍 Matched image key: ${imageModelKey}`);
+          console.log(`🏗️ IMAGE_PRICING[${imageModelKey}]:`, IMAGE_PRICING[imageModelKey]);
           console.log(`💰 Image cost: $${totalCostForTransaction}`);
+          console.log(`🔢 Raw cost value:`, IMAGE_PRICING[imageModelKey]?.cost);
           console.log(`📊 Available IMAGE_PRICING keys:`, Object.keys(IMAGE_PRICING));
         } else {
           inputCost = inputTokens * getCostPerToken(usage.model_name, 'input', provider);
