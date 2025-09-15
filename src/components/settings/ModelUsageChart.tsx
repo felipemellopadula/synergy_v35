@@ -1,16 +1,9 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Lazy load recharts components
-const PieChart = lazy(() => import("recharts").then(m => ({ default: m.PieChart })));
-const Pie = lazy(() => import("recharts").then(m => ({ default: m.Pie })));
-const Cell = lazy(() => import("recharts").then(m => ({ default: m.Cell })));
-const Tooltip = lazy(() => import("recharts").then(m => ({ default: m.Tooltip })));
-const Legend = lazy(() => import("recharts").then(m => ({ default: m.Legend })));
-const ResponsiveContainer = lazy(() => import("recharts").then(m => ({ default: m.ResponsiveContainer })));
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 interface ModelUsageChartProps {
   cycleStart: Date;
@@ -96,47 +89,41 @@ export default function ModelUsageChart({ cycleStart, cycleEnd }: ModelUsageChar
             Sem uso registrado neste ciclo.
           </div>
         ) : (
-          <Suspense fallback={
-            <div className="h-64 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          }>
-            <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie 
-                    data={data} 
-                    dataKey="value" 
-                    nameKey="name" 
-                    innerRadius={30} 
-                    outerRadius={70} 
-                    paddingAngle={2}
-                    fontSize={12}
-                  >
-                    {data.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => [value.toLocaleString(), 'Tokens']}
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '6px',
-                      color: 'hsl(var(--foreground))',
-                      fontSize: '12px'
-                    }}
-                  />
-                  <Legend 
-                    wrapperStyle={{
-                      fontSize: '12px',
-                      color: 'hsl(var(--foreground))'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </Suspense>
+          <div className="h-48 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={data} 
+                  dataKey="value" 
+                  nameKey="name" 
+                  innerRadius={30} 
+                  outerRadius={70} 
+                  paddingAngle={2}
+                  fontSize={12}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  formatter={(value: number) => [value.toLocaleString(), 'Tokens']}
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--background))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px',
+                    color: 'hsl(var(--foreground))',
+                    fontSize: '12px'
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{
+                    fontSize: '12px',
+                    color: 'hsl(var(--foreground))'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>
