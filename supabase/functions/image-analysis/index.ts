@@ -236,10 +236,13 @@ async function analyzeWithGemini(imageBase64: string, prompt: string, analysisTy
 }
 
 async function analyzeWithGrok(imageBase64: string, prompt: string, analysisType: string): Promise<string> {
+  console.log('=== GROK ANALYSIS START ===');
   const GROK_API_KEY = Deno.env.get('GROK_API_KEY');
   if (!GROK_API_KEY) {
+    console.log('ERROR: GROK_API_KEY not found');
     throw new Error('GROK_API_KEY is not configured. Please add it to use Grok for image analysis.');
   }
+  console.log('Grok API key found, length:', GROK_API_KEY.length);
 
   const systemPrompts = {
     general: 'Você é um assistente especializado em análise de imagens. Descreva o que vê de forma clara e objetiva.',
@@ -248,8 +251,12 @@ async function analyzeWithGrok(imageBase64: string, prompt: string, analysisType
     creative: 'Você é um analista criativo de imagens. Explore aspectos artísticos, emocionais e interpretativos da imagem.'
   };
 
-  // Use the primary grok-beta model for vision (supports all Grok versions)
-  console.log('Using grok-beta model for image analysis');
+  // Use grok-3 model which supports vision (grok-beta was deprecated)
+  console.log('Using grok-3 model for image analysis');
+  console.log('Image data length:', imageBase64.length);
+  console.log('Analysis type:', analysisType);
+  console.log('Prompt:', prompt);
+
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -257,7 +264,7 @@ async function analyzeWithGrok(imageBase64: string, prompt: string, analysisType
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'grok-beta',
+      model: 'grok-3',
       messages: [
         { 
           role: 'system', 
@@ -281,14 +288,29 @@ async function analyzeWithGrok(imageBase64: string, prompt: string, analysisType
     }),
   });
 
+  console.log('Grok API response status:', response.status);
+  console.log('Grok API response ok:', response.ok);
+
   if (!response.ok) {
     const errorData = await response.text();
     console.error('Grok API error response:', errorData);
     console.error('Grok API status:', response.status);
-    throw new Error(`Grok API error: ${response.status}`);
+    console.error('Grok API headers:', Object.fromEntries(response.headers.entries()));
+    throw new Error(`Grok API error: ${response.status} - ${errorData}`);
   }
 
-  console.log('Grok vision analysis successful');
+  console.log('Grok vision analysis successful, parsing response...');
   const data = await response.json();
-  return data.choices[0].message.content;
+  console.log('Grok response data structure:', {
+    hasChoices: !!data.choices,
+    choicesLength: data.choices?.length,
+    hasMessage: !!data.choices?.[0]?.message,
+    hasContent: !!data.choices?.[0]?.message?.content
+  });
+  
+  const content = data.choices[0].message.content;
+  console.log('Grok analysis content length:', content?.length || 0);
+  console.log('=== GROK ANALYSIS SUCCESS ===');
+  
+  return content;
 }
