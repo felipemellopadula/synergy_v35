@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,17 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Save, Camera, ArrowLeft, Settings as SettingsIcon, Moon, Sun } from "lucide-react";
-import { ImageManager } from "@/components/ImageManager";
-
-// Lazy load heavy chart components
-const PieChart = lazy(() => import('recharts').then(m => ({ default: m.PieChart })));
-const Pie = lazy(() => import('recharts').then(m => ({ default: m.Pie })));
-const Cell = lazy(() => import('recharts').then(m => ({ default: m.Cell })));
-const ResponsiveContainer = lazy(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })));
-
-// Lazy load heavy components
-const SettingsStats = lazy(() => import("@/components/settings/SettingsStats"));
-const ModelUsageChart = lazy(() => import("@/components/settings/ModelUsageChart"));
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import SettingsStats from "@/components/settings/SettingsStats";
 
 // --- COMPONENTES AUXILIARES ---
 
@@ -61,6 +52,51 @@ const UserProfile = () => {
       </Avatar>
       <span className="text-sm font-medium text-foreground hidden sm:inline">{profile?.name || "Usuário"}</span>
     </div>
+  );
+};
+
+// --- COMPONENTE DE GRÁFICO TOTALMENTE RESPONSIVO ---
+const ModelUsageChart = ({ cycleStart, cycleEnd }: { cycleStart: Date, cycleEnd: Date }) => {
+  const data = [
+      { name: 'synergy-ia', value: 450, color: '#8b5cf6' },
+      { name: 'claude-opus', value: 200, color: '#4b5563' },
+      { name: 'gpt-4.1-mini', value: 120, color: '#6b7280' },
+      { name: 'gemini-2.0-flash', value: 100, color: '#ef4444' },
+      { name: 'grok-beta', value: 80, color: '#ffffff' },
+      { name: 'grok-4-0709', value: 50, color: '#a1a1aa' },
+  ];
+
+  const CustomLegend = ({ payload }: any) => (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm w-full mt-4">
+      {payload.map((entry: any, index: number) => (
+        <div key={`item-${index}`} className="flex items-center gap-2 truncate">
+          <div className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+          <span className="text-muted-foreground truncate" title={entry.value}>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Uso por modelo (ciclo atual)</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center justify-center w-full min-h-[280px]">
+        {/* Container do Gráfico */}
+        <div className="h-40 w-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} innerRadius={50} outerRadius={70} fill="#8884d8" paddingAngle={3} dataKey="value" stroke="none">
+                {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        {/* Container da Legenda */}
+        <CustomLegend payload={data.map(item => ({ value: item.name.replace(/-(\d{4})-(\d{2})-(\d{2})/, ''), color: item.color }))} />
+      </CardContent>
+    </Card>
   );
 };
 
@@ -238,42 +274,15 @@ const SettingsPage = () => {
           
           {/* Coluna de Stats e Gráfico (ocupa 1 de 3 colunas em telas grandes) */}
           <div className="lg:col-span-1 space-y-8">
-            <Suspense fallback={
-              <Card>
-                <CardHeader>
-                  <CardTitle>Estatísticas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="animate-pulse h-24 bg-muted rounded" />
-                </CardContent>
-              </Card>
-            }>
-              <SettingsStats
-                planLabel={planLabel}
-                tokensRemaining={profile.tokens_remaining}
-                cycleStart={cycleStart}
-                cycleEnd={cycleEnd}
-                nextReset={nextReset}
-              />
-            </Suspense>
-            <Suspense fallback={
-              <Card>
-                <CardHeader>
-                  <CardTitle>Uso por modelo</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="animate-pulse h-48 bg-muted rounded" />
-                </CardContent>
-              </Card>
-            }>
-              <ModelUsageChart cycleStart={cycleStart} cycleEnd={cycleEnd} />
-            </Suspense>
+            <SettingsStats
+              planLabel={planLabel}
+              tokensRemaining={profile.tokens_remaining}
+              cycleStart={cycleStart}
+              cycleEnd={cycleEnd}
+              nextReset={nextReset}
+            />
+            <ModelUsageChart cycleStart={cycleStart} cycleEnd={cycleEnd} />
           </div>
-        </section>
-
-        {/* Seção de Gerenciamento de Imagens */}
-        <section className="mt-8">
-          <ImageManager />
         </section>
       </main>
     </div>
