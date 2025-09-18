@@ -45,6 +45,7 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const pasteAreaRef = useRef<HTMLDivElement>(null);
 
   // Handle clipboard paste for images - simplified version
   const handlePaste = async (event: ClipboardEvent) => {
@@ -105,10 +106,10 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
     document.addEventListener('paste', pasteHandler, true);
     window.addEventListener('paste', pasteHandler, true);
     
-    // Focus the container to ensure it can receive events
-    if (chatContainerRef.current) {
-      chatContainerRef.current.focus();
-      console.log('🎯 Chat container focused');
+    // Focus the paste area to ensure it can receive events
+    if (pasteAreaRef.current) {
+      pasteAreaRef.current.focus();
+      console.log('🎯 Paste area focused');
     }
     
     return () => {
@@ -564,6 +565,37 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         </ScrollArea>
 
         <div className="p-4 border-t border-border">
+          {/* Área para colar imagens */}
+          <div 
+            ref={pasteAreaRef}
+            className="mb-3 p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg bg-muted/20 hover:border-primary/50 hover:bg-muted/30 transition-all cursor-pointer"
+            tabIndex={0}
+            onClick={() => pasteAreaRef.current?.focus()}
+            onPaste={(e) => {
+              console.log('🔥 PASTE AREA EVENT!');
+              handlePaste(e.nativeEvent);
+            }}
+            style={{ outline: 'none' }}
+          >
+            <div className="text-center text-sm text-muted-foreground">
+              {hasAttachedFile ? (
+                <div className="flex items-center justify-center gap-2 text-primary">
+                  <Image className="h-4 w-4" />
+                  <span className="font-medium">{fileName}</span>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-2">
+                    <Image className="h-4 w-4" />
+                    <span>Clique aqui e pressione <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+V</kbd></span>
+                  </div>
+                  <div className="text-xs">
+                    ou clique com botão direito e escolha "Colar" para anexar screenshot
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex gap-2">
             <input
               ref={fileInputRef}
@@ -618,8 +650,9 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
               <Send className="h-4 w-4" />
             </Button>
           </div>
-          <div className="text-xs text-muted-foreground mt-2">
-            Suporte para PDF, Word e imagens (JPEG, PNG, GIF, WEBP) • Use Ctrl+V para colar screenshots
+          <div className="text-xs text-muted-foreground mt-2 text-center">
+            Suporte para PDF, Word e imagens (JPEG, PNG, GIF, WEBP) • 
+            <strong> Faça screenshot → clique na área acima → Ctrl+V ou botão direito → Colar</strong>
           </div>
         </div>
       </Card>
