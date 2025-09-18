@@ -46,25 +46,43 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
 
   // Handle clipboard paste for images
   const handlePaste = async (event: ClipboardEvent) => {
+    console.log('=== PASTE EVENT DETECTED ===');
+    console.log('Clipboard data:', event.clipboardData);
+    
     const items = event.clipboardData?.items;
-    if (!items) return;
+    if (!items) {
+      console.log('No clipboard items found');
+      return;
+    }
+
+    console.log('Clipboard items:', Array.from(items).map(item => ({ type: item.type, kind: item.kind })));
 
     for (const item of Array.from(items)) {
+      console.log('Processing item:', { type: item.type, kind: item.kind });
+      
       if (item.type.startsWith('image/')) {
+        console.log('Image detected, processing...');
         event.preventDefault();
+        
         const file = item.getAsFile();
+        console.log('File from clipboard:', file);
+        
         if (file) {
           setIsProcessingFile(true);
           try {
+            const fileName = `screenshot-${Date.now()}.png`;
             setAttachedFiles([file]);
-            setFileName(file.name || `screenshot-${Date.now()}.png`);
-            toast.success(`Imagem colada: ${file.name || 'screenshot'}`);
+            setFileName(fileName);
+            console.log('Image successfully attached:', fileName);
+            toast.success(`Imagem colada: ${fileName}`);
           } catch (error) {
             console.error('Erro ao processar imagem colada:', error);
             toast.error('Erro ao processar imagem colada');
           } finally {
             setIsProcessingFile(false);
           }
+        } else {
+          console.log('Could not get file from clipboard item');
         }
         break;
       }
@@ -73,9 +91,15 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
 
   // Add paste event listener
   useEffect(() => {
+    console.log('Setting up paste listener, isOpen:', isOpen);
+    
     if (isOpen) {
+      console.log('Adding paste event listener');
       document.addEventListener('paste', handlePaste);
-      return () => document.removeEventListener('paste', handlePaste);
+      return () => {
+        console.log('Removing paste event listener');
+        document.removeEventListener('paste', handlePaste);
+      };
     }
   }, [isOpen]);
 
@@ -571,7 +595,7 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
             </Button>
           </div>
           <div className="text-xs text-muted-foreground mt-2">
-            Suporte para PDF, Word e imagens (JPEG, PNG, GIF, WEBP)
+            Suporte para PDF, Word e imagens (JPEG, PNG, GIF, WEBP) • Use Ctrl+V para colar screenshots
           </div>
         </div>
       </Card>
