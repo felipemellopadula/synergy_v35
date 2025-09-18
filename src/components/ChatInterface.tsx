@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,41 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
   const [fileName, setFileName] = useState<string>('');
   const [filePages, setFilePages] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle clipboard paste for images
+  const handlePaste = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          setIsProcessingFile(true);
+          try {
+            setAttachedFiles([file]);
+            setFileName(file.name || `screenshot-${Date.now()}.png`);
+            toast.success(`Imagem colada: ${file.name || 'screenshot'}`);
+          } catch (error) {
+            console.error('Erro ao processar imagem colada:', error);
+            toast.error('Erro ao processar imagem colada');
+          } finally {
+            setIsProcessingFile(false);
+          }
+        }
+        break;
+      }
+    }
+  };
+
+  // Add paste event listener
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('paste', handlePaste);
+      return () => document.removeEventListener('paste', handlePaste);
+    }
+  }, [isOpen]);
 
   // Helper function to convert file to base64
   const convertFileToBase64 = (file: File): Promise<string> => {
