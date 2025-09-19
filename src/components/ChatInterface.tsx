@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ModelSelector } from "./ModelSelector";
-import { Send, Bot, User, Paperclip, Image } from "lucide-react";
+import { Send, Bot, User, Paperclip, Image, Camera } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PdfProcessor } from "@/utils/PdfProcessor";
 import { WordProcessor } from "@/utils/WordProcessor";
@@ -47,48 +47,106 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const pasteAreaRef = useRef<HTMLDivElement>(null);
 
-  // Handle clipboard paste for images - simplified version
+  // Handle clipboard paste for images - enhanced version
   const handlePaste = async (event: ClipboardEvent) => {
     console.log('🖼️ PASTE EVENT TRIGGERED!');
-    console.log('Event target:', event.target);
-    console.log('Active element:', document.activeElement);
     
-    const items = event.clipboardData?.items;
-    if (!items) {
-      console.log('❌ No clipboard items');
-      return;
-    }
-
-    console.log('📋 Found', items.length, 'clipboard items');
+    const items = Array.from(event.clipboardData?.items || []);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
     
-    // Check all items for images
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      console.log(`Item ${i}:`, { type: item.type, kind: item.kind });
+    if (imageItems.length > 0) {
+      console.log('✅ Image found! Processing...');
+      event.preventDefault();
       
-      if (item.type.startsWith('image/')) {
-        console.log('✅ Image found! Processing...');
-        event.preventDefault();
-        
-        const file = item.getAsFile();
-        if (file) {
-          console.log('📁 File created:', { name: file.name, size: file.size, type: file.type });
-          
-          setIsProcessingFile(true);
-          const fileName = `screenshot-${Date.now()}.png`;
-          setAttachedFiles([file]);
-          setFileName(fileName);
-          console.log('🎉 Image attached successfully');
-          toast.success(`📸 Imagem colada: ${fileName}`);
-          setIsProcessingFile(false);
-        } else {
-          console.log('❌ Could not create file from clipboard');
-        }
+      if (attachedFiles.length + imageItems.length > 1) {
+        toast.error('Máximo de 1 imagem por vez.');
         return;
       }
+
+      setIsProcessingFile(true);
+      
+      try {
+        for (const item of imageItems) {
+          const file = item.getAsFile();
+          if (file) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const fileName = `screenshot-${timestamp}.${file.type.split('/')[1]}`;
+            
+            // Create a new File object with the custom name
+            const renamedFile = new File([file], fileName, { type: file.type });
+            
+            setAttachedFiles([renamedFile]);
+            setFileName(fileName);
+            console.log('🎉 Image pasted successfully:', fileName);
+            toast.success(`📸 Imagem colada: ${fileName}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error processing pasted image:', error);
+        toast.error('Erro ao processar imagem colada.');
+      } finally {
+        setIsProcessingFile(false);
+      }
     }
-    
-    console.log('ℹ️ No images found in clipboard');
+  };
+
+  // Capture screenshot function
+  const captureScreenshot = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        toast.error('Screenshot não é suportado neste navegador.');
+        return;
+      }
+
+      setIsProcessingFile(true);
+      
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true
+      });
+
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      video.onloadedmetadata = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+              const fileName = `screenshot-${timestamp}.png`;
+              
+              if (attachedFiles.length >= 1) {
+                toast.error('Máximo de 1 arquivo por vez.');
+                return;
+              }
+              
+              // Create File from blob
+              const file = new File([blob], fileName, { type: 'image/png' });
+              
+              setAttachedFiles([file]);
+              setFileName(fileName);
+              
+              toast.success('📸 Screenshot capturado com sucesso!');
+            }
+          }, 'image/png');
+        }
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        setIsProcessingFile(false);
+      };
+    } catch (error) {
+      console.error('Error capturing screenshot:', error);
+      toast.error('Erro ao capturar screenshot. Verifique as permissões.');
+      setIsProcessingFile(false);
+    }
   };
 
   // Add global paste listener with immediate setup
@@ -610,8 +668,19 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
               onClick={() => fileInputRef.current?.click()}
               disabled={isProcessingFile || isLoading}
               className="shrink-0"
+              title="Anexar arquivo (PDF, Word, Imagem)"
             >
               <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={captureScreenshot}
+              disabled={isProcessingFile || isLoading}
+              className="shrink-0"
+              title="Capturar Screenshot"
+            >
+              <Camera className="h-4 w-4" />
             </Button>
             <Input
               value={inputValue}
