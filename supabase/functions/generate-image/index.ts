@@ -81,7 +81,7 @@ serve(async (req) => {
         // Definir limites baseados no modelo
         let maxDimension = 2048; // Padrão
         if (isSeedreamModel) {
-          maxDimension = 3072; // Seedream suporta até 3072x3072 (3K) - limite mais conservador
+          maxDimension = 6144; // Seedream suporta até 5120x2880 (4K real) - aumentando limite para 6144
           console.log('Seedream detectado - limite máximo ajustado para:', maxDimension);
         } else if (isHighResModel) {
           maxDimension = 8192; // Outros modelos de alta resolução
