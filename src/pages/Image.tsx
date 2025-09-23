@@ -225,8 +225,8 @@ const ImagePage = () => {
             
             if (!apiData?.image) throw new Error("A API não retornou uma imagem.");
             
-            // Salvar imagem no storage e database
-            await saveImageToDatabase(apiData.image, apiData.format || 'png', prompt, selectedQualityInfo);
+            // O Edge Function já salva a imagem no banco, então só carregamos novamente o histórico
+            await loadSavedImages();
             
             toast({ title: 'Imagem gerada e salva!', variant: "default" });
 
@@ -238,7 +238,9 @@ const ImagePage = () => {
         }
     };
 
-    // Salvar imagem no storage e database
+    // Esta função não é mais necessária pois o Edge Function já salva as imagens
+    // Mantendo aqui caso seja necessária para outras funcionalidades futuras
+    /*
     const saveImageToDatabase = useCallback(async (
         imageBase64: string, 
         format: string, 
@@ -291,6 +293,7 @@ const ImagePage = () => {
             console.error("Erro ao salvar imagem:", error);
         }
     }, [user]); // Só depende do user, evita recriação desnecessária
+    */
 
     // Deletar imagem
     const deleteImage = useCallback(async (imageId: string, imagePath: string) => {
