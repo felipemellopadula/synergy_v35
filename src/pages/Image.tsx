@@ -226,7 +226,7 @@ const ImagePage = () => {
             if (!apiData?.image) throw new Error("A API não retornou uma imagem.");
             
             // Salvar imagem no storage e database
-            await saveImageToDatabase(apiData.image, apiData.format || 'png');
+            await saveImageToDatabase(apiData.image, apiData.format || 'png', prompt, selectedQualityInfo);
             
             toast({ title: 'Imagem gerada e salva!', variant: "default" });
 
@@ -239,7 +239,12 @@ const ImagePage = () => {
     };
 
     // Salvar imagem no storage e database
-    const saveImageToDatabase = useCallback(async (imageBase64: string, format: string) => {
+    const saveImageToDatabase = useCallback(async (
+        imageBase64: string, 
+        format: string, 
+        promptText: string, 
+        qualityInfo: { width: number; height: number }
+    ) => {
         if (!user) return;
         try {
             const imageDataURI = `data:image/${format};base64,${imageBase64}`;
@@ -257,10 +262,10 @@ const ImagePage = () => {
                 .from('user_images')
                 .insert({
                     user_id: user.id,
-                    prompt,
+                    prompt: promptText,
                     image_path: storageData.path,
-                    width: selectedQualityInfo.width,
-                    height: selectedQualityInfo.height,
+                    width: qualityInfo.width,
+                    height: qualityInfo.height,
                     format,
                 })
                 .select()
@@ -271,8 +276,11 @@ const ImagePage = () => {
             // Adicionar a nova imagem diretamente ao estado em vez de recarregar tudo
             if (insertedData) {
                 setImages(prev => {
-                    // Verificar se a imagem já existe para evitar duplicatas
-                    const exists = prev.some(img => img.id === insertedData.id);
+                    // Verificar se a imagem já existe (por path ou ID) para evitar duplicatas
+                    const exists = prev.some(img => 
+                        img.id === insertedData.id || 
+                        img.image_path === insertedData.image_path
+                    );
                     if (exists) return prev;
                     
                     // Adicionar no início da lista e limitar a MAX_IMAGES_TO_FETCH
@@ -282,7 +290,7 @@ const ImagePage = () => {
         } catch (error) {
             console.error("Erro ao salvar imagem:", error);
         }
-    }, [user, prompt, selectedQualityInfo]);
+    }, [user]); // Só depende do user, evita recriação desnecessária
 
     // Deletar imagem
     const deleteImage = useCallback(async (imageId: string, imagePath: string) => {
