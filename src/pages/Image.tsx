@@ -177,7 +177,7 @@ const ImagePage = () => {
 
     useEffect(() => {
         loadSavedImages();
-    }, [loadSavedImages]);
+    }, [user]); // Só recarregar quando o usuário mudar, não quando a função for recriada
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
