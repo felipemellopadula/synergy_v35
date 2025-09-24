@@ -117,10 +117,10 @@ serve(async (req) => {
     // Usar WEBP para imagens grandes (>2K) para economizar recursos, PNG para menores
     let outputFormat: string = (typeof body.outputFormat === 'string' && body.outputFormat) || 'WEBP';
     
-    // Para imagens grandes (4K+), forçar WEBP para reduzir tamanho do arquivo
-    if ((width >= 4096 || height >= 4096) && !isGoogleModel) {
+    // Para imagens grandes (2K+), forçar WEBP para reduzir tamanho do arquivo
+    if ((width >= 2048 || height >= 2048) && !isGoogleModel) {
       outputFormat = 'WEBP';
-      console.log('Imagem 4K+ detectada - forçando formato WEBP para reduzir tamanho do arquivo');
+      console.log('Imagem 2K+ detectada - forçando formato WEBP para reduzir tamanho do arquivo');
     }
     
     console.log('Parâmetros:', { numberResults, outputFormat });
@@ -239,8 +239,8 @@ serve(async (req) => {
     const ab = await imgRes.arrayBuffer();
     console.log('ArrayBuffer size:', ab.byteLength, 'bytes');
     
-    // Verificar se a imagem não é muito grande (limite de 10MB para imagens 4K+, 5MB para outras)
-    const maxSize = (width >= 4096 || height >= 4096) ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Verificar se a imagem não é muito grande (limite de 10MB para imagens 2K+, 3MB para outras)
+    const maxSize = (width >= 2048 || height >= 2048) ? 10 * 1024 * 1024 : 3 * 1024 * 1024;
     if (ab.byteLength > maxSize) {
       console.error('Imagem muito grande:', ab.byteLength, 'bytes', `(limite: ${maxSize / 1024 / 1024}MB)`);
       return new Response(
