@@ -87,12 +87,22 @@ serve(async (req) => {
         
         // Mapeamento direto para dimensões suportadas pelo Ideogram v3
         // Baseado no erro da API que lista todas as dimensões válidas
-        if (requestedRatio >= 2.09 && requestedRatio <= 2.11) {
-          // Formato 21:10 (2.1 ratio)
+        if (requestedRatio >= 2.05 && requestedRatio <= 2.15) {
+          // Formato 21:10 (2.1 ratio) - usar 1344x640
           width = 1344;
           height = 640;
           console.log('Formato 21:10 detectado - usando 1344x640');
-        } else if (requestedRatio >= 1.9 && requestedRatio <= 2.1) {
+        } else if (requestedWidth === 1600 && requestedHeight === 762) {
+          // Detecção específica para 1600x762 (que é 21:10 aproximadamente)
+          width = 1344;
+          height = 640;
+          console.log('Dimensões 1600x762 detectadas - convertendo para 1344x640 (21:10)');
+        } else if (requestedRatio >= 2.95 && requestedRatio <= 3.05) {
+          // Formato 3:1
+          width = 1536;
+          height = 512;
+          console.log('Formato 3:1 detectado - usando 1536x512');
+        } else if (requestedRatio >= 1.9 && requestedRatio <= 2.05) {
           // Formato 2:1
           width = 1408;
           height = 704;
