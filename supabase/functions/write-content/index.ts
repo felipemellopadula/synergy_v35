@@ -124,7 +124,7 @@ Texto:`;
         }
       }
     } catch (tokenError) {
-      console.log('⚠️ Warning: Token consumption failed:', tokenError.message);
+      console.log('⚠️ Warning: Token consumption failed:', tokenError instanceof Error ? tokenError.message : 'Erro desconhecido');
       // Continue anyway, don't block content generation
     }
 
@@ -134,8 +134,8 @@ Texto:`;
   } catch (error) {
     console.error('💥 Error in write-content function:', error);
     return new Response(JSON.stringify({ 
-      error: `Erro interno: ${error.message}`,
-      details: error.toString()
+      error: `Erro interno: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+      details: error instanceof Error ? error.toString() : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

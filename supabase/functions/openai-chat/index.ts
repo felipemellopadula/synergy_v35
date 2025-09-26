@@ -75,7 +75,7 @@ serve(async (req) => {
     
     // Log files information
     if (files && files.length > 0) {
-      console.log('Files received:', files.map(f => ({ 
+      console.log('Files received:', files.map((f: any) => ({
         name: f.name, 
         type: f.type, 
         hasPdfContent: !!f.pdfContent,
@@ -86,19 +86,19 @@ serve(async (req) => {
     // Process PDF and DOC files if present
     let finalMessage = message;
     if (files && files.length > 0) {
-      const pdfFiles = files.filter(f => f.type === 'application/pdf' && f.pdfContent);
-      const docFiles = files.filter(f => f.wordContent);
+      const pdfFiles = files.filter((f: any) => f.type === 'application/pdf' && f.pdfContent);
+      const docFiles = files.filter((f: any) => f.wordContent);
       
       const fileContents = [];
       
       if (pdfFiles.length > 0) {
-        fileContents.push(...pdfFiles.map(pdf => 
+        fileContents.push(...pdfFiles.map((pdf: any) => 
           `[Arquivo PDF: ${pdf.name}]\n\n${pdf.pdfContent}`
         ));
       }
       
       if (docFiles.length > 0) {
-        fileContents.push(...docFiles.map(doc => 
+        fileContents.push(...docFiles.map((doc: any) => 
           `[Arquivo Word: ${doc.name}]\n\n${doc.wordContent}`
         ));
       }
@@ -121,7 +121,7 @@ serve(async (req) => {
       if (mainMessageTokens < limits.input * 0.3) {
         // Add limited conversation history
         const recentHistory = conversationHistory.slice(-3); // Only last 3 messages
-        messages = recentHistory.map((historyMsg) => ({
+        messages = recentHistory.map((historyMsg: any) => ({
           role: historyMsg.role,
           content: historyMsg.content
         }));
@@ -135,7 +135,7 @@ serve(async (req) => {
     });
     
     // Calculate total token count for the entire conversation
-    const totalText = messages.map(msg => msg.content).join('\n');
+    const totalText = messages.map((msg: any) => msg.content).join('\n');
     const estimatedTokens = estimateTokenCount(totalText);
     
     console.log('Token estimation:', { 
@@ -282,7 +282,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Erro na função openai-chat:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

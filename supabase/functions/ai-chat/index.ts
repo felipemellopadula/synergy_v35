@@ -31,34 +31,34 @@ const getApiKey = (model: string): string | null => {
   if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
     const key = Deno.env.get('OPENAI_API_KEY');
     console.log('🔑 OpenAI API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   if (model.includes('claude')) {
     const key = Deno.env.get('ANTHROPIC_API_KEY');
     console.log('🔑 Anthropic API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   if (model.includes('gemini')) {
     const key = Deno.env.get('GOOGLE_API_KEY');
     console.log('🔑 Google API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   if (model.includes('grok')) {
     const key = Deno.env.get('XAI_API_KEY');
     console.log('🔑 xAI API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   if (model.includes('deepseek')) {
     const key = Deno.env.get('DEEPSEEK_API_KEY');
     console.log('🔑 Deepseek API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   // APILLM models - updated patterns
   if (model.includes('llama') || model.includes('mixtral') || model.includes('command-r') || 
       model.includes('qwen') || model.includes('gemma') || model.includes('phi-3')) {
     const key = Deno.env.get('APILLM_API_KEY');
     console.log('🔑 APILLM API key:', key ? 'CONFIGURADA' : 'NÃO CONFIGURADA');
-    return key;
+    return key || null;
   }
   
   console.log('❌ Nenhuma chave API encontrada para modelo:', model);
@@ -742,7 +742,7 @@ ${chunks.length > 1 ? `(Esta é apenas uma parte do documento completo)` : ''}`;
       }
     } catch (error) {
       console.error(`Erro no chunk ${i + 1}:`, error);
-      allResponses.push(`**Parte ${i + 1}:** Erro ao processar esta seção: ${error.message}`);
+      allResponses.push(`**Parte ${i + 1}:** Erro ao processar esta seção: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   }
   
@@ -854,9 +854,9 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    handleApiError(error.message);
+    handleApiError(error instanceof Error ? error.message : 'Erro desconhecido');
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

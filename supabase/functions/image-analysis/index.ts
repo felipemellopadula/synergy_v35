@@ -66,10 +66,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('=== IMAGE ANALYSIS ERROR ===');
     console.error('Error in image-analysis function:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    return new Response(JSON.stringify({
-      error: error.message || 'Erro interno do servidor' 
+    console.error('Error message:', error instanceof Error ? error.message : 'Erro desconhecido');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+    return new Response(JSON.stringify({ 
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

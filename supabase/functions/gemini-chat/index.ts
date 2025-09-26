@@ -45,7 +45,7 @@ serve(async (req) => {
       // Add conversation history for context
       console.log('Building conversation context with', conversationHistory.length, 'previous messages');
       
-      conversationHistory.forEach((historyMsg) => {
+      conversationHistory.forEach((historyMsg: any) => {
         // Gemini uses different role names
         const role = historyMsg.role === 'assistant' ? 'model' : 'user';
         contents.push({
@@ -156,7 +156,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Erro na função gemini-chat:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

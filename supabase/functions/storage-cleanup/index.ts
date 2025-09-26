@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       
       try {
         // Method 1: Standard list (root level)
-        let allFiles = []
+        let allFiles: any[] = []
         let page = 0
         const limit = 1000
         
@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
               subPage++
             }
           } catch (subErr) {
-            console.log(`Could not access subdirectory ${dir.name}:`, subErr.message)
+            console.log(`Could not access subdirectory ${dir.name}:`, subErr instanceof Error ? subErr.message : 'Erro desconhecido')
           }
         }
 
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
             
             console.error(`Batch delete failed:`, batchError?.message)
           } catch (batchErr) {
-            console.error(`Batch delete exception:`, batchErr.message)
+            console.error(`Batch delete exception:`, batchErr instanceof Error ? batchErr.message : 'Erro desconhecido')
           }
           
           // Strategy 2: Individual deletion with multiple attempts
@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
                 console.log(`❌ Delete failed (attempt 1) for ${path}:`, singleError.message)
               }
             } catch (err) {
-              console.log(`❌ Delete exception (attempt 1) for ${path}:`, err.message)
+              console.log(`❌ Delete exception (attempt 1) for ${path}:`, err instanceof Error ? err.message : 'Erro desconhecido')
             }
             
             if (!fileDeleted) {
@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
         console.log(`✅ Bucket ${bucketName} completed: ${deleted}/${filesToDelete.length} deleted`)
         
       } catch (bucketError) {
-        const msg = `Error processing bucket ${bucketName}: ${bucketError.message}`
+        const msg = `Error processing bucket ${bucketName}: ${bucketError instanceof Error ? bucketError.message : 'Erro desconhecido'}`
         console.error(msg)
         errors.push(msg)
       }
@@ -371,7 +371,7 @@ Deno.serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

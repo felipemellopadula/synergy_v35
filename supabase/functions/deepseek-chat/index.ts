@@ -247,7 +247,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Erro na função DeepSeek Chat:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
       details: 'Erro interno na função DeepSeek Chat'
     }), {
       status: 500,

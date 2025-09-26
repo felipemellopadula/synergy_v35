@@ -55,7 +55,7 @@ serve(async (req) => {
       // Add conversation history for context
       console.log('Building conversation context with', conversationHistory.length, 'previous messages');
       
-      messages = conversationHistory.map((historyMsg) => ({
+      messages = conversationHistory.map((historyMsg: any) => ({
         role: historyMsg.role,
         content: historyMsg.content
       }));
@@ -68,7 +68,7 @@ serve(async (req) => {
     });
     
     // Calculate total token count for the entire conversation
-    const totalText = messages.map(msg => msg.content).join('\n');
+    const totalText = messages.map((msg: any) => msg.content).join('\n');
     const estimatedTokens = estimateTokenCount(totalText);
     
     console.log('Token estimation:', { 
@@ -209,7 +209,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('Erro na função xai-chat:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
