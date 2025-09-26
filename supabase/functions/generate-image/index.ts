@@ -70,8 +70,10 @@ serve(async (req) => {
     const isHighResModel = model === 'bytedance:5@0' || model === 'ideogram:4@1' || model === 'bfl:3@1';
     // Seedream tem limite específico maior
     const isSeedreamModel = model === 'bytedance:5@0';
+    // Qwen-Image tem limite de pixels: máximo 1048576 pixels (1024x1024)
+    const isQwenModel = model === 'runware:108@1';
     
-    console.log('isGoogleModel:', isGoogleModel, 'isHighResModel:', isHighResModel, 'isSeedream:', isSeedreamModel);
+    console.log('isGoogleModel:', isGoogleModel, 'isHighResModel:', isHighResModel, 'isSeedream:', isSeedreamModel, 'isQwen:', isQwenModel);
     
     if (!isGoogleModel) {
       // Para Ideogram, usar dimensões específicas suportadas pela API
@@ -167,20 +169,57 @@ serve(async (req) => {
           console.log('Dimensões solicitadas - width:', body.width, 'height:', body.height);
           console.log('MaxDimension para o modelo:', maxDimension);
           
-          if (Number.isFinite(body.width)) {
-            const requestedWidth = Number(body.width);
-            if (requestedWidth > maxDimension) {
-              console.warn(`Width ${requestedWidth} excede limite ${maxDimension} para modelo ${model}`);
+          // Qwen-Image tem limite específico de pixels
+          if (isQwenModel) {
+            const requestedWidth = Number(body.width) || 1024;
+            const requestedHeight = Number(body.height) || 1024;
+            const requestedPixels = requestedWidth * requestedHeight;
+            
+            console.log('Qwen-Image detectado - pixels solicitados:', requestedPixels, 'limite:', 1048576);
+            
+            if (requestedPixels > 1048576) {
+              // Manter proporção mas reduzir para o máximo permitido
+              const ratio = requestedWidth / requestedHeight;
+              const maxPixels = 1048576;
+              
+              if (ratio >= 1) {
+                // Landscape ou square
+                width = Math.floor(Math.sqrt(maxPixels * ratio));
+                height = Math.floor(maxPixels / width);
+              } else {
+                // Portrait
+                height = Math.floor(Math.sqrt(maxPixels / ratio));
+                width = Math.floor(maxPixels / height);
+              }
+              
+              // Garantir que não excede o limite
+              if (width * height > maxPixels) {
+                width = 1024;
+                height = 1024;
+              }
+              
+              console.log('Dimensões ajustadas para Qwen-Image:', { width, height, pixels: width * height });
+            } else {
+              width = requestedWidth;
+              height = requestedHeight;
             }
-            width = Math.max(64, Math.min(maxDimension, requestedWidth));
-          }
-          
-          if (Number.isFinite(body.height)) {
-            const requestedHeight = Number(body.height);
-            if (requestedHeight > maxDimension) {
-              console.warn(`Height ${requestedHeight} excede limite ${maxDimension} para modelo ${model}`);
+          } else {
+            // Para outros modelos
+            if (Number.isFinite(body.width)) {
+              const requestedWidth = Number(body.width);
+              if (requestedWidth > maxDimension) {
+                console.warn(`Width ${requestedWidth} excede limite ${maxDimension} para modelo ${model}`);
+              }
+              width = Math.max(64, Math.min(maxDimension, requestedWidth));
             }
-            height = Math.max(64, Math.min(maxDimension, requestedHeight));
+            
+            if (Number.isFinite(body.height)) {
+              const requestedHeight = Number(body.height);
+              if (requestedHeight > maxDimension) {
+                console.warn(`Height ${requestedHeight} excede limite ${maxDimension} para modelo ${model}`);
+              }
+              height = Math.max(64, Math.min(maxDimension, requestedHeight));
+            }
           }
         }
       }
@@ -190,7 +229,13 @@ serve(async (req) => {
 
     const numberResults: number = Math.max(1, Math.min(4, Number(body.numberResults) || 1));
     // Usar WEBP para imagens grandes (>2K) para economizar recursos, PNG para menores
+    // Para Qwen-Image, sempre usar WEBP para reduzir tamanho do arquivo
     let outputFormat: string = (typeof body.outputFormat === 'string' && body.outputFormat) || 'WEBP';
+    
+    if (isQwenModel) {
+      outputFormat = 'WEBP';
+      console.log('Qwen-Image detectado - forçando formato WEBP para reduzir tamanho do arquivo');
+    }
     
     // Para imagens grandes (2K+), forçar WEBP para reduzir tamanho do arquivo
     if ((width >= 2048 || height >= 2048) && !isGoogleModel) {
