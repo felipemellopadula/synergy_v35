@@ -160,11 +160,11 @@ async function analyzeWithClaude(imageBase64: string, prompt: string, analysisTy
   // Map common model names and default to appropriate model
   let visionModel = model || 'claude-3-5-haiku-20241022';
   
-  // Support both naming conventions
+  // Support both naming conventions - CORRECT MODEL NAMES
   if (model === 'claude-sonnet-4-5') {
-    visionModel = 'claude-sonnet-4-5-20250514';
+    visionModel = 'claude-sonnet-4-20250514'; // Modelo correto (SEM o 5 extra)
   } else if (model === 'claude-opus-4-1-20250805') {
-    visionModel = 'claude-opus-4-1-20250805';
+    visionModel = 'claude-opus-4-1-20250805'; // Este já está correto
   } else if (model === 'claude-3-5-haiku-20241022') {
     visionModel = 'claude-3-5-haiku-20241022';
   }
