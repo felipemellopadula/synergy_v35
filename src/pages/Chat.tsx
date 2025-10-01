@@ -1480,8 +1480,24 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                                    internalModel.includes("o4-");
 
             if (isVisionModel && !shouldUseDirect) {
-              const imageFile = imageFiles[0];
+              let imageFile = imageFiles[0];
+              
               try {
+                // Comprimir imagem se for maior que 4MB (margem de segurança para limite de 5MB)
+                const maxSizeInMB = 4;
+                if (imageFile.size > maxSizeInMB * 1024 * 1024) {
+                  console.log(`Compressing image: ${imageFile.size} bytes`);
+                  const imageCompression = (await import('browser-image-compression')).default;
+                  const options = {
+                    maxSizeMB: maxSizeInMB,
+                    maxWidthOrHeight: 2048,
+                    useWebWorker: true,
+                    fileType: 'image/jpeg'
+                  };
+                  imageFile = await imageCompression(imageFile, options);
+                  console.log(`Image compressed to: ${imageFile.size} bytes`);
+                }
+                
                 const base64 = await new Promise<string>((resolve, reject) => {
                   const reader = new FileReader();
                   reader.onload = () => resolve(reader.result as string);
