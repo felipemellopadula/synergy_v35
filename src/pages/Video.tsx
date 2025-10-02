@@ -510,7 +510,6 @@ const VideoPage: React.FC = () => {
         if (!publicData.publicUrl) throw new Error("Falha ao gerar URL pública");
 
         urlSetter(publicData.publicUrl);
-        toast({ title: "Upload concluído", description: `Imagem ${isStart ? "inicial" : "final"} carregada com sucesso.` });
       } catch (e: any) {
         console.error("Upload error:", e);
         toast({
