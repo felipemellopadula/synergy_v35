@@ -667,11 +667,25 @@ const ImagePage = () => {
                         {/* Modal de ampliação da imagem principal */}
                         <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
                             <DialogContent className="max-w-7xl max-h-[90vh] p-2">
-                                <img 
-                                    src={images.length > 0 ? getImageUrl(images[0]) : ''} 
-                                    alt={images.length > 0 ? `Imagem gerada: ${images[0].prompt}` : ''} 
-                                    className="w-full h-auto max-h-[85vh] object-contain rounded-lg" 
-                                />
+                                <div className="relative">
+                                    <img 
+                                        src={images.length > 0 ? getImageUrl(images[0]) : ''} 
+                                        alt={images.length > 0 ? `Imagem gerada: ${images[0].prompt}` : ''} 
+                                        className="w-full h-auto max-h-[85vh] object-contain rounded-lg" 
+                                    />
+                                    {images.length > 0 && (
+                                        <div className="absolute bottom-4 right-4">
+                                            <Button 
+                                                size="lg" 
+                                                onClick={() => downloadImage(images[0])}
+                                                className="bg-primary/90 hover:bg-primary shadow-lg"
+                                            >
+                                                <Download className="h-5 w-5 mr-2" />
+                                                Baixar Imagem
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
                             </DialogContent>
                         </Dialog>
                     </div>
