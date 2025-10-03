@@ -70,6 +70,12 @@ const GEMINI_QUALITY_SETTINGS = [
     { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
 ];
 
+const QWEN_QUALITY_SETTINGS = [
+    { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
+    { id: "16:9", label: "16:9 (Landscape)", width: 1344, height: 768, steps: 15 },
+    { id: "3:2", label: "3:2 (Photo)", width: 1024, height: 640, steps: 15 },
+];
+
 const MODELS = [
     { id: "openai:1@1", label: "Gpt-Image 1" },
     { id: "ideogram:4@1", label: "Ideogram 3.0" },
@@ -118,6 +124,7 @@ const ImagePage = () => {
         if (model === "ideogram:4@1") return IDEOGRAM_QUALITY_SETTINGS;
         if (model === "google:4@1") return GEMINI_QUALITY_SETTINGS;
         if (model === "bytedance:5@0") return SEEDREAM_QUALITY_SETTINGS;
+        if (model === "runware:108@1") return QWEN_QUALITY_SETTINGS;
         return QUALITY_SETTINGS;
     }, [model]);
 
