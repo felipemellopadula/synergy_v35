@@ -43,7 +43,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser = f
 
             if (!inline && match) {
               return (
-                <div className="relative group rounded-lg overflow-hidden border border-border">
+                <div className="relative group rounded-lg overflow-hidden border border-border my-4">
                   <div className="flex items-center justify-between bg-muted px-4 py-2 border-b border-border">
                     <span className="text-xs font-medium text-muted-foreground uppercase">
                       {language}
@@ -101,25 +101,25 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser = f
             return <>{children}</>;
           },
           p({ children }) {
-            return <p className="mb-1 last:mb-0 leading-relaxed">{children}</p>;
+            return <p className="mb-4 last:mb-0 leading-7 text-[15px]">{children}</p>;
           },
           h1({ children }) {
-            return <h1 className="text-xl font-bold mb-1 mt-2 first:mt-0">{children}</h1>;
+            return <h1 className="text-2xl font-bold mb-4 mt-6 first:mt-0 leading-tight">{children}</h1>;
           },
           h2({ children }) {
-            return <h2 className="text-lg font-semibold mb-1 mt-2 first:mt-0">{children}</h2>;
+            return <h2 className="text-xl font-bold mb-3 mt-5 first:mt-0 leading-tight">{children}</h2>;
           },
           h3({ children }) {
-            return <h3 className="text-base font-medium mb-1 mt-1 first:mt-0">{children}</h3>;
+            return <h3 className="text-lg font-semibold mb-3 mt-4 first:mt-0 leading-tight">{children}</h3>;
           },
           ul({ children }) {
-            return <ul className="ml-4 mb-1 list-disc space-y-0">{children}</ul>;
+            return <ul className="ml-6 mb-4 list-disc space-y-2">{children}</ul>;
           },
           ol({ children }) {
-            return <ol className="ml-4 mb-1 mt-1 list-decimal space-y-0">{children}</ol>;
+            return <ol className="ml-6 mb-4 list-decimal space-y-2">{children}</ol>;
           },
           li({ children }) {
-            return <li className="leading-relaxed">{children}</li>;
+            return <li className="leading-7 text-[15px]">{children}</li>;
           },
           blockquote({ children }) {
             return (
