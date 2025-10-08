@@ -2066,7 +2066,11 @@ Forneça uma resposta abrangente que integre informações de todos os documento
 
       const validFiles = files.filter((file) => {
         const isValidType =
-          file.type.startsWith("image/") || isPdfFile(file) || isWordFile(file);
+          file.type.startsWith("image/") || 
+          isPdfFile(file) || 
+          isWordFile(file) || 
+          isPythonFile(file) || 
+          isExcelFile(file);
         return isValidType && file.size <= 50 * 1024 * 1024;
       });
 
@@ -2074,7 +2078,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         toast({
           title: "Nenhum arquivo válido",
           description:
-            "Arraste apenas imagens, PDFs ou documentos Word (.doc/.docx, máx. 50MB cada).",
+            "Arraste apenas imagens, PDFs, documentos Word, arquivos Python (.py) ou Excel (.xlsx/.xls, máx. 50MB cada).",
           variant: "destructive",
         });
         return;
