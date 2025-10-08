@@ -38,6 +38,8 @@ import {
   Share,
   RefreshCw,
   Camera,
+  FileSpreadsheet,
+  FileCode2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -1096,6 +1098,10 @@ const Chat: React.FC = () => {
         fileType.includes("word") ||
         fileName.toLowerCase().endsWith(".docx") ||
         fileName.toLowerCase().endsWith(".doc");
+      const isPython = fileName.toLowerCase().endsWith(".py");
+      const isExcel =
+        fileName.toLowerCase().endsWith(".xlsx") ||
+        fileName.toLowerCase().endsWith(".xls");
 
       return (
         <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border max-w-xs">
@@ -1119,6 +1125,14 @@ const Chat: React.FC = () => {
             ) : isWord ? (
               <div className="w-12 h-12 rounded-md bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border">
                 <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            ) : isExcel ? (
+              <div className="w-12 h-12 rounded-md bg-green-100 dark:bg-green-900/30 flex items-center justify-center border">
+                <FileSpreadsheet className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+            ) : isPython ? (
+              <div className="w-12 h-12 rounded-md bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center border">
+                <FileCode2 className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
             ) : (
               <div className="w-12 h-12 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center border">
