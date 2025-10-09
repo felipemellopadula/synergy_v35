@@ -30,7 +30,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUser = f
   }
 
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
+    <div className="prose prose-base max-w-none dark:prose-invert">
       <ReactMarkdown
         components={{
           code({ node, className, children, ...props }: any) {
