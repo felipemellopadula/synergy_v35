@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -117,6 +118,7 @@ const ImagePage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
+  const [magicPromptEnabled, setMagicPromptEnabled] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [images, setImages] = useState<DatabaseImage[]>([]);
@@ -331,6 +333,31 @@ const ImagePage = () => {
 
     setIsGenerating(true);
     try {
+      // Se Magic Prompt estiver ativado, melhorar o prompt primeiro
+      let finalPrompt = prompt;
+      if (magicPromptEnabled) {
+        try {
+          const { data, error } = await supabase.functions.invoke("enhance-prompt", {
+            body: { prompt: prompt.trim() },
+          });
+          
+          if (error) {
+            console.error("Error enhancing prompt:", error);
+            toast({ 
+              title: "Aviso", 
+              description: "Não foi possível melhorar o prompt, usando o original.",
+              variant: "default" 
+            });
+          } else if (data?.enhancedPrompt) {
+            finalPrompt = data.enhancedPrompt;
+            setPrompt(finalPrompt);
+          }
+        } catch (error) {
+          console.error("Error enhancing prompt:", error);
+          // Continue com o prompt original em caso de erro
+        }
+      }
+
       let inputImageBase64: string | undefined;
       if (selectedFile) {
         const reader = new FileReader();
@@ -346,7 +373,7 @@ const ImagePage = () => {
       if (inputImageBase64 && canAttachImage) {
         const editBody = {
           model,
-          positivePrompt: prompt,
+          positivePrompt: finalPrompt,
           inputImage: inputImageBase64,
           width: selectedQualityInfo.width,
           height: selectedQualityInfo.height,
@@ -373,7 +400,7 @@ const ImagePage = () => {
 
         await supabase.from("user_images").insert({
           user_id: user.id,
-          prompt: prompt,
+          prompt: finalPrompt,
           image_path: storageData.path,
           width: selectedQualityInfo.width,
           height: selectedQualityInfo.height,
@@ -386,7 +413,7 @@ const ImagePage = () => {
         // Geração normal sem edição
         const body: any = {
           model,
-          positivePrompt: prompt,
+          positivePrompt: finalPrompt,
           width: selectedQualityInfo.width,
           height: selectedQualityInfo.height,
           numberResults: 1,
@@ -717,25 +744,19 @@ const ImagePage = () => {
                     onChange={(e) => setPrompt(e.target.value)}
                     rows={3}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleEnhancePrompt}
-                    disabled={isEnhancingPrompt || !prompt.trim()}
-                    className="w-full"
-                  >
-                    {isEnhancingPrompt ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Melhorando prompt...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="mr-2 h-4 w-4" />✨ Magic Prompt
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-primary" />
+                      <Label htmlFor="magic-prompt-toggle" className="cursor-pointer">
+                        ✨ Magic Prompt
+                      </Label>
+                    </div>
+                    <Switch
+                      id="magic-prompt-toggle"
+                      checked={magicPromptEnabled}
+                      onCheckedChange={setMagicPromptEnabled}
+                    />
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <Label>Modelo</Label>
