@@ -19,26 +19,34 @@ serve(async (req) => {
 
     const { prompt, imageUrl } = await req.json();
 
-    if (!prompt || !imageUrl) {
-      throw new Error('Prompt e URL da imagem são obrigatórios');
+    if (!prompt) {
+      throw new Error('Prompt é obrigatório');
     }
 
-    console.log('Editando imagem com Gemini API direta');
+    const isGeneration = !imageUrl;
+    console.log(isGeneration ? 'Gerando imagem com Gemini API' : 'Editando imagem com Gemini API');
 
-    // Prepara o formato de imagem para o Gemini
+    // Prepara o formato de imagem para o Gemini (apenas para edição)
     let inlineData;
-    if (imageUrl.startsWith('data:image')) {
-      // É base64, extrai o mime type e os dados
-      const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!matches) {
-        throw new Error('Formato de base64 inválido');
+    if (imageUrl) {
+      if (imageUrl.startsWith('data:image')) {
+        const matches = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!matches) {
+          throw new Error('Formato de base64 inválido');
+        }
+        inlineData = {
+          mimeType: matches[1],
+          data: matches[2]
+        };
+      } else {
+        throw new Error('Apenas imagens em base64 são suportadas');
       }
-      inlineData = {
-        mimeType: matches[1],
-        data: matches[2]
-      };
-    } else {
-      throw new Error('Apenas imagens em base64 são suportadas');
+    }
+
+    // Monta as parts do conteúdo
+    const parts = [{ text: prompt }];
+    if (inlineData) {
+      parts.push({ inlineData });
     }
 
     const response = await fetch(
@@ -52,10 +60,7 @@ serve(async (req) => {
           contents: [
             {
               role: 'user',
-              parts: [
-                { text: prompt },
-                { inlineData }
-              ]
+              parts: parts
             }
           ],
           generationConfig: {
@@ -74,9 +79,11 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    console.log('Resposta da API Gemini recebida');
+    console.log('Resposta da API Gemini recebida:', JSON.stringify(result));
 
-    // Extrai a resposta de texto
+    // Para geração de imagem, a resposta do Gemini não retorna uma imagem, apenas texto
+    // Isso ocorre porque a API Gemini padrão não suporta geração de imagem
+    // Apenas modelos específicos via outros endpoints suportam isso
     const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!generatedText) {
@@ -85,7 +92,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ 
-        image: editedImageUrl,
+        text: generatedText,
+        warning: isGeneration ? 'A API Gemini padrão não gera imagens, apenas texto' : undefined
       }),
       { 
         headers: { 

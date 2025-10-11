@@ -451,23 +451,36 @@ const ImagePage = () => {
         }
       } else {
         // Geração normal sem edição
-        const body: any = {
-          model,
-          positivePrompt: finalPrompt,
-          width: selectedQualityInfo.width,
-          height: selectedQualityInfo.height,
-          numberResults: 1,
-          outputFormat: "PNG",
-          ...(inputImageBase64 ? { inputImage: inputImageBase64 } : {}),
-        };
+        if (model === "google:4@1") {
+          // Para Gemini Flash sem imagem anexada, tenta usar API Gemini
+          const { data: geminiData, error: geminiError } = await supabase.functions.invoke('edit-image-gemini', {
+            body: { prompt: finalPrompt }
+          });
 
-        const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
-        if (apiError) throw apiError;
+          if (geminiError) throw geminiError;
+          
+          // A API Gemini padrão não gera imagens, apenas texto
+          throw new Error("A API Gemini configurada no Supabase não suporta geração de imagens, apenas análise de texto/imagem. Para gerar imagens, use outro modelo (Runware) ou configure o Lovable AI Gateway.");
+        } else {
+          // Outros modelos usam Runware
+          const body: any = {
+            model,
+            positivePrompt: finalPrompt,
+            width: selectedQualityInfo.width,
+            height: selectedQualityInfo.height,
+            numberResults: 1,
+            outputFormat: "PNG",
+            ...(inputImageBase64 ? { inputImage: inputImageBase64 } : {}),
+          };
 
-        if (!apiData?.image) throw new Error("A API não retornou uma imagem.");
+          const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
+          if (apiError) throw apiError;
 
-        setTimeout(() => loadSavedImages(), 1000);
-        toast({ title: "Imagem gerada e salva!", variant: "default" });
+          if (!apiData?.image) throw new Error("A API não retornou uma imagem.");
+
+          setTimeout(() => loadSavedImages(), 1000);
+          toast({ title: "Imagem gerada e salva!", variant: "default" });
+        }
       }
     } catch (e: any) {
       console.error("Erro no processo:", e);
