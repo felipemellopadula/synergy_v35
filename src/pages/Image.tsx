@@ -887,8 +887,8 @@ const ImagePage = () => {
 
                             {/* Resultado do Upscale */}
                             {upscaledResult && (
-                                <div className="mt-6 space-y-4">
-                                    <div className="flex items-center justify-between">
+                                <div className="mt-6 p-4 rounded-lg border bg-card">
+                                    <div className="flex items-center justify-between mb-2">
                                         <h3 className="text-lg font-semibold">Resultado (2x maior)</h3>
                         <Button
                             onClick={async () => {
@@ -917,11 +917,9 @@ const ImagePage = () => {
                                             <span className="hidden sm:inline">Baixar Imagem Ampliada</span>
                                         </Button>
                                     </div>
-                                    <img 
-                                        src={upscaledResult} 
-                                        alt="Imagem com upscale aplicado" 
-                                        className="w-full rounded-lg shadow-lg border"
-                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                        ✓ Imagem ampliada com sucesso! Clique no botão acima para fazer o download.
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
