@@ -705,8 +705,8 @@ const ImagePage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background" role="main">
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
+    <div className="min-h-screen bg-background overflow-x-hidden" role="main">
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 w-full">
         <div className="container mx-auto px-4 pt-1 pb-3 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Button
