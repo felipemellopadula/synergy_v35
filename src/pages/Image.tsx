@@ -891,26 +891,25 @@ const ImagePage = () => {
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-lg font-semibold">Resultado (2x maior)</h3>
                         <Button
-                            onClick={() => {
-                                // Converter base64 para blob
-                                const byteString = atob(upscaledResult.split(',')[1]);
-                                const mimeString = upscaledResult.split(',')[0].split(':')[1].split(';')[0];
-                                const ab = new ArrayBuffer(byteString.length);
-                                const ia = new Uint8Array(ab);
-                                for (let i = 0; i < byteString.length; i++) {
-                                    ia[i] = byteString.charCodeAt(i);
+                            onClick={async () => {
+                                try {
+                                    // Buscar a imagem da URL
+                                    const response = await fetch(upscaledResult);
+                                    const blob = await response.blob();
+                                    
+                                    // Criar URL do blob e fazer download
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `upscale-2x-${Date.now()}.webp`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                } catch (error) {
+                                    console.error('Erro ao baixar imagem:', error);
+                                    toast({ title: "Erro ao baixar", description: "Não foi possível baixar a imagem.", variant: "destructive" });
                                 }
-                                const blob = new Blob([ab], { type: mimeString });
-                                
-                                // Criar URL do blob e fazer download
-                                const url = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = url;
-                                link.download = `upscale-2x-${Date.now()}.webp`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                URL.revokeObjectURL(url);
                             }}
                             variant="default"
                                         >
