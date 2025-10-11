@@ -77,13 +77,12 @@ serve(async (req) => {
         apiKey: RUNWARE_API_KEY,
       },
       {
-        taskType: "upscaleGan",
+        taskType: "imageUpscale",
         taskUUID: crypto.randomUUID(),
         inputImage: imageBase64,
         upscaleFactor: factor,
-        outputType: "base64",
+        outputType: "base64Data",
         outputFormat: format,
-        includeCost: true,
       }
     ];
 
@@ -106,13 +105,13 @@ serve(async (req) => {
     console.log('Resposta da Runware:', JSON.stringify(result).substring(0, 300));
 
     // Procurar resultado do upscale
-    const upscaleResult = result.data?.find((item: any) => item.taskType === 'upscaleGan');
+    const upscaleResult = result.data?.find((item: any) => item.taskType === 'imageUpscale');
     
     if (!upscaleResult) {
       throw new Error('Nenhuma imagem upscalada foi gerada pela API');
     }
 
-    const upscaledImageBase64 = upscaleResult.imageBase64 || upscaleResult.imageURL;
+    const upscaledImageBase64 = upscaleResult.imageBase64Data || upscaleResult.imageURL;
     
     if (!upscaledImageBase64) {
       throw new Error('API não retornou imagem em formato esperado');
