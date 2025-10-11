@@ -133,6 +133,7 @@
     /* A altura e o overflow agora são controlados pelo componente da página (ex: <div className="h-screen...">) */
     margin: 0;
     padding: 0;
+    overflow-x: hidden;
   }
 
   /* ===== MARKDOWN/PROSE STYLING - Simplified (component controls all) ===== */

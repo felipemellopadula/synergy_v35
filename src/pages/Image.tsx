@@ -730,11 +730,11 @@ const ImagePage = () => {
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-8">
-        <section className="max-w-7xl mx-auto mb-6">
+      <main className="container mx-auto px-4 py-8 overflow-x-hidden">
+        <section className="max-w-7xl mx-auto mb-6 w-full">
           <Card>
             <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end w-full">
                 <div className="md:col-span-7 space-y-2">
                   <Label htmlFor="prompt">Descreva o que você quer ver</Label>
                   <Textarea
@@ -870,7 +870,7 @@ const ImagePage = () => {
         </section>
 
         {/* NOVA SEÇÃO: Upscale de Imagens 2x */}
-        <section className="max-w-7xl mx-auto mb-6">
+        <section className="max-w-7xl mx-auto mb-6 w-full">
           <Card>
             <CardContent className="pt-6 space-y-4">
               <div className="flex items-center gap-2 mb-4">
@@ -1014,7 +1014,7 @@ const ImagePage = () => {
           </Card>
         </section>
 
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-3">
             <Card className="w-full rounded-lg sm:aspect-square flex flex-col items-center justify-center overflow-hidden relative bg-muted">
               {isGenerating ? (
@@ -1248,7 +1248,7 @@ const ImagePage = () => {
 
             {/* Modal de ampliação da imagem principal */}
             <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-              <DialogContent className="max-w-7xl max-h-[90vh] p-2">
+              <DialogContent className="max-w-[95vw] md:max-w-7xl max-h-[90vh] p-2">
                 <div className="relative">
                   <img
                     src={images.length > 0 ? getImageUrl(images[0]) : ""}
@@ -1308,7 +1308,7 @@ const ImagePage = () => {
                               />
                             </div>
                           </DialogTrigger>
-                          <DialogContent className="max-w-7xl max-h-[90vh] p-2">
+                          <DialogContent className="max-w-[95vw] md:max-w-7xl max-h-[90vh] p-2">
                             <div className="relative">
                               <img
                                 src={getImageUrl(img)}
