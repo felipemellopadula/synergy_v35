@@ -445,7 +445,7 @@ serve(async (req) => {
                 modelCost = IMAGE_COSTS['gpt-image-1'] || 0.167;
               } else if (model === 'google:4@1') {
                 modelForTracking = 'gemini-flash-image';
-                modelCost = IMAGE_COSTS['gemini-flash'] || 0.039;
+                modelCost = IMAGE_COSTS['google:4@1'] || 0.039;
               } else if (model === 'runware:108@1') {
                 modelForTracking = 'qwen-image';
                 modelCost = IMAGE_COSTS['qwen-image'] || 0.0058;

@@ -324,9 +324,9 @@ const AdminDashboard = () => {
         const isClaudeModel = usage.model_name.toLowerCase().includes('claude');
         const isGrokModel = usage.model_name.toLowerCase().includes('grok');
         const isDeepSeekModel = usage.model_name.toLowerCase().includes('deepseek');
-        const isImageModel = Object.keys(IMAGE_PRICING).some(key => 
-          usage.model_name.toLowerCase().includes(key.toLowerCase())
-        );
+    const isImageModel = Object.keys(IMAGE_PRICING).some(key => 
+      usage.model_name.toLowerCase().includes(key.toLowerCase())
+    ) || usage.model_name === 'google:4@1'; // Detectar registros antigos do Gemini
         let provider: 'openai' | 'gemini' | 'claude' | 'grok' | 'deepseek' | 'image' = 'openai';
         
         // Debug log for image model detection
@@ -361,15 +361,23 @@ const AdminDashboard = () => {
           // For image models, use fixed cost per image
           const imageModelKey = Object.keys(IMAGE_PRICING).find(key => 
             usage.model_name.toLowerCase().includes(key.toLowerCase())
-          ) || 'gpt-image-1';
-          totalCostForTransaction = IMAGE_PRICING[imageModelKey].cost;
+          );
+          
+          if (imageModelKey) {
+            totalCostForTransaction = IMAGE_PRICING[imageModelKey].cost;
+          } else if (usage.model_name === 'google:4@1') {
+            // Registros antigos do Gemini Flash Image antes do mapeamento
+            totalCostForTransaction = 0.039;
+          } else {
+            // Fallback para modelos desconhecidos
+            totalCostForTransaction = IMAGE_PRICING['gpt-image-1']?.cost || 0.02;
+          }
           
           // Debug log for image cost calculation
           console.log(`🖼️ Image model detected: ${usage.model_name}`);
-          console.log(`🔍 Matched image key: ${imageModelKey}`);
-          console.log(`🏗️ IMAGE_PRICING[${imageModelKey}]:`, IMAGE_PRICING[imageModelKey]);
+          console.log(`🔍 Matched image key: ${imageModelKey || 'google:4@1 (old)'}`);
           console.log(`💰 Image cost: $${totalCostForTransaction}`);
-          console.log(`🔢 Raw cost value:`, IMAGE_PRICING[imageModelKey]?.cost);
+          console.log(`🔢 Raw cost value:`, totalCostForTransaction);
           console.log(`📊 Available IMAGE_PRICING keys:`, Object.keys(IMAGE_PRICING));
           console.log(`🎯 typeof totalCostForTransaction:`, typeof totalCostForTransaction);
           console.log(`🎯 isNaN(totalCostForTransaction):`, isNaN(totalCostForTransaction));
