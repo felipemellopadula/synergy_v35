@@ -451,8 +451,13 @@ const Index = () => {
               </Button>
             </div>
 
+            {/* Separator */}
+            <div className="max-w-4xl mx-auto my-16">
+              <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
+            </div>
+
             {/* Contact Form */}
-            <div className="max-w-xl mx-auto mt-16">
+            <div className="max-w-xl mx-auto">
               <div className="text-center mb-8">
                 <h3 className="text-xl md:text-2xl font-bold mb-2">
                   Entre em Contato
