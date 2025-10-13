@@ -1010,24 +1010,17 @@ const ImagePage = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                        <Dialog>
-                          <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="bg-white/20 hover:bg-white/30 text-white border-white/20"
-                            >
-                              <ZoomIn className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl">
-                            <img
-                              src={getImageUrl(images[0])}
-                              alt={`Imagem gerada: ${images[0].prompt}`}
-                              className="w-full h-auto"
-                            />
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsImageModalOpen(true);
+                          }}
+                          className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                     <div className="absolute bottom-4 left-4 right-4 sm:hidden">
@@ -1065,24 +1058,17 @@ const ImagePage = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                        <Dialog>
-                          <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              className="bg-white/20 hover:bg-white/30 text-white border-white/20"
-                            >
-                              <ZoomIn className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl">
-                            <img
-                              src={getImageUrl(images[0])}
-                              alt={`Imagem gerada: ${images[0].prompt}`}
-                              className="w-full h-auto"
-                            />
-                          </DialogContent>
-                        </Dialog>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsImageModalOpen(true);
+                          }}
+                          className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </Button>
                         <Dialog open={upscaleModalOpen} onOpenChange={setUpscaleModalOpen}>
                           <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button
