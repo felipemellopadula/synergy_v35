@@ -131,7 +131,14 @@ serve(async (req) => {
       }
       
       const imageBuffer = await imageResponse.arrayBuffer();
-      const imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+      const uint8Array = new Uint8Array(imageBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.slice(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      const imageBase64 = btoa(binary);
       
       if (!imageBase64) {
         throw new Error('API não retornou imagem em formato esperado');
@@ -205,7 +212,14 @@ serve(async (req) => {
       }
       
       const imageBuffer = await imageResponse.arrayBuffer();
-      const imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+      const uint8Array = new Uint8Array(imageBuffer);
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.slice(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      const imageBase64 = btoa(binary);
       
       if (!imageBase64) {
         throw new Error('API não retornou imagem em formato esperado');

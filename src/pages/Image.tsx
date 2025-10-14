@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -364,9 +365,19 @@ const ImagePage = () => {
         };
 
         const { data: editData, error: editError } = await supabase.functions.invoke("edit-image", { body: editBody });
-        if (editError) throw editError;
+        if (editError) {
+          toast.error("Erro ao editar imagem", {
+            description: editError.message || "Ocorreu um erro ao processar a imagem"
+          });
+          throw editError;
+        }
 
-        if (!editData?.image) throw new Error("A API não retornou uma imagem.");
+        if (!editData?.image) {
+          toast.error("Erro ao editar imagem", {
+            description: "A API não retornou uma imagem"
+          });
+          throw new Error("A API não retornou uma imagem.");
+        }
 
         // Salvar a imagem editada no banco
         const imageDataURI = editData.image.startsWith("data:")
@@ -394,6 +405,7 @@ const ImagePage = () => {
         // Optimistic update: adiciona imagem diretamente ao estado
         if (insertData) {
           setImages(prev => [insertData, ...prev].slice(0, MAX_IMAGES_TO_FETCH));
+          toast.success("Imagem gerada com sucesso!");
         }
       } else {
         // Geração normal sem edição - todos os modelos usam Runware
@@ -408,15 +420,31 @@ const ImagePage = () => {
           };
 
           const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
-          if (apiError) throw apiError;
+          if (apiError) {
+            toast.error("Erro ao gerar imagem", {
+              description: apiError.message || "Ocorreu um erro ao processar a imagem"
+            });
+            throw apiError;
+          }
 
-          if (!apiData?.image) throw new Error("A API não retornou uma imagem.");
+          if (!apiData?.image) {
+            toast.error("Erro ao gerar imagem", {
+              description: "A API não retornou uma imagem"
+            });
+            throw new Error("A API não retornou uma imagem.");
+          }
 
+          toast.success("Imagem gerada com sucesso!");
           // Edge function já salva no banco, então apenas recarrega após 1s para garantir
           setTimeout(() => loadSavedImages(), 1000);
         }
     } catch (e: any) {
       console.error("Erro no processo:", e);
+      if (!e.message?.includes("não retornou")) {
+        toast.error("Erro ao processar imagem", {
+          description: e.message || "Ocorreu um erro inesperado"
+        });
+      }
     } finally {
       setIsGenerating(false);
     }
