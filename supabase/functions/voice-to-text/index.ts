@@ -71,6 +71,44 @@ serve(async (req) => {
     const result = await response.json()
     console.log('Transcription result:', result.text)
 
+    // Record token usage
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.53.0');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Get user from authorization header
+      const authHeader = req.headers.get('authorization');
+      let userId = null;
+      
+      if (authHeader) {
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user } } = await supabase.auth.getUser(token);
+          userId = user?.id;
+        } catch (e) {
+          console.log('Could not extract user from token:', e);
+        }
+      }
+      
+      if (userId) {
+        await supabase.from('token_usage').insert({
+          user_id: userId,
+          model_name: 'whisper-1',
+          message_content: 'Transcrição de áudio (voz para texto)',
+          ai_response_content: result.text.substring(0, 500),
+          tokens_used: 1, // Whisper charges per minute, we use 1 as placeholder
+          input_tokens: 1,
+          output_tokens: 1,
+        });
+
+        console.log('✅ Token usage recorded');
+      }
+    } catch (error) {
+      console.error('Failed to record token usage:', error);
+    }
+
     return new Response(
       JSON.stringify({ text: result.text }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

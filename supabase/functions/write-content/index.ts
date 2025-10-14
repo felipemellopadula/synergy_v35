@@ -95,36 +95,57 @@ Texto:`;
     }
 
     const generatedText = data.choices[0].message.content;
+    const usage = data.usage || {};
     console.log('✅ Successfully generated text:', generatedText?.substring(0, 100) + '...');
+    console.log('📊 Token usage:', usage);
 
-    // Consume 10,000 tokens from user account
-    console.log('💰 Consuming 10,000 tokens from user account...');
+    // Record actual token usage
+    console.log('💰 Recording token usage in database...');
     try {
       const supabaseUrl = Deno.env.get('SUPABASE_URL');
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       
       if (supabaseUrl && supabaseServiceKey) {
-        const tokenResponse = await fetch(`${supabaseUrl}/functions/v1/consume-tokens`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            modelName: 'gpt-4.1-mini-2025-04-14',
-            message: `Geração de texto: ${format} - ${tone} - ${length}`,
-            tokenCost: 10000
-          }),
-        });
+        // Import supabase client
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.53.0');
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
-        if (tokenResponse.ok) {
-          console.log('✅ Tokens consumed successfully');
-        } else {
-          console.log('⚠️ Warning: Failed to consume tokens, but continuing...');
+        // Get user from authorization header
+        const authHeader = req.headers.get('authorization');
+        let userId = null;
+        
+        if (authHeader) {
+          try {
+            const token = authHeader.replace('Bearer ', '');
+            const { data: { user } } = await supabase.auth.getUser(token);
+            userId = user?.id;
+          } catch (e) {
+            console.log('Could not extract user from token:', e);
+          }
+        }
+        
+        if (userId) {
+          const { error: insertError } = await supabase
+            .from('token_usage')
+            .insert({
+              user_id: userId,
+              model_name: 'gpt-4.1-mini-2025-04-14',
+              message_content: `Geração de texto: ${format} - ${tone} - ${length}`,
+              ai_response_content: generatedText.substring(0, 500),
+              tokens_used: usage.total_tokens || usage.prompt_tokens + usage.completion_tokens || 0,
+              input_tokens: usage.prompt_tokens || 0,
+              output_tokens: usage.completion_tokens || 0,
+            });
+
+          if (insertError) {
+            console.error('Error recording token usage:', insertError);
+          } else {
+            console.log('✅ Token usage recorded successfully');
+          }
         }
       }
     } catch (tokenError) {
-      console.log('⚠️ Warning: Token consumption failed:', tokenError instanceof Error ? tokenError.message : 'Erro desconhecido');
+      console.log('⚠️ Warning: Token recording failed:', tokenError instanceof Error ? tokenError.message : 'Erro desconhecido');
       // Continue anyway, don't block content generation
     }
 

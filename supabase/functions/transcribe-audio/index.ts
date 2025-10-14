@@ -127,8 +127,61 @@ Se não conseguir identificar múltiplos interlocutores claramente, mantenha com
 
     const gptResult = await gptResponse.json()
     const formattedTranscription = gptResult.choices[0].message.content
+    const gptUsage = gptResult.usage || {}
 
     console.log('GPT formatting completed')
+    console.log('📊 GPT Token usage:', gptUsage)
+
+    // Record token usage
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.53.0');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Get user from authorization header
+      const authHeader = req.headers.get('authorization');
+      let userId = null;
+      
+      if (authHeader) {
+        try {
+          const token = authHeader.replace('Bearer ', '');
+          const { data: { user } } = await supabase.auth.getUser(token);
+          userId = user?.id;
+        } catch (e) {
+          console.log('Could not extract user from token:', e);
+        }
+      }
+      
+      if (userId) {
+        // Record Whisper-1 usage (audio transcription)
+        const audioLength = Math.ceil(audio.length / 1024); // KB
+        await supabase.from('token_usage').insert({
+          user_id: userId,
+          model_name: 'whisper-1',
+          message_content: `Transcrição de áudio: ${fileName || 'audio.webm'}`,
+          ai_response_content: rawText.substring(0, 500),
+          tokens_used: 1, // Whisper charges per minute, we use 1 as placeholder
+          input_tokens: 1,
+          output_tokens: 1,
+        });
+
+        // Record GPT-4.1-mini usage (formatting)
+        await supabase.from('token_usage').insert({
+          user_id: userId,
+          model_name: 'gpt-4.1-mini-2025-04-14',
+          message_content: 'Formatação de transcrição',
+          ai_response_content: formattedTranscription.substring(0, 500),
+          tokens_used: gptUsage.total_tokens || gptUsage.prompt_tokens + gptUsage.completion_tokens || 0,
+          input_tokens: gptUsage.prompt_tokens || 0,
+          output_tokens: gptUsage.completion_tokens || 0,
+        });
+
+        console.log('✅ Token usage recorded');
+      }
+    } catch (error) {
+      console.error('Failed to record token usage:', error);
+    }
 
     return new Response(
       JSON.stringify({ transcription: formattedTranscription }),

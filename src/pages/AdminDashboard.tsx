@@ -43,6 +43,7 @@ const OPENAI_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-5-nano": { input: 0.05, output: 0.4 },
   "gpt-4.1": { input: 3.0, output: 12.0 },
   "gpt-4.1-mini": { input: 0.8, output: 3.2 },
+  "gpt-4.1-mini-2025-04-14": { input: 0.8, output: 3.2 },
   "gpt-4.1-nano": { input: 0.2, output: 0.8 },
   "o4-mini": { input: 4.0, output: 16.0 },
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
@@ -50,6 +51,7 @@ const OPENAI_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o": { input: 5.0, output: 15.0 },
   "gpt-4": { input: 30.0, output: 60.0 },
   "gpt-3.5-turbo": { input: 3.0, output: 6.0 },
+  "whisper-1": { input: 0.006, output: 0 }, // $0.006 per minute
 };
 
 // Gemini pricing per token (USD) - Based on official Google pricing (corrected 2025-10-14)

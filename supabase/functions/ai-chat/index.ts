@@ -366,7 +366,10 @@ const callOpenAI = async (message: string, model: string) => {
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    return {
+      content: data.choices[0].message.content,
+      usage: data.usage // { prompt_tokens, completion_tokens, total_tokens }
+    };
   } catch (error) {
     console.error('Erro ao chamar OpenAI:', error);
     throw error;
@@ -792,11 +795,26 @@ serve(async (req) => {
 
   try {
     const { message, model, files }: ChatRequest = await req.json();
+    
+    // Get auth header to extract user_id
+    const authHeader = req.headers.get('authorization');
+    let userId = null;
+    
+    if (authHeader) {
+      try {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user } } = await supabase.auth.getUser(token);
+        userId = user?.id;
+      } catch (e) {
+        console.log('Could not extract user from token:', e);
+      }
+    }
 
     console.log('📨 Requisição recebida:', { 
       message: message.substring(0, 100) + (message.length > 100 ? '...' : ''), 
       model,
-      messageLength: message.length
+      messageLength: message.length,
+      userId
     });
 
     if (!message || !model) {
@@ -822,27 +840,70 @@ serve(async (req) => {
     }
 
     let response: string;
+    let inputTokens = 0;
+    let outputTokens = 0;
 
     // Handle PDF processing
     if (message.length > 50000) { // Likely contains PDF content
       console.log('Detectado conteúdo longo (PDF), usando processamento especial...');
       response = await processLargePdf(message, message.includes('Pergunta:') ? message.split('Pergunta:')[1] : '', model);
+      // Estimate tokens for PDF processing
+      inputTokens = Math.ceil(message.length / 4);
+      outputTokens = Math.ceil(response.length / 4);
     } else {
       // Regular message processing
       if (model.includes('gpt-') || model.includes('o1') || model.includes('o3') || model.includes('o4')) {
-        response = await callOpenAI(message, model);
+        const result = await callOpenAI(message, model);
+        response = result.content;
+        inputTokens = result.usage?.prompt_tokens || Math.ceil(message.length / 4);
+        outputTokens = result.usage?.completion_tokens || Math.ceil(response.length / 4);
       } else if (model.includes('claude')) {
         response = await callAnthropic(message, model);
+        inputTokens = Math.ceil(message.length / 4);
+        outputTokens = Math.ceil(response.length / 4);
       } else if (model.includes('gemini')) {
         response = await callGoogleGemini(message, model);
+        inputTokens = Math.ceil(message.length / 4);
+        outputTokens = Math.ceil(response.length / 4);
       } else if (model.includes('grok')) {
         response = await callXaiGrok(message, model);
+        inputTokens = Math.ceil(message.length / 4);
+        outputTokens = Math.ceil(response.length / 4);
       } else if (model.includes('deepseek')) {
         response = await callDeepseek(message, model);
+        inputTokens = Math.ceil(message.length / 4);
+        outputTokens = Math.ceil(response.length / 4);
       } else if (model.includes('llama') || model.includes('deepseek-r1') || model === 'llama-4-maverick' || model === 'llama-4-scout') {
         response = await callApillm(message, model);
+        inputTokens = Math.ceil(message.length / 4);
+        outputTokens = Math.ceil(response.length / 4);
       } else {
         throw new Error(`Modelo não suportado: ${model}`);
+      }
+    }
+
+    // Record token usage if user is authenticated
+    if (userId) {
+      try {
+        const { error: insertError } = await supabase
+          .from('token_usage')
+          .insert({
+            user_id: userId,
+            model_name: model,
+            message_content: message.substring(0, 500), // Limit message size
+            ai_response_content: response.substring(0, 500), // Limit response size
+            tokens_used: inputTokens + outputTokens,
+            input_tokens: inputTokens,
+            output_tokens: outputTokens,
+          });
+
+        if (insertError) {
+          console.error('Error recording token usage:', insertError);
+        } else {
+          console.log('✅ Token usage recorded:', { inputTokens, outputTokens });
+        }
+      } catch (error) {
+        console.error('Failed to record token usage:', error);
       }
     }
 
