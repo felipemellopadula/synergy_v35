@@ -334,14 +334,18 @@ const AdminDashboard = () => {
     let totalTokens = 0;
     const uniqueUsers = new Set<string>();
     let claudeTransactionCount = 0;
+    let processedCount = 0;
+    let skippedCount = 0;
+    let fallbackCount = 0;
 
     filteredData.forEach((usage) => {
       // Use real token data if available, otherwise skip old records with inflated values
       let inputTokens: number;
       let outputTokens: number;
 
-      if (usage.input_tokens && usage.output_tokens !== null) {
+      if (usage.input_tokens !== null && usage.output_tokens !== null) {
         // Use real data from database (new system)
+        processedCount++;
         inputTokens = usage.input_tokens;
         outputTokens = usage.output_tokens;
 
@@ -482,6 +486,7 @@ const AdminDashboard = () => {
         }
       } else if (usage.tokens_used && usage.tokens_used > 0) {
         // FALLBACK: Para registros antigos sem input_tokens/output_tokens
+        fallbackCount++;
         // Estimar: 70% input, 30% output (proporção comum)
         const totalTokensUsed = usage.tokens_used;
         inputTokens = Math.floor(totalTokensUsed * 0.7);
@@ -532,9 +537,20 @@ const AdminDashboard = () => {
         }
       } else {
         // Registro inválido (sem tokens)
+        skippedCount++;
         console.warn(`⚠️ Registro ignorado - sem dados de tokens (ID: ${usage.id})`);
       }
     });
+
+    console.log('\n========== RESUMO DO PROCESSAMENTO ==========');
+    console.log(`✅ Registros processados (com input/output tokens): ${processedCount}`);
+    console.log(`🔄 Registros com fallback (apenas tokens_used): ${fallbackCount}`);
+    console.log(`❌ Registros ignorados (sem tokens): ${skippedCount}`);
+    console.log(`💰 Custo Total: $${totalCost.toFixed(4)}`);
+    console.log(`💵 Receita Total: $${totalRevenue.toFixed(4)}`);
+    console.log(`📊 Tokens Totais: ${totalTokens.toLocaleString()}`);
+    console.log(`👥 Usuários Únicos: ${uniqueUsers.size}`);
+    console.log('============================================\n');
 
     // Detailed analysis for selected provider
     if (providerFilter === "claude") {
