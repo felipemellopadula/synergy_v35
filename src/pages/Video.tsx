@@ -323,6 +323,8 @@ const VideoPage: React.FC = () => {
   const [isDragOverStart, setIsDragOverStart] = useState(false);
   const [isDragOverEnd, setIsDragOverEnd] = useState(false);
   const [loadingVideos, setLoadingVideos] = useState(true);
+  const [isSaving, setIsSaving] = useState(false); // ✅ Flag para prevenir salvamentos simultâneos
+  const savedVideoUrls = useRef(new Set<string>()); // ✅ Controle de URLs já salvas
 
   // Restrições por modelo (com memo para evitar recalcular)
   const allowedResolutions = useMemo<Resolution[]>(() => RESOLUTIONS_BY_MODEL[modelId] || [], [modelId]);
@@ -358,22 +360,25 @@ const VideoPage: React.FC = () => {
     }
   }, [user]);
 
-  // Salvar vídeo (upload->url pública->metadados) - COM PREVENÇÃO DE DUPLICATAS
+  // Salvar vídeo (upload->url pública->metadados) - SEM verificação de duplicatas aqui
   const saveVideoToDatabase = useCallback(
     async (url: string) => {
       if (!user) return;
       
-      // ✅ PREVENIR DUPLICATAS: verificar se vídeo já foi salvo
-      const isDuplicate = savedVideos.some(v => 
-        v.prompt === prompt && 
-        v.model === modelId && 
-        Math.abs(new Date(v.created_at).getTime() - Date.now()) < 60000 // 1 minuto
-      );
-      
-      if (isDuplicate) {
-        console.log("[Video] Vídeo já salvo, ignorando duplicata");
+      // ✅ Prevenir múltiplos salvamentos simultâneos
+      if (isSaving) {
+        console.log("[Video] Salvamento já em andamento, ignorando");
         return;
       }
+      
+      // ✅ Verificar se URL já foi salva
+      if (savedVideoUrls.current.has(url)) {
+        console.log("[Video] URL já foi salva anteriormente, ignorando");
+        return;
+      }
+      
+      setIsSaving(true);
+      savedVideoUrls.current.add(url);
       
       try {
         const videoResponse = await fetch(url);
@@ -406,9 +411,12 @@ const VideoPage: React.FC = () => {
         loadSavedVideos();
       } catch (error) {
         console.error("Erro ao salvar vídeo:", error);
+        savedVideoUrls.current.delete(url); // Remove da lista se falhou
+      } finally {
+        setIsSaving(false);
       }
     },
-    [user, savedVideos, prompt, modelId, resolution, duration, res.id, frameStartUrl, frameEndUrl, outputFormat, loadSavedVideos]
+    [user, isSaving, prompt, modelId, resolution, duration, res.id, frameStartUrl, frameEndUrl, outputFormat, loadSavedVideos]
   );
 
   // Deletar vídeo (optimistic + remoção real)
@@ -455,9 +463,12 @@ const VideoPage: React.FC = () => {
     loadSavedVideos();
   }, [user, loadSavedVideos]);
 
+  // ✅ Efeito melhorado: só salva se URL for nova e não estiver salvando
   useEffect(() => {
-    if (videoUrl) saveVideoToDatabase(videoUrl);
-  }, [videoUrl, saveVideoToDatabase]);
+    if (videoUrl && !isSaving && !savedVideoUrls.current.has(videoUrl)) {
+      saveVideoToDatabase(videoUrl);
+    }
+  }, [videoUrl, isSaving, saveVideoToDatabase]);
 
   useEffect(() => {
     document.title = "Gerar Vídeo com IA | Synergy AI";
@@ -676,9 +687,25 @@ const VideoPage: React.FC = () => {
   );
 
   const startGeneration = useCallback(async () => {
+    // ✅ VERIFICAÇÃO DE DUPLICATAS antes de gerar
+    const isDuplicate = savedVideos.some(v => 
+      v.prompt === prompt && 
+      v.model === modelId && 
+      Math.abs(new Date(v.created_at).getTime() - Date.now()) < 60000 // Gerado há menos de 1 minuto
+    );
+    
+    if (isDuplicate) {
+      toast({
+        title: "Vídeo já existe",
+        description: "Você já gerou um vídeo idêntico recentemente. Confira seu histórico abaixo.",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     setVideoUrl(null);
     setTaskUUID(null);
+    savedVideoUrls.current.clear(); // ✅ Limpar controle de URLs ao iniciar nova geração
 
     const normalizedFormat = outputFormat === "mov" ? "mp4" : outputFormat;
 
@@ -735,15 +762,16 @@ const VideoPage: React.FC = () => {
       setIsSubmitting(false);
     }
   }, [
+    savedVideos,
+    prompt,
+    modelId,
+    toast,
     beginPolling,
     cameraFixed,
-    modelId,
     outputFormat,
-    prompt,
     res.h,
     res.w,
     supportsLastFrame,
-    toast,
     duration,
     frameEndUrl,
     frameStartUrl,
