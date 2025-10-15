@@ -115,6 +115,9 @@ serve(async (req) => {
         return { r, j };
       };
 
+      // Fazer a requisição inicial
+      let { r: res, j: json } = await makeRequest(resolvedModel);
+
       console.log("[runware-video] start -> response:", res.status, json);
 
       // Retry fallback automático para modelos que falham
