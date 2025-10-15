@@ -96,6 +96,7 @@ export type Database = {
           current_subscription_id: string | null
           email: string
           id: string
+          is_legacy_user: boolean
           name: string
           phone: string | null
           stripe_customer_id: string | null
@@ -111,6 +112,7 @@ export type Database = {
           current_subscription_id?: string | null
           email: string
           id: string
+          is_legacy_user?: boolean
           name: string
           phone?: string | null
           stripe_customer_id?: string | null
@@ -126,6 +128,7 @@ export type Database = {
           current_subscription_id?: string | null
           email?: string
           id?: string
+          is_legacy_user?: boolean
           name?: string
           phone?: string | null
           stripe_customer_id?: string | null
