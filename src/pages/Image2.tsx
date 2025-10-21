@@ -501,21 +501,14 @@ const Image2Page = () => {
                 </Card>
               ))}
 
-              {/* Cards vazios (placeholders) */}
-              {images.length < MAX_IMAGES_TO_FETCH &&
-                Array.from({ length: MAX_IMAGES_TO_FETCH - images.length }).map((_, i) => (
-                  <Card
-                    key={`empty-${i}`}
-                    className="aspect-square border-dashed border-2 border-muted-foreground/20 bg-muted/10 flex items-center justify-center"
-                  >
-                    <div className="text-center text-muted-foreground">
-                      <p className="text-sm">Slot vazio</p>
-                      <p className="text-xs mt-1">
-                        {images.length}/{MAX_IMAGES_TO_FETCH}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
+            {/* Cards vazios (placeholders) */}
+            {images.length < MAX_IMAGES_TO_FETCH &&
+              Array.from({ length: MAX_IMAGES_TO_FETCH - images.length }).map((_, i) => (
+                <Card
+                  key={`empty-${i}`}
+                  className="aspect-square border-dashed border-2 border-muted-foreground/20 bg-muted/10"
+                />
+              ))}
             </div>
           )}
         </div>
