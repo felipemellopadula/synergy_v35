@@ -76,7 +76,7 @@ const Dashboard = () => {
       description: "Criação de imagens",
       color: "bg-green-500",
       available: true,
-      onClick: () => navigate("/image"),
+      onClick: () => navigate("/image2"),
     },
     {
       id: "translator",
