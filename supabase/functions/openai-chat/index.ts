@@ -32,7 +32,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = 'gpt-5-2025-08-07', files, conversationHistory = [], contextEnabled = false } = await req.json();
+    const { message, model = 'gpt-5-2025-08-07', files, conversationHistory = [], contextEnabled = false, isComparison = false, comparisonContext = '' } = await req.json();
     
     // Get user info from JWT
     const authHeader = req.headers.get('authorization');
@@ -166,6 +166,14 @@ serve(async (req) => {
       });
     }
     
+    // Adicionar contexto de comparação se aplicável
+    if (isComparison && comparisonContext) {
+      messages.unshift({
+        role: 'system',
+        content: comparisonContext
+      });
+    }
+    
     // Calculate total token count for the entire conversation
     const totalText = messages.map((msg: any) => msg.content).join('\n');
     const estimatedTokens = estimateTokenCount(totalText);
@@ -183,7 +191,10 @@ serve(async (req) => {
     let responsePrefix = '';
 
     // If message is too large, split into chunks and summarize
-    if (estimatedTokens > limits.input * 0.6) { // Tier 2: use 60% of limit (increased from 40%)
+    // Comparações podem usar 20% mais do limite
+    const comparisonMultiplier = isComparison ? 1.2 : 1.0;
+    
+    if (estimatedTokens > limits.input * 0.6 * comparisonMultiplier) { // Tier 2: use 60% of limit (increased from 40%)
       console.log('Message too large, processing in chunks...');
       
       // Tier 2: Much larger chunks for all models

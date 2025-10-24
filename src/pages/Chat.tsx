@@ -1159,24 +1159,92 @@ const Chat: React.FC = () => {
   // Envio de mensagem
   // =====================
   const generateComparativePrompt = useCallback(
-    (userMessage: string, documents: Map<string, any>) => {
+    (userMessage: string, documents: Map<string, any>, modelName: string) => {
       if (documents.size <= 1) return userMessage;
+      
+      // Detectar se é modelo OpenAI com Tier 2
+      const isOpenAITier2 = modelName.includes('gpt-5') || 
+                            modelName.includes('gpt-4.1') || 
+                            modelName.includes('o3') || 
+                            modelName.includes('o4');
+      
+      // Limites por modelo: Tier 2 OpenAI = 25.000 chars, Outros = 2.000 chars
+      const maxCharsPerDoc = isOpenAITier2 ? 25000 : 2000;
+      const useDetailedPrompt = isOpenAITier2;
+      
       const documentList = Array.from(documents.entries())
         .map(([fileName, doc], index) => {
-          return `DOCUMENTO ${
-            index + 1
-          }: ${fileName} (${doc.type.toUpperCase()}${
-            doc.pages ? `, ${doc.pages} páginas` : ""
-          })
-Conteúdo: ${doc.content.substring(0, 2000)}${
-            doc.content.length > 2000 ? "..." : ""
-          }`;
+          const contentPreview = doc.content.substring(0, maxCharsPerDoc);
+          const isTruncated = doc.content.length > maxCharsPerDoc;
+          
+          return `═══ DOCUMENTO ${index + 1} ═══
+Nome: ${fileName}
+Tipo: ${doc.type.toUpperCase()}
+${doc.pages ? `Páginas: ${doc.pages}` : ''}
+Tamanho: ${doc.content.length} caracteres${isTruncated ? ` (mostrando primeiros ${maxCharsPerDoc})` : ''}
+
+CONTEÚDO:
+${contentPreview}${isTruncated ? '\n\n[... conteúdo truncado ...]' : ''}`;
         })
-        .join("\n\n");
+        .join("\n\n" + "─".repeat(80) + "\n\n");
 
-      return `ANÁLISE COMPARATIVA DE MÚLTIPLOS DOCUMENTOS
+      if (useDetailedPrompt) {
+        // Prompt detalhado para modelos Tier 2 OpenAI
+        return `# ANÁLISE COMPARATIVA PROFUNDA DE DOCUMENTOS
 
-Você recebeu ${documents.size} documentos para análise. Realize uma análise comparativa inteligente considerando:
+Você recebeu ${documents.size} documentos para uma análise comparativa detalhada e abrangente.
+
+## INSTRUÇÕES DE ANÁLISE
+
+Como um assistente especializado em análise documental, você deve:
+
+### 1. COMPREENSÃO INDIVIDUAL (por documento)
+- Identifique o propósito e contexto de cada documento
+- Reconheça o tipo, formato e estrutura
+- Extraia os pontos-chave, dados relevantes e informações críticas
+- Identifique o tom, estilo e público-alvo
+
+### 2. MAPEAMENTO COMPARATIVO
+- **Convergências**: Identifique onde os documentos concordam ou se complementam
+- **Divergências**: Destaque diferenças, contradições ou abordagens distintas
+- **Lacunas**: Identifique o que cada documento cobre que os outros não cobrem
+- **Sobreposições**: Reconheça redundâncias ou repetições entre documentos
+
+### 3. ANÁLISE CONTEXTUAL
+- Compare dados quantitativos (números, estatísticas, métricas)
+- Compare aspectos qualitativos (opiniões, argumentos, narrativas)
+- Analise evolução temporal (se aplicável)
+- Identifique padrões e tendências
+
+### 4. SÍNTESE INTEGRADA
+- Combine insights de todos os documentos
+- Crie uma visão unificada quando possível
+- Destaque insights únicos que emergem da comparação
+- Forneça conclusões baseadas em evidências
+
+### 5. RESPOSTA ESTRUTURADA
+Organize sua resposta de forma clara:
+- Use títulos e subtítulos
+- Cite documentos específicos quando relevante
+- Use tabelas comparativas quando apropriado
+- Forneça exemplos concretos
+
+## DOCUMENTOS FORNECIDOS
+
+${documentList}
+
+## SOLICITAÇÃO DO USUÁRIO
+
+${userMessage}
+
+---
+
+**Forneça uma análise completa, detalhada e bem estruturada que responda à solicitação do usuário integrando todos os documentos de forma inteligente.**`;
+      } else {
+        // Prompt simplificado para outros modelos (Claude, Gemini, Grok, DeepSeek, APILLM)
+        return `ANÁLISE COMPARATIVA DE MÚLTIPLOS DOCUMENTOS
+
+Você recebeu ${documents.size} documentos para análise. Realize uma análise comparativa considerando:
 
 1. IDENTIFICAÇÃO E CONTEXTO de cada documento
 2. PONTOS DE CONVERGÊNCIA entre os documentos
@@ -1190,7 +1258,8 @@ ${documentList}
 PERGUNTA/SOLICITAÇÃO DO USUÁRIO:
 ${userMessage}
 
-Forneça uma resposta abrangente que integre informações de todos os documentos, destacando semelhanças, diferenças e insights únicos que emergem da análise conjunta.`;
+Forneça uma resposta abrangente que integre informações de todos os documentos.`;
+      }
     },
     []
   );
@@ -1460,7 +1529,8 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         if (processedDocuments.size > 1 && comparativeAnalysisEnabled) {
           messageWithFiles = generateComparativePrompt(
             currentInput,
-            processedDocuments
+            processedDocuments,
+            originalModel
           );
         } else if (currentFiles.length > 0) {
           const pdfFiles = currentFiles.filter(isPdfFile);
@@ -1795,6 +1865,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
       currentConversationId,
       user,
       generateComparativePrompt,
+      selectedModel,
       isNearBottom,
       toast,
       upsertConversation,
@@ -2295,8 +2366,14 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               message: messageToSend,
               model: internalModel,
               files: filesToSend,
-              conversationHistory: [],
-              contextEnabled: false,
+              conversationHistory: messages.slice(-10).map(m => ({
+                role: m.sender === 'user' ? 'user' : 'assistant',
+                content: m.content,
+                files: m.files || []
+              })),
+              contextEnabled: true,
+              isComparison: true,
+              comparisonContext: `Este é um pedido de comparação com o modelo ${modelToCompare}. A mesma pergunta foi feita anteriormente a outro modelo. Forneça uma resposta completa e detalhada, focando em análise profunda e insights únicos que você pode oferecer.`
             },
           });
 
