@@ -77,66 +77,66 @@ const estimateTokens = (text: string): number => {
 const getModelLimits = (model: string) => {
   // Token limits per minute for different models
   
-  // GPT-5 series (future models - high limits)
+  // GPT-5 series - Tier 2 limits (much higher capacity)
   if (model.includes('gpt-5')) {
     if (model.includes('nano')) {
       return {
-        maxTokensPerChunk: 8000,
-        maxTokens: 4096,
-        delayMs: 500,
+        maxTokensPerChunk: 20000,      // Tier 2: doubled from 8K
+        maxTokens: 8192,               // Tier 2: doubled from 4K
+        delayMs: 200,                  // Tier 2: faster (was 500ms)
         useMaxCompletionTokens: true
       };
     }
     if (model.includes('mini')) {
       return {
-        maxTokensPerChunk: 12000,
-        maxTokens: 8192,
-        delayMs: 1000,
+        maxTokensPerChunk: 30000,      // Tier 2: increased from 12K
+        maxTokens: 16384,              // Tier 2: doubled from 8K
+        delayMs: 500,                  // Tier 2: faster (was 1000ms)
         useMaxCompletionTokens: true
       };
     }
-    // GPT-5 regular
+    // GPT-5 regular - Tier 2
     return {
-      maxTokensPerChunk: 15000,
-      maxTokens: 16384,
-      delayMs: 1000,
+      maxTokensPerChunk: 50000,        // Tier 2: increased from 15K
+      maxTokens: 32768,                // Tier 2: doubled from 16K
+      delayMs: 800,                    // Tier 2: faster (was 1000ms)
       useMaxCompletionTokens: true
     };
   }
   
-  // GPT-4.1 series (future models)
+  // GPT-4.1 series - Tier 2 limits
   if (model.includes('gpt-4.1')) {
     if (model.includes('nano')) {
       return {
-        maxTokensPerChunk: 6000,
-        maxTokens: 4096,
-        delayMs: 500,
+        maxTokensPerChunk: 15000,      // Tier 2: increased from 6K
+        maxTokens: 8192,               // Tier 2: doubled from 4K
+        delayMs: 200,                  // Tier 2: faster
         useMaxCompletionTokens: true
       };
     }
     if (model.includes('mini')) {
       return {
-        maxTokensPerChunk: 10000,
-        maxTokens: 8192,
-        delayMs: 1000,
+        maxTokensPerChunk: 25000,      // Tier 2: increased from 10K
+        maxTokens: 16384,              // Tier 2: doubled from 8K
+        delayMs: 500,                  // Tier 2: faster
         useMaxCompletionTokens: true
       };
     }
-    // GPT-4.1 regular
+    // GPT-4.1 regular - Tier 2
     return {
-      maxTokensPerChunk: 12000,
-      maxTokens: 8192,
-      delayMs: 1000,
+      maxTokensPerChunk: 40000,        // Tier 2: increased from 12K
+      maxTokens: 32768,                // Tier 2: quadrupled from 8K
+      delayMs: 800,                    // Tier 2: faster
       useMaxCompletionTokens: true
     };
   }
   
-  // O3/O4 reasoning models
+  // O3/O4 reasoning models - Tier 2 limits
   if (model.includes('o3') || model.includes('o4')) {
     return {
-      maxTokensPerChunk: 10000,
-      maxTokens: 8192,
-      delayMs: 2000,
+      maxTokensPerChunk: 50000,        // Tier 2: massive increase from 10K
+      maxTokens: 32768,                // Tier 2: quadrupled from 8K
+      delayMs: 1000,                   // Tier 2: faster (was 2000ms)
       useMaxCompletionTokens: true
     };
   }

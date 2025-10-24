@@ -61,14 +61,14 @@ serve(async (req) => {
     // Check if it's a newer model that uses max_completion_tokens
     const isNewerModel = model.includes('gpt-5') || model.includes('gpt-4.1') || model.includes('o3') || model.includes('o4');
     
-    // Define token limits for different models
+    // Define token limits for different models - Tier 2 limits
     const getModelLimits = (modelName: string) => {
-      if (modelName.includes('gpt-5-nano')) return { input: 25000, output: 2048 };
-      if (modelName.includes('gpt-5-mini')) return { input: 50000, output: 4096 };
-      if (modelName.includes('gpt-5')) return { input: 120000, output: 8192 };
-      if (modelName.includes('o4-mini')) return { input: 25000, output: 2048 };
-      if (modelName.includes('o3') || modelName.includes('o4')) return { input: 120000, output: 8192 };
-      return { input: 30000, output: 4096 }; // Default for older models
+      if (modelName.includes('gpt-5-nano')) return { input: 50000, output: 8192 };    // Tier 2: doubled
+      if (modelName.includes('gpt-5-mini')) return { input: 100000, output: 16384 };  // Tier 2: doubled
+      if (modelName.includes('gpt-5')) return { input: 200000, output: 32768 };       // Tier 2: increased
+      if (modelName.includes('o4-mini')) return { input: 50000, output: 8192 };       // Tier 2: doubled
+      if (modelName.includes('o3') || modelName.includes('o4')) return { input: 200000, output: 32768 }; // Tier 2: increased
+      return { input: 100000, output: 16384 }; // Tier 2 default
     };
 
     const limits = getModelLimits(model);
@@ -183,15 +183,15 @@ serve(async (req) => {
     let responsePrefix = '';
 
     // If message is too large, split into chunks and summarize
-    if (estimatedTokens > limits.input * 0.4) { // Use 40% of limit to avoid TPM limits
+    if (estimatedTokens > limits.input * 0.6) { // Tier 2: use 60% of limit (increased from 40%)
       console.log('Message too large, processing in chunks...');
       
-      // For GPT-5 models, use smaller chunks due to TPM limits
+      // Tier 2: Much larger chunks for all models
       let maxChunkTokens;
       if (model.includes('gpt-5')) {
-        maxChunkTokens = Math.min(15000, Math.floor(limits.input * 0.3)); // Much smaller chunks for GPT-5
+        maxChunkTokens = Math.min(50000, Math.floor(limits.input * 0.5)); // Tier 2: 50K chunks (was 15K)
       } else {
-        maxChunkTokens = Math.floor(limits.input * 0.6);
+        maxChunkTokens = Math.floor(limits.input * 0.7); // Tier 2: 70% of limit
       }
       
       const chunks = splitIntoChunks(finalMessage, maxChunkTokens);
