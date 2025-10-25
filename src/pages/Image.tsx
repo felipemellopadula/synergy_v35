@@ -27,6 +27,9 @@ import UserProfile from "@/components/UserProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { apiCache } from "@/utils/apiCache";
+import { useDebounce } from "@/hooks/useDebounce";
+import imageCompression from "browser-image-compression";
 
 const QUALITY_SETTINGS = [
   { id: "standard", label: "Padrão (1024x1024)", width: 1024, height: 1024, steps: 15 },
@@ -138,6 +141,9 @@ const ImagePage = () => {
   // Ref para prevenir carregamentos simultâneos
   const isLoadingRef = useRef(false);
 
+  // ✅ OTIMIZAÇÃO: Debounce do prompt para Magic Prompt
+  const debouncedPrompt = useDebounce(prompt, 1500);
+
   // Habilita anexo para GPT, Ideogram, Kontext, Gemini-Flash e Seedream
   const canAttachImage = useMemo(
     () =>
@@ -195,6 +201,46 @@ const ImagePage = () => {
     () => availableQualitySettings.find((q) => q.id === quality)!,
     [quality, availableQualitySettings],
   );
+
+  // ✅ OTIMIZAÇÃO: Magic Prompt automático com debounce e cache
+  useEffect(() => {
+    // Somente se Magic Prompt estiver ativo E prompt tiver mais de 15 chars
+    if (magicPromptEnabled && debouncedPrompt.trim().length > 15 && !isGenerating) {
+      const enhancePrompt = async () => {
+        const cacheKey = `magic-prompt:${debouncedPrompt.trim().slice(0, 50)}`;
+        const cachedPrompt = apiCache.get<string>(cacheKey);
+        
+        if (cachedPrompt) {
+          console.log('[Cache HIT] Magic Prompt cacheado');
+          if (cachedPrompt !== prompt) {
+            setPrompt(cachedPrompt);
+          }
+          return;
+        }
+        
+        setIsEnhancingPrompt(true);
+        try {
+          const { data, error } = await supabase.functions.invoke("enhance-prompt", {
+            body: { prompt: debouncedPrompt.trim() },
+          });
+          
+          if (error) {
+            console.error("Error enhancing prompt:", error);
+          } else if (data?.enhancedPrompt) {
+            apiCache.set(cacheKey, data.enhancedPrompt, 30 * 60 * 1000); // Cache de 30min
+            console.log('[Cache SET] Magic Prompt armazenado');
+            setPrompt(data.enhancedPrompt);
+          }
+        } catch (error) {
+          console.error("Error enhancing prompt:", error);
+        } finally {
+          setIsEnhancingPrompt(false);
+        }
+      };
+      
+      enhancePrompt();
+    }
+  }, [debouncedPrompt, magicPromptEnabled, isGenerating]);
 
   // Carrega imagens salvas
   const loadSavedImages = useCallback(async () => {
@@ -323,30 +369,33 @@ const ImagePage = () => {
 
     setIsGenerating(true);
     try {
-      // Se Magic Prompt estiver ativado, melhorar o prompt primeiro
-      let finalPrompt = prompt;
-      if (magicPromptEnabled) {
-        try {
-          const { data, error } = await supabase.functions.invoke("enhance-prompt", {
-            body: { prompt: prompt.trim() },
-          });
-          
-          if (error) {
-            console.error("Error enhancing prompt:", error);
-          } else if (data?.enhancedPrompt) {
-            finalPrompt = data.enhancedPrompt;
-            setPrompt(finalPrompt);
-          }
-        } catch (error) {
-          console.error("Error enhancing prompt:", error);
-          // Continue com o prompt original em caso de erro
-        }
-      }
+      // Usa o prompt já otimizado pelo Magic Prompt (se estava ativo)
+      const finalPrompt = prompt;
 
       let inputImageBase64: string | undefined;
       if (selectedFile) {
+        let fileToProcess = selectedFile;
+        
+        // ✅ OTIMIZAÇÃO: Comprimir imagem se > 1MB
+        if (selectedFile.size > 1 * 1024 * 1024) {
+          try {
+            console.log(`[Image] Comprimindo: ${selectedFile.size} bytes`);
+            fileToProcess = await imageCompression(selectedFile, {
+              maxSizeMB: 2,
+              maxWidthOrHeight: 2048,
+              useWebWorker: true,
+              fileType: selectedFile.type.includes('png') ? 'image/png' : 'image/jpeg'
+            });
+            console.log(`[Image] Comprimido para: ${fileToProcess.size} bytes`);
+          } catch (err) {
+            console.error('Erro ao comprimir:', err);
+            // ✅ FALLBACK: continua com arquivo original
+            fileToProcess = selectedFile;
+          }
+        }
+        
         const reader = new FileReader();
-        reader.readAsDataURL(selectedFile);
+        reader.readAsDataURL(fileToProcess);
         await new Promise<void>((resolve, reject) => {
           reader.onload = () => resolve();
           reader.onerror = (error) => reject(error);
@@ -435,8 +484,8 @@ const ImagePage = () => {
           }
 
           toast.success("Imagem gerada com sucesso!");
-          // Edge function já salva no banco, então apenas recarrega após 1s para garantir
-          setTimeout(() => loadSavedImages(), 1000);
+          // ✅ OTIMIZAÇÃO: Removido polling desnecessário
+          // Optimistic update já mostra a imagem, edge function já salvou no banco
         }
     } catch (e: any) {
       console.error("Erro no processo:", e);

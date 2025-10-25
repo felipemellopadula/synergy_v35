@@ -676,7 +676,9 @@ const VideoPage: React.FC = () => {
         pollRef.current = window.setTimeout(() => poll(attempt + 1), delay) as unknown as number;
       }
     };
-    pollRef.current = window.setTimeout(() => poll(0), 1200) as unknown as number;
+    // ✅ OTIMIZAÇÃO: Intervalo inicial aumentado de 1200ms para 3000ms
+    // Vídeos levam tempo para processar, polling mais espaçado economiza requests
+    pollRef.current = window.setTimeout(() => poll(0), 3000) as unknown as number;
   }, [toast]);
 
   useEffect(

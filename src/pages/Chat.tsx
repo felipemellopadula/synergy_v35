@@ -96,6 +96,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { apiCache } from "@/utils/apiCache";
 
 // =====================
 // Tipos
@@ -1727,6 +1728,36 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           timestamp: msg.timestamp.toISOString(),
         }));
 
+        // ✅ CACHE: Apenas se não houver arquivos, análise comparativa ou web search
+        const shouldUseCache = fileData.length === 0 && !comparativeAnalysisEnabled;
+        const cacheKey = shouldUseCache 
+          ? `chat:${functionName}:${internalModel}:${messageWithFiles.slice(0, 100)}` 
+          : null;
+
+        // Verifica se existe resposta em cache
+        if (cacheKey) {
+          const cachedResponse = apiCache.get<string>(cacheKey);
+          if (cachedResponse) {
+            console.log('[Cache HIT] Usando resposta cacheada para chat');
+            
+            const botMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              content: cachedResponse,
+              sender: "bot",
+              timestamp: new Date(),
+              model: selectedModel,
+            };
+            
+            const finalMessages = [...newMessages, botMessage];
+            setMessages(finalMessages);
+            setIsLoading(false);
+            
+            // Mantém funcionalidade de salvar conversação
+            await upsertConversation(finalMessages, convId);
+            return;
+          }
+        }
+
         const { data: fnData, error: fnError } =
           await supabase.functions.invoke(functionName, {
             body: {
@@ -1747,6 +1778,12 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               "Desculpe, não consegui processar sua mensagem.";
         const reasoning =
           typeof data.response === "string" ? "" : data.response?.reasoning;
+
+        // ✅ CACHE: Armazena resposta se aplicável
+        if (cacheKey && fullBotText) {
+          apiCache.set(cacheKey, fullBotText, 5 * 60 * 1000); // 5 minutos
+          console.log('[Cache SET] Resposta armazenada no cache');
+        }
 
         // [CHANGE] Não desligar o isLoading ainda. Vamos montar a bolha já com conteúdo.
         const botMessageId = (Date.now() + 1).toString();
