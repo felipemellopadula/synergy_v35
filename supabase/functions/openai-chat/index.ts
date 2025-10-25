@@ -337,22 +337,51 @@ INSTRUÇÕES CRÍTICAS:
       }
     }
 
-    // If message is too large, split into chunks and process ALL chunks
-    // Comparações podem usar 20% mais do limite
+    // ============= ESTRATÉGIA MAP-REDUCE INTELIGENTE =============
+    // Forçar chunking para documentos médios/grandes para respostas mais detalhadas
     const comparisonMultiplier = isComparison ? 1.2 : 1.0;
     
-    if (estimatedTokens > limits.input * 0.9 * comparisonMultiplier) { // OTIMIZADO: 90% (era 60%)
-      console.log('Message too large, processing in chunks...');
+    // Determinar se deve fazer chunking e quantos chunks criar
+    let shouldChunk = false;
+    let maxChunkTokens = 0;
+    let targetChunks = 1;
+    
+    if (estimatedTokens > 50000) { // Documentos > 50k tokens sempre fazem Map-Reduce
+      shouldChunk = true;
       
-      // OTIMIZADO: Chunks muito maiores para máximo aproveitamento (70%/60% do contexto)
-      let maxChunkTokens;
-      if (model.includes('gpt-5')) {
-        maxChunkTokens = Math.floor(limits.input * 0.7); // 280k chunks (era 200k)
-      } else if (model.includes('gpt-4.1')) {
-        maxChunkTokens = Math.floor(limits.input * 0.6); // 600k chunks (era 400k) 🚀
+      if (estimatedTokens <= 200000) {
+        // DOCUMENTOS MÉDIOS (50k-200k): 2-3 chunks para análise detalhada
+        targetChunks = estimatedTokens > 120000 ? 3 : 2;
+        maxChunkTokens = Math.ceil(estimatedTokens / targetChunks);
+        console.log(`📊 Documento médio (${estimatedTokens.toLocaleString()} tokens) → ${targetChunks} chunks forçados para análise profunda`);
       } else {
-        maxChunkTokens = Math.floor(limits.input * 0.6); // 120k+ chunks
+        // DOCUMENTOS GRANDES (>200k): usar lógica original otimizada
+        if (model.includes('gpt-5')) {
+          maxChunkTokens = Math.floor(limits.input * 0.7); // 280k chunks
+        } else if (model.includes('gpt-4.1')) {
+          maxChunkTokens = Math.floor(limits.input * 0.6); // 600k chunks
+        } else {
+          maxChunkTokens = Math.floor(limits.input * 0.6); // 120k+ chunks
+        }
+        targetChunks = Math.ceil(estimatedTokens / maxChunkTokens);
+        console.log(`📊 Documento grande (${estimatedTokens.toLocaleString()} tokens) → ${targetChunks} chunks necessários`);
       }
+    } else if (estimatedTokens > limits.input * 0.9 * comparisonMultiplier) {
+      // DOCUMENTOS GIGANTES: excedem 90% do limite de contexto
+      shouldChunk = true;
+      if (model.includes('gpt-5')) {
+        maxChunkTokens = Math.floor(limits.input * 0.7);
+      } else if (model.includes('gpt-4.1')) {
+        maxChunkTokens = Math.floor(limits.input * 0.6);
+      } else {
+        maxChunkTokens = Math.floor(limits.input * 0.6);
+      }
+      targetChunks = Math.ceil(estimatedTokens / maxChunkTokens);
+      console.log(`⚠️ Documento excede limite (${estimatedTokens.toLocaleString()} tokens) → ${targetChunks} chunks obrigatórios`);
+    }
+    
+    if (shouldChunk) {
+      console.log('🔄 Iniciando Map-Reduce...')
       
       const chunks = splitIntoChunks(finalMessage, maxChunkTokens);
       
@@ -364,7 +393,24 @@ INSTRUÇÕES CRÍTICAS:
           console.log(`Processing chunk ${i + 1}/${chunks.length}...`);
           responsePrefix += `🔄 Processando seção ${i + 1}/${chunks.length}...\n`;
           
-          const chunkMessage = `Analise este trecho de um documento extenso (parte ${i + 1} de ${chunks.length}). ${message}\n\nTrecho do documento:\n\n${chunks[i]}`;
+          const chunkMessage = `━━━━━ DOCUMENTO EXTENSO - PARTE ${i + 1} DE ${chunks.length} ━━━━━
+
+Você está analisando UMA SEÇÃO de um documento maior. Sua tarefa é fazer uma análise PROFUNDA e EXTENSIVA desta parte específica.
+
+⚠️ INSTRUÇÕES CRÍTICAS:
+1. Liste TODOS os pontos importantes desta seção
+2. Cite números, datas, nomes específicos e dados concretos
+3. Identifique temas, conceitos e argumentos principais
+4. Use parágrafos completos e bem desenvolvidos (não apenas tópicos)
+5. Seja DETALHADO - esta análise será consolidada depois
+6. Mínimo de 1000-1500 palavras para esta seção
+
+Pergunta do usuário: ${message}
+
+━━━ TRECHO DO DOCUMENTO ━━━
+${chunks[i]}
+
+IMPORTANTE: Seja EXTENSO e MINUCIOSO. Preserve todos os detalhes relevantes desta seção.`;
           
           const chunkRequestBody: any = {
             model: model,
@@ -411,16 +457,38 @@ INSTRUÇÕES CRÍTICAS:
         
         responsePrefix += `\n✅ Todas as ${chunks.length} seções processadas. Consolidando respostas...\n\n`;
         
-        // OTIMIZAÇÃO 3: Prompt de consolidação melhorado
-        const consolidationPrompt = `Você é um especialista em análise de documentos. Processou ${estimatedTokens.toLocaleString()} tokens em ${chunks.length} partes.
+        // ============= FASE DE CONSOLIDAÇÃO (REDUCE) =============
+        const consolidationPrompt = `🔄 CONSOLIDAÇÃO FINAL - Documento de ${estimatedTokens.toLocaleString()} tokens analisado em ${chunks.length} partes
 
-CRÍTICO: Sua resposta final deve ser COMPLETA e DETALHADA, mantendo TODAS as informações das análises abaixo. Não resuma - preserve o máximo de detalhes possível.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ TAREFA CRÍTICA: Crie uma análise COMPLETA, EXTENSIVA e COERENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-${chunkResponses.map((resp, idx) => `=== ANÁLISE PARTE ${idx + 1}/${chunks.length} ===\n${resp}`).join('\n\n')}
+📋 REQUISITOS OBRIGATÓRIOS:
+✅ Mínimo de 3000-5000 palavras na resposta final
+✅ Inclua TODOS os detalhes relevantes das ${chunks.length} análises abaixo
+✅ Preserve números, datas, nomes, estatísticas e citações específicas
+✅ Organize em seções claras com títulos e subtítulos
+✅ Use listas, tabelas e formatação apropriada
+✅ Não resuma - EXPANDA e ELABORE cada ponto importante
+✅ Mantenha a coerência narrativa entre as partes
+✅ Forneça contexto e conexões entre diferentes seções do documento
 
-Consolide em uma resposta única e coerente preservando o máximo de detalhes.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Pergunta original: ${message}`;
+${chunkResponses.map((resp, idx) => `━━━━━ ANÁLISE DA PARTE ${idx + 1}/${chunks.length} ━━━━━
+${resp}
+`).join('\n\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📌 Pergunta original do usuário: ${message}
+
+🎯 Sua tarefa agora: Consolide TODAS as análises acima em UMA resposta final que seja:
+   • Coerente e bem estruturada
+   • Completa e extremamente detalhada (3000-5000 palavras)
+   • Preservando TODOS os pontos importantes
+   • Com exemplos e dados específicos de cada parte`;
         
         processedMessages = [{
           role: 'user',
