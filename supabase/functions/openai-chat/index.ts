@@ -384,6 +384,7 @@ INSTRUÇÕES CRÍTICAS:
       console.log('🔄 Iniciando Map-Reduce...')
       
       const chunks = splitIntoChunks(finalMessage, maxChunkTokens);
+      let chunkResponses: string[] = []; // Declarar no escopo correto
       
       if (chunks.length > 1) {
         responsePrefix = `📄 Documento com ${estimatedTokens.toLocaleString()} tokens dividido em ${chunks.length} seções\n\n`;
@@ -457,7 +458,10 @@ IMPORTANTE: Seja EXTENSO e MINUCIOSO. Preserve todos os detalhes relevantes dest
         });
         
         // Aguardar todas as chunks processarem em paralelo
-        const chunkResponses = await Promise.all(chunkPromises);
+        chunkResponses = await Promise.all(chunkPromises); // ✅ Atribuição simples
+        
+        // Debug logs
+        console.log(`✅ Todos os chunks processados. Iniciando consolidação de ${chunkResponses.length} respostas...`);
         
         // OTIMIZAÇÃO 4: Log do total de tokens das análises parciais
         const totalChunkTokens = chunkResponses.reduce((sum, resp) => sum + estimateTokenCount(resp), 0);
@@ -533,6 +537,15 @@ Este documento foi processado em múltiplas partes. Use este contexto para respo
     // OTIMIZAÇÃO: temperature aumentada para respostas mais elaboradas
     if (!isNewerModel) {
       requestBody.temperature = 0.8; // Era 0.7 - aumentado para incentivar respostas mais detalhadas
+    }
+
+    // Log antes de enviar consolidação
+    if (isConsolidationPhase) {
+      console.log('📤 Enviando prompt de consolidação:', {
+        consolidationPromptLength: processedMessages[0]?.content?.length || 0,
+        totalChunks: chunkResponses.length,
+        isConsolidation: true
+      });
     }
 
     console.log('Sending request to OpenAI with model:', model);
