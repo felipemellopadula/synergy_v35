@@ -12,7 +12,7 @@ import NotFound from "./pages/NotFound";
 
 // Lazy load internal pages (on-demand loading)
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Chat = lazy(() => import("./pages/Chat"));
+const Chat = lazy(() => import("./pages/Chat").then(m => ({ default: m.default })));
 const VideoPage = lazy(() => import("./pages/Video"));
 const ImagePage = lazy(() => import("./pages/Image"));
 const Image2Page = lazy(() => import("./pages/Image2"));

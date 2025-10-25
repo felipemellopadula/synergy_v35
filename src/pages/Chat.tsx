@@ -1546,110 +1546,180 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           timestamp: msg.timestamp.toISOString(),
         }));
 
-        const { data: fnData, error: fnError } = await supabase.functions.invoke(functionName, {
-          body: {
+        // Preparar URL da edge function com SSE
+        const CHAT_URL = `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/${functionName}`;
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        const response = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionData.session?.access_token || ""}`,
+            "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cWdubnFsdGVtZnB6ZHh3eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4ODc3NjIsImV4cCI6MjA2OTQ2Mzc2Mn0.X0jHc8AkyZNZbi3kg5Qh6ngg7aAbijFXchM6bYsAnlE",
+          },
+          body: JSON.stringify({
             message: messageWithFiles,
             model: internalModel,
             files: fileData.length > 0 ? fileData : undefined,
             conversationHistory,
             contextEnabled: true,
-          },
+          }),
         });
-        if (fnError) throw fnError;
 
-        const data = fnData as any;
-        const fullBotText =
-          typeof data.response === "string"
-            ? data.response
-            : data.response?.content || "Desculpe, não consegui processar sua mensagem.";
-        const reasoning = typeof data.response === "string" ? "" : data.response?.reasoning;
+        if (response.status === 429) {
+          toast({
+            title: "🚫 Limite de requisições excedido",
+            description: "Tente novamente em 1 minuto.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
 
-        // [CHANGE] Não desligar o isLoading ainda. Vamos montar a bolha já com conteúdo.
+        if (response.status === 402) {
+          toast({
+            title: "💳 Créditos insuficientes",
+            description: "Adicione fundos em Settings → Workspace.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        // Processar SSE stream token-por-token
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+        let accumulatedContent = "";
+        let streamDone = false;
+        
         const botMessageId = (Date.now() + 1).toString();
-
-        // [FIX] Chunk inicial grande + rAF para streaming ultra-rápido
-        const totalLen = fullBotText.length;
-        const chunkSize = Math.max(80, Math.ceil(totalLen / 12));
-        const firstIndex = Math.min(chunkSize, totalLen);
-        const firstChunk = fullBotText.slice(0, firstIndex);
-
         const placeholderBotMessage: Message = {
           id: botMessageId,
-          content: firstChunk,
+          content: "",
           sender: "bot",
           timestamp: new Date(),
           model: selectedModel,
-          reasoning: reasoning || undefined,
-          isStreaming: totalLen > firstIndex,
+          isStreaming: true,
         };
 
+        // Adicionar mensagem do bot vazia
         startTransition(() => {
           setMessages((prev) => [...prev, placeholderBotMessage]);
           setIsStreamingResponse(true);
-          setIsLoading(false); // [FIX] só agora some o "pensando..."
+          setIsLoading(false);
         });
 
-        // Auto-scroll após inserir o primeiro chunk - SEMPRE rola quando IA responde
+        // Auto-scroll inicial
         requestAnimationFrame(() => {
           if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
           }
         });
 
-        // Streaming com requestAnimationFrame
-        let index = firstIndex;
-        const streamStep = () => {
-          if (index >= totalLen) {
-            streamingRafRef.current = null;
-            const finalBotMessage: Message = {
-              ...placeholderBotMessage,
-              content: fullBotText,
-              isStreaming: false,
-            };
-            const finalMessages = [...newMessages, finalBotMessage];
+        // Processar stream linha por linha
+        while (!streamDone) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          textBuffer += decoder.decode(value, { stream: true });
 
-            startTransition(() => {
-              setMessages(finalMessages);
-              setIsStreamingResponse(false);
-            });
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
 
-            // scroll suave no final - SEMPRE rola quando IA termina de responder
-            requestAnimationFrame(() => {
-              if (messagesEndRef.current) {
-                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") {
+              streamDone = true;
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+              
+              if (content) {
+                accumulatedContent += content;
+                
+                // Atualizar mensagem do bot em tempo real
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === botMessageId
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                );
+
+                // Auto-scroll durante streaming (throttled)
+                if (isNearBottom) {
+                  requestAnimationFrame(() => {
+                    if (messagesEndRef.current) {
+                      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+                    }
+                  });
+                }
               }
-            });
-
-            upsertConversation(finalMessages, convId);
-            return;
+            } catch (e) {
+              // JSON incompleto - recolocar no buffer
+              textBuffer = line + "\n" + textBuffer;
+              break;
+            }
           }
-
-          const nextIndex = Math.min(index + chunkSize, totalLen);
-          const partial = fullBotText.slice(0, nextIndex);
-
-          setMessages((prev) => prev.map((msg) => (msg.id === botMessageId ? { ...msg, content: partial } : msg)));
-
-          index = nextIndex;
-          streamingRafRef.current = requestAnimationFrame(streamStep);
-        };
-
-        // Inicia streaming somente se houver mais a renderizar
-        if (index < totalLen) {
-          streamingRafRef.current = requestAnimationFrame(streamStep);
-        } else {
-          // texto curto: já finaliza
-          const finalBotMessage: Message = {
-            ...placeholderBotMessage,
-            content: fullBotText,
-            isStreaming: false,
-          };
-          const finalMessages = [...newMessages, finalBotMessage];
-          startTransition(() => {
-            setMessages(finalMessages);
-            setIsStreamingResponse(false);
-          });
-          upsertConversation(finalMessages, convId);
         }
+
+        // Flush final do buffer
+        if (textBuffer.trim()) {
+          for (let raw of textBuffer.split("\n")) {
+            if (!raw || raw.startsWith(":") || !raw.startsWith("data: ")) continue;
+            const jsonStr = raw.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) accumulatedContent += content;
+            } catch { /* ignore */ }
+          }
+        }
+
+        const fullBotText = accumulatedContent || "Desculpe, não consegui processar sua mensagem.";
+        const reasoning = "";
+
+        // Finalizar stream
+        const finalBotMessage: Message = {
+          id: botMessageId,
+          content: fullBotText,
+          sender: "bot",
+          timestamp: new Date(),
+          model: selectedModel,
+          reasoning: reasoning || undefined,
+          isStreaming: false,
+        };
+        
+        const finalMessages = [...newMessages, finalBotMessage];
+
+        startTransition(() => {
+          setMessages(finalMessages);
+          setIsStreamingResponse(false);
+        });
+
+        // Scroll final
+        requestAnimationFrame(() => {
+          if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+          }
+        });
+
+        // Salvar conversa
+        await upsertConversation(finalMessages, convId);
       } catch (error: any) {
         console.error("Error sending message:", error);
         toast({
