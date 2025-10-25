@@ -1766,6 +1766,138 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           }
         }
 
+        // 🔄 Usar streaming real para openai-chat
+        const useStreaming = functionName === 'openai-chat';
+        
+        if (useStreaming) {
+          // Streaming SSE
+          const botMessageId = (Date.now() + 1).toString();
+          let fullBotText = '';
+          
+          const placeholderBotMessage: Message = {
+            id: botMessageId,
+            content: '',
+            sender: "bot",
+            timestamp: new Date(),
+            model: selectedModel,
+            isStreaming: true,
+          };
+
+          startTransition(() => {
+            setMessages((prev) => [...prev, placeholderBotMessage]);
+            setIsStreamingResponse(true);
+            setIsLoading(false);
+          });
+
+          try {
+            const response = await fetch(
+              `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/${functionName}`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cWdubnFsdGVtZnB6ZHh3eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4ODc3NjIsImV4cCI6MjA2OTQ2Mzc2Mn0.X0jHc8AkyZNZbi3kg5Qh6ngg7aAbijFXchM6bYsAnlE'}`,
+                },
+                body: JSON.stringify({
+                  message: messageWithFiles,
+                  model: internalModel,
+                  files: fileData.length > 0 ? fileData : undefined,
+                  conversationHistory,
+                  contextEnabled: true,
+                }),
+              }
+            );
+
+            if (!response.ok || !response.body) {
+              throw new Error(`Falha na requisição: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let textBuffer = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              textBuffer += decoder.decode(value, { stream: true });
+
+              let newlineIndex: number;
+              while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+                let line = textBuffer.slice(0, newlineIndex);
+                textBuffer = textBuffer.slice(newlineIndex + 1);
+
+                if (line.endsWith("\r")) line = line.slice(0, -1);
+                if (line.startsWith(":") || line.trim() === "") continue;
+                if (!line.startsWith("data: ")) continue;
+
+                const jsonStr = line.slice(6).trim();
+                if (jsonStr === "[DONE]") break;
+
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+                  if (content) {
+                    fullBotText += content;
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === botMessageId ? { ...msg, content: fullBotText } : msg
+                      )
+                    );
+                    
+                    // Auto-scroll durante streaming
+                    requestAnimationFrame(() => {
+                      if (messagesEndRef.current) {
+                        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+                      }
+                    });
+                  }
+                } catch {
+                  textBuffer = line + "\n" + textBuffer;
+                  break;
+                }
+              }
+            }
+
+            // Finalizar mensagem
+            const finalBotMessage: Message = {
+              id: botMessageId,
+              content: fullBotText,
+              sender: "bot",
+              timestamp: new Date(),
+              model: selectedModel,
+              isStreaming: false,
+            };
+            
+            const finalMessages = [...newMessages, finalBotMessage];
+            
+            startTransition(() => {
+              setMessages(finalMessages);
+              setIsStreamingResponse(false);
+            });
+
+            requestAnimationFrame(() => {
+              if (messagesEndRef.current) {
+                messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+              }
+            });
+
+            await upsertConversation(finalMessages, convId);
+            
+            // ✅ CACHE: Armazena resposta se aplicável
+            if (cacheKey && fullBotText) {
+              apiCache.set(cacheKey, fullBotText, 5 * 60 * 1000);
+              console.log('[Cache SET] Resposta armazenada no cache');
+            }
+            
+            return; // Sai do fluxo
+          } catch (streamError) {
+            console.error('Streaming error:', streamError);
+            throw streamError;
+          }
+        }
+        
+        // Fallback para modelos não-streaming
         const { data: fnData, error: fnError } =
           await supabase.functions.invoke(functionName, {
             body: {
