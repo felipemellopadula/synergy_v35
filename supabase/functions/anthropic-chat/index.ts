@@ -163,26 +163,52 @@ serve(async (req) => {
     console.log('Sending request to Anthropic with model:', model);
     console.log('Request config:', { 
       model, 
-      maxTokens: requestBody.max_tokens
+      maxTokens: requestBody.max_tokens,
+      messageCount: processedMessages.length
     });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify(requestBody),
-    });
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Anthropic API error:', errorData);
-      throw new Error(`Erro da API Anthropic: ${response.status} - ${errorData}`);
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicApiKey,
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Anthropic API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Erro da API Anthropic: ${response.status} - ${errorData}`);
+      }
+
+      console.log('Anthropic API response status:', response.status);
+      return response;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error('Request timeout after 2 minutes');
+        throw new Error('A requisição excedeu o tempo limite de 2 minutos. Por favor, tente novamente com um prompt menor.');
+      }
+      throw fetchError;
     }
 
     const data = await response.json();
+    console.log('Response data received, parsing...');
+    
     let generatedText = data.content?.[0]?.text || "Não foi possível gerar resposta";
     
     // Normalize line breaks and remove excessive spacing
@@ -195,7 +221,10 @@ serve(async (req) => {
     // Add prefix if message was processed in chunks
     const finalResponse = responsePrefix + generatedText;
 
-    console.log('Anthropic response received successfully');
+    console.log('Anthropic response received successfully', {
+      responseLength: finalResponse.length,
+      hadPrefix: !!responsePrefix
+    });
 
     // Record token usage in database
     const authHeader = req.headers.get('authorization');
