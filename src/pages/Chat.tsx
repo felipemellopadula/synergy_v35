@@ -757,13 +757,15 @@ const Chat: React.FC = () => {
     };
   }, []);
 
-  // Auto-scroll quando novas mensagens chegam e não há streaming
+  // Auto-scroll quando novas mensagens chegam
   useEffect(() => {
-    if (!isStreamingResponse && messagesEndRef.current) {
-      // Rola automaticamente para o final sempre que mensagens mudam e não está streaming
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messagesEndRef.current) {
+      // Rola automaticamente para o final sempre que mensagens mudam
+      requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      });
     }
-  }, [messages, isStreamingResponse]);
+  }, [messages]);
 
   // Limpeza de URLs de preview ao desmontar
   useEffect(() => {
@@ -1853,6 +1855,13 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               msg.id === botMessageId ? { ...msg, content: partial } : msg
             )
           );
+
+          // Auto-scroll durante streaming
+          requestAnimationFrame(() => {
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+            }
+          });
 
           index = nextIndex;
           streamingRafRef.current = requestAnimationFrame(streamStep);
