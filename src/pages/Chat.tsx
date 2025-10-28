@@ -1609,13 +1609,26 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         let accumulatedContent = "";
         const botMessageId = (Date.now() + 1).toString();
 
-        if (isJson && response.body) {
+        if (isJson) {
           // Resposta JSON simples (gemini-chat, deepseek-chat, etc.)
           console.log("📦 Processing JSON response (non-streaming)");
           const responseText = await response.text();
           const jsonData = JSON.parse(responseText);
           accumulatedContent = jsonData.response || jsonData.message || jsonData.text || "";
           console.log("JSON response content length:", accumulatedContent.length);
+          
+          // Criar e adicionar mensagem do bot imediatamente
+          const botMessage: Message = {
+            id: botMessageId,
+            content: accumulatedContent,
+            sender: "bot",
+            timestamp: new Date(),
+            model: selectedModel,
+          };
+          
+          setMessages((prev) => [...prev, botMessage]);
+          setIsLoading(false);
+          
         } else if (response.body) {
           // Processar SSE stream token-por-token
           console.log("🌊 Processing SSE stream");
@@ -1717,34 +1730,52 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           }
         }
 
-        const fullBotText = accumulatedContent || "Desculpe, não consegui processar sua mensagem.";
-        const reasoning = "";
-
-        // Finalizar stream
-        const finalBotMessage: Message = {
-          id: botMessageId,
-          content: fullBotText,
-          sender: "bot",
-          timestamp: new Date(),
-          model: selectedModel,
-          reasoning: reasoning || undefined,
-          isStreaming: false,
-        };
+        // Preparar mensagens finais
+        let finalMessages: Message[];
         
-        const finalMessages = [...newMessages, finalBotMessage];
+        // Finalizar stream APENAS para SSE (não para JSON que já foi processado)
+        if (!isJson && accumulatedContent) {
+          const fullBotText = accumulatedContent || "Desculpe, não consegui processar sua mensagem.";
+          const reasoning = "";
 
-        startTransition(() => {
-          setMessages(finalMessages);
-          setIsStreamingResponse(false);
-          setProcessingStatus("");
-        });
+          // Finalizar stream
+          const finalBotMessage: Message = {
+            id: botMessageId,
+            content: fullBotText,
+            sender: "bot",
+            timestamp: new Date(),
+            model: selectedModel,
+            reasoning: reasoning || undefined,
+            isStreaming: false,
+          };
+          
+          finalMessages = [...newMessages, finalBotMessage];
 
-        // Scroll final
-        requestAnimationFrame(() => {
-          if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-          }
-        });
+          startTransition(() => {
+            setMessages(finalMessages);
+            setIsStreamingResponse(false);
+            setProcessingStatus("");
+          });
+
+          // Scroll final
+          requestAnimationFrame(() => {
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+            }
+          });
+        } else {
+          // Para JSON, usar as mensagens atuais
+          finalMessages = messages;
+        }
+
+        // Scroll final para JSON também
+        if (isJson) {
+          requestAnimationFrame(() => {
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+            }
+          });
+        }
 
         // Salvar conversa
         await upsertConversation(finalMessages, convId);
