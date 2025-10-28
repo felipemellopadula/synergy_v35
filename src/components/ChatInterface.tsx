@@ -523,14 +523,29 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         body: requestBody
       });
 
-      console.log('Function response:', { data, error });
-
+      console.log('=== FUNCTION RESPONSE DEBUG ===');
+      console.log('data:', data);
+      console.log('error:', error);
+      console.log('data type:', typeof data);
+      console.log('data keys:', data ? Object.keys(data) : 'null');
+      console.log('data.response exists?', data?.response ? 'YES' : 'NO');
+      console.log('data.message exists?', data?.message ? 'YES' : 'NO');
+      
       if (error) {
         console.error('Function error details:', error);
         throw new Error(error.message || 'Erro ao enviar mensagem');
       }
 
-      const aiMessageContent = data.response || data.message || 'Resposta vazia recebida.';
+      if (!data) {
+        console.error('No data received from function');
+        throw new Error('Nenhuma resposta recebida da função');
+      }
+
+      const aiMessageContent = data.response || data.message || data.text || 'Resposta vazia recebida.';
+      
+      console.log('=== AI MESSAGE CONTENT ===');
+      console.log('aiMessageContent length:', aiMessageContent.length);
+      console.log('aiMessageContent preview:', aiMessageContent.substring(0, 200));
       
       setMessages(prev => 
         prev.map(msg => 
