@@ -1549,7 +1549,51 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           }
         }
 
-        const functionName = getEdgeFunctionName(internalModel);
+        // 🎯 DETECÇÃO DE DOCUMENTOS GRANDES PARA HIERARCHICAL RAG
+        let shouldUseHierarchicalRAG = false;
+        let documentContent = "";
+        let documentPageCount = 0;
+        let documentFileName = "";
+
+        // Verificar PDFs processados
+        const pdfFiles = currentFiles.filter(isPdfFile);
+        if (pdfFiles.length > 0) {
+          const pdfName = pdfFiles[0].name;
+          const pdfContent = processedPdfs.get(pdfName);
+          const pdfDoc = processedDocuments.get(pdfName);
+          
+          if (pdfContent && pdfDoc?.pages) {
+            documentPageCount = pdfDoc.pages;
+            documentContent = pdfContent;
+            documentFileName = pdfName;
+          }
+        }
+
+        // Verificar Word processados
+        const wordFiles = currentFiles.filter(isWordFile);
+        if (wordFiles.length > 0 && !documentContent) {
+          const wordName = wordFiles[0].name;
+          const wordContent = processedWords.get(wordName);
+          
+          if (wordContent) {
+            documentContent = wordContent;
+            documentPageCount = Math.ceil(wordContent.length / 3500); // Estimar páginas
+            documentFileName = wordName;
+          }
+        }
+
+        // Ativar Hierarchical RAG se documento >= 20 páginas
+        shouldUseHierarchicalRAG = documentPageCount >= 20 && documentContent.length > 0;
+
+        let functionName: string;
+        if (shouldUseHierarchicalRAG) {
+          functionName = "hierarchical-rag-chat";
+          const targetPages = Math.floor(documentPageCount * 0.7);
+          console.log(`🔍 Documento grande detectado: ${documentPageCount} páginas → Target: ${targetPages} páginas (70%)`);
+          setProcessingStatus(`🔍 Analisando ${documentPageCount} páginas com preservação de 70% do conteúdo (2-5 min)...`);
+        } else {
+          functionName = getEdgeFunctionName(internalModel);
+        }
 
         const conversationHistory = messages.slice(-20).map((msg) => ({
           role: msg.sender === "user" ? "user" : "assistant",
@@ -1562,6 +1606,22 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         const CHAT_URL = `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/${functionName}`;
         const { data: sessionData } = await supabase.auth.getSession();
         
+        // Preparar body baseado no tipo de função
+        const requestBody = shouldUseHierarchicalRAG 
+          ? {
+              message: messageWithFiles,
+              documentContent,
+              pageCount: documentPageCount,
+              fileName: documentFileName,
+            }
+          : {
+              message: messageWithFiles,
+              model: internalModel,
+              files: fileData.length > 0 ? fileData : undefined,
+              conversationHistory,
+              contextEnabled: true,
+            };
+        
         const response = await fetch(CHAT_URL, {
           method: "POST",
           headers: {
@@ -1569,13 +1629,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             "Authorization": `Bearer ${sessionData.session?.access_token || ""}`,
             "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cWdubnFsdGVtZnB6ZHh3eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4ODc3NjIsImV4cCI6MjA2OTQ2Mzc2Mn0.X0jHc8AkyZNZbi3kg5Qh6ngg7aAbijFXchM6bYsAnlE",
           },
-          body: JSON.stringify({
-            message: messageWithFiles,
-            model: internalModel,
-            files: fileData.length > 0 ? fileData : undefined,
-            conversationHistory,
-            contextEnabled: true,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (response.status === 429) {
