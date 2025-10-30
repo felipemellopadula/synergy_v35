@@ -224,6 +224,68 @@ ${chunkAnalyses.map((analysis, i) => `\n[CHUNK ${i+1}/${chunkAnalyses.length}]\n
   }
 };
 
+// ============= TRANSFORMAR STREAM OPENAI → SSE =============
+const transformOpenAIStreamToSSE = (openAIStream: ReadableStream): ReadableStream => {
+  const reader = openAIStream.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  
+  return new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('✅ Stream OpenAI concluído');
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            break;
+          }
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(':')) continue;
+            
+            if (trimmed.startsWith('data: ')) {
+              const data = trimmed.slice(6);
+              
+              if (data === '[DONE]') {
+                console.log('🏁 Recebido [DONE] da OpenAI');
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+              
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                
+                if (content) {
+                  const sseEvent = `data: ${JSON.stringify({ content })}\n\n`;
+                  controller.enqueue(encoder.encode(sseEvent));
+                }
+              } catch (e) {
+                console.warn('⚠️ Erro ao parsear JSON da OpenAI:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro no transformStream:', error);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      }
+    }
+  });
+};
+
 // ============= NÍVEL 3: DOCUMENT CONSOLIDATION =============
 const consolidateDocument = async (
   sectionSyntheses: string[],
@@ -264,27 +326,41 @@ ${userMessage}
 
 🎯 Target: ${targetOutputTokens} tokens (${targetPages} páginas)`;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAIApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-2025-04-14",
-      messages: [{ role: "user", content: prompt }],
-      max_completion_tokens: Math.min(64000, targetOutputTokens),
-      temperature: 0.2,
-      stream: true,
-    }),
-  });
+  try {
+    console.log('📡 Chamando OpenAI para consolidação final...');
+    
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAIApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-2025-04-14",
+        messages: [{ role: "user", content: prompt }],
+        max_completion_tokens: Math.min(64000, targetOutputTokens),
+        temperature: 0.2,
+        stream: true,
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Document consolidation failed: ${response.status} - ${errorText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ OpenAI retornou erro ${response.status}:`, errorText);
+      throw new Error(`Document consolidation failed: ${response.status} - ${errorText}`);
+    }
+    
+    if (!response.body) {
+      throw new Error('OpenAI response body is null');
+    }
+    
+    console.log('🔄 Transformando stream OpenAI → SSE');
+    return transformOpenAIStreamToSSE(response.body);
+    
+  } catch (error) {
+    console.error('❌ Erro na consolidação do documento:', error);
+    throw error;
   }
-  
-  return response.body!;
 };
 
 // ============= PROCESSAMENTO PARALELO =============
