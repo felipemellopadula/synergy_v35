@@ -1976,38 +1976,67 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               throw new Error("Erro ao processar arquivo Python");
             }
           } else if (isExcelFile(file)) {
-            // Processar arquivo Excel
-            const base64Data = await fileToBase64(file);
-            const { data, error } = await supabase.functions.invoke("process-files", {
-              body: {
-                file: base64Data,
-                fileName: file.name,
-                fileType: file.type,
-              },
+            // Processar arquivo Excel localmente
+            const arrayBuffer = await file.arrayBuffer();
+            const XLSX = await import('xlsx');
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+            // Processar todas as planilhas
+            const sheets: any[] = [];
+            workbook.SheetNames.forEach((sheetName) => {
+              const worksheet = workbook.Sheets[sheetName];
+              const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+              sheets.push({
+                name: sheetName,
+                data: jsonData,
+              });
             });
 
-            if (error) {
-              throw new Error(error.message || "Erro ao processar arquivo Excel");
-            }
+            // Formatar o conteúdo para texto legível
+            let textContent = `Arquivo Excel: ${file.name}\n\n`;
+            sheets.forEach((sheet) => {
+              textContent += `=== Planilha: ${sheet.name} ===\n\n`;
 
-            if (data?.success && data?.content) {
-              setProcessedDocuments(
-                (prev) =>
-                  new Map(
-                    prev.set(fileName, {
-                      content: data.content,
-                      type: "excel",
-                      fileSize: file.size,
-                      sheets: data.sheets,
-                    }),
-                  ),
-              );
-              setProcessedExcel((prev) => new Map(prev).set(fileName, data.content || ""));
-              setFileProcessingStatus((prev) => new Map(prev.set(fileName, "completed")));
-              return { fileName, success: true };
-            } else {
-              throw new Error("Erro ao processar arquivo Excel");
-            }
+              if (sheet.data.length > 0) {
+                // Pegar headers (primeira linha)
+                const headers = sheet.data[0] as any[];
+                textContent += headers.join(" | ") + "\n";
+                textContent += "-".repeat(headers.join(" | ").length) + "\n";
+
+                // Adicionar as linhas de dados
+                for (let i = 1; i < Math.min(sheet.data.length, 101); i++) {
+                  const row = sheet.data[i] as any[];
+                  textContent += row.join(" | ") + "\n";
+                }
+
+                if (sheet.data.length > 101) {
+                  textContent += `\n... (${sheet.data.length - 101} linhas adicionais omitidas)\n`;
+                }
+              } else {
+                textContent += "(Planilha vazia)\n";
+              }
+
+              textContent += "\n\n";
+            });
+
+            setProcessedDocuments(
+              (prev) =>
+                new Map(
+                  prev.set(fileName, {
+                    content: textContent,
+                    type: "excel",
+                    fileSize: file.size,
+                    sheets: sheets.map((s) => ({
+                      name: s.name,
+                      rowCount: s.data.length,
+                    })),
+                  }),
+                ),
+            );
+            setProcessedExcel((prev) => new Map(prev).set(fileName, textContent));
+            setFileProcessingStatus((prev) => new Map(prev.set(fileName, "completed")));
+            return { fileName, success: true };
           }
           return {
             fileName,
