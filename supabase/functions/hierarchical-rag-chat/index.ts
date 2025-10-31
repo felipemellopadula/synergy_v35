@@ -29,8 +29,32 @@ const getChunkConfig = (pages: number) => {
 // Estimação de tokens
 const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
 
-// Delay helper
+// Delay helpers
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry com backoff exponencial e jitter
+const retryWithBackoff = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number,
+  context: string
+): Promise<T> => {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (error.message?.includes('429') && attempt < maxRetries) {
+        const baseDelay = 20000 * Math.pow(2, attempt); // 20s, 40s, 80s, 160s, 320s
+        const jitter = Math.random() * 5000; // 0-5s random
+        const waitTime = Math.min(baseDelay + jitter, 120000); // max 2min
+        console.log(`⏳ Rate limit (${context}), retry ${attempt + 1}/${maxRetries} in ${Math.round(waitTime/1000)}s`);
+        await delay(waitTime);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error(`${context} failed after ${maxRetries} retries`);
+};
 
 // ============= NÍVEL 0: CHUNKING INTELIGENTE =============
 const createAdaptiveChunks = (content: string, totalPages: number): string[] => {
@@ -60,13 +84,14 @@ const analyzeChunk = async (
   totalChunks: number,
   totalPages: number,
   openAIApiKey: string,
-  retryCount = 0
+  progressCallback?: (status: string) => void
 ): Promise<string> => {
   const chunkTokens = estimateTokens(chunk);
   const chunkPages = Math.ceil(chunkTokens / TOKENS_PER_PAGE);
   const targetOutputTokens = Math.floor(chunkTokens * CHUNK_OUTPUT_RATIO);
   
   console.log(`🔍 Chunk ${chunkIndex + 1}/${totalChunks}: ${chunkPages} páginas → ${Math.floor(chunkPages * CHUNK_OUTPUT_RATIO)} páginas`);
+  progressCallback?.(`Nível 1: Analisando chunk ${chunkIndex + 1}/${totalChunks}`);
   
   const prompt = `Você é um analista especializado em PRESERVAÇÃO MÁXIMA DE INFORMAÇÃO.
 
@@ -112,7 +137,7 @@ ${chunk}
 
 🎯 Target: ${targetOutputTokens} tokens (≈${Math.floor(chunkPages * CHUNK_OUTPUT_RATIO)} páginas)`;
 
-  try {
+  return retryWithBackoff(async () => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -128,14 +153,11 @@ ${chunk}
       }),
     });
 
-    if (response.status === 429 && retryCount < 3) {
-      console.log(`⏳ Rate limit hit, retrying chunk ${chunkIndex + 1} in 60s (attempt ${retryCount + 1}/3)`);
-      await delay(60000);
-      return analyzeChunk(chunk, chunkIndex, totalChunks, totalPages, openAIApiKey, retryCount + 1);
-    }
-
     if (!response.ok) {
       const errorText = await response.text();
+      if (response.status === 429) {
+        throw new Error('429'); // Trigger retry
+      }
       throw new Error(`Chunk analysis failed: ${response.status} - ${errorText}`);
     }
     
@@ -144,10 +166,7 @@ ${chunk}
     
     console.log(`✅ Chunk ${chunkIndex + 1}: ${estimateTokens(result)} tokens gerados`);
     return result;
-  } catch (error) {
-    console.error(`❌ Error analyzing chunk ${chunkIndex + 1}:`, error);
-    throw error;
-  }
+  }, 5, `Chunk ${chunkIndex + 1}`);
 };
 
 // ============= NÍVEL 2: SECTION SYNTHESIS =============
@@ -156,13 +175,14 @@ const synthesizeSection = async (
   sectionIndex: number,
   totalSections: number,
   openAIApiKey: string,
-  retryCount = 0
+  progressCallback?: (status: string) => void
 ): Promise<string> => {
   const totalSectionTokens = chunkAnalyses.reduce((sum, analysis) => sum + estimateTokens(analysis), 0);
   const targetOutputTokens = Math.floor(totalSectionTokens * SECTION_OUTPUT_RATIO);
   const totalSectionPages = Math.ceil(totalSectionTokens / TOKENS_PER_PAGE);
   
   console.log(`🧩 Section ${sectionIndex + 1}/${totalSections}: ${chunkAnalyses.length} chunks (${totalSectionPages} páginas) → ${Math.floor(totalSectionPages * SECTION_OUTPUT_RATIO)} páginas`);
+  progressCallback?.(`Nível 2: Sintetizando seção ${sectionIndex + 1}/${totalSections}`);
   
   const prompt = `Você é um sintetizador especializado em CONSOLIDAÇÃO SEM PERDA.
 
@@ -186,7 +206,7 @@ ${chunkAnalyses.map((analysis, i) => `\n[CHUNK ${i+1}/${chunkAnalyses.length}]\n
 
 🎯 Target: ${targetOutputTokens} tokens (≈${Math.floor(totalSectionPages * SECTION_OUTPUT_RATIO)} páginas)`;
 
-  try {
+  return retryWithBackoff(async () => {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -202,14 +222,11 @@ ${chunkAnalyses.map((analysis, i) => `\n[CHUNK ${i+1}/${chunkAnalyses.length}]\n
       }),
     });
 
-    if (response.status === 429 && retryCount < 3) {
-      console.log(`⏳ Rate limit hit, retrying section ${sectionIndex + 1} in 60s (attempt ${retryCount + 1}/3)`);
-      await delay(60000);
-      return synthesizeSection(chunkAnalyses, sectionIndex, totalSections, openAIApiKey, retryCount + 1);
-    }
-
     if (!response.ok) {
       const errorText = await response.text();
+      if (response.status === 429) {
+        throw new Error('429'); // Trigger retry
+      }
       throw new Error(`Section synthesis failed: ${response.status} - ${errorText}`);
     }
     
@@ -218,10 +235,7 @@ ${chunkAnalyses.map((analysis, i) => `\n[CHUNK ${i+1}/${chunkAnalyses.length}]\n
     
     console.log(`✅ Section ${sectionIndex + 1}: ${estimateTokens(result)} tokens gerados`);
     return result;
-  } catch (error) {
-    console.error(`❌ Error synthesizing section ${sectionIndex + 1}:`, error);
-    throw error;
-  }
+  }, 5, `Section ${sectionIndex + 1}`);
 };
 
 // ============= TRANSFORMAR STREAM OPENAI → SSE =============
@@ -367,17 +381,21 @@ ${userMessage}
 const processChunksInParallel = async (
   chunks: string[],
   totalPages: number,
-  openAIApiKey: string
+  openAIApiKey: string,
+  progressCallback?: (status: string) => void
 ): Promise<string[]> => {
-  const batchSize = 5;
+  const batchSize = 2; // Reduzido de 5 para 2 para evitar rate limit
   const results: string[] = [];
   
   for (let i = 0; i < chunks.length; i += batchSize) {
     const batch = chunks.slice(i, Math.min(i + batchSize, chunks.length));
-    console.log(`📦 Processando batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
+    const batchNum = Math.floor(i/batchSize) + 1;
+    const totalBatches = Math.ceil(chunks.length/batchSize);
+    console.log(`📦 Processando batch ${batchNum}/${totalBatches}`);
+    progressCallback?.(`Nível 1: Batch ${batchNum}/${totalBatches} (${i + batch.length}/${chunks.length} chunks)`);
     
     const batchPromises = batch.map((chunk, idx) => 
-      analyzeChunk(chunk, i + idx, chunks.length, totalPages, openAIApiKey)
+      analyzeChunk(chunk, i + idx, chunks.length, totalPages, openAIApiKey, progressCallback)
     );
     
     const batchResults = await Promise.allSettled(batchPromises);
@@ -391,9 +409,10 @@ const processChunksInParallel = async (
       }
     });
     
-    // Rate limiting
+    // Delay de 5s entre batches para evitar rate limit
     if (i + batchSize < chunks.length) {
-      await delay(2000);
+      console.log('⏳ Aguardando 5s antes do próximo batch...');
+      await delay(5000);
     }
   }
   
@@ -443,10 +462,18 @@ serve(async (req) => {
     // NÍVEL 2: Section Synthesis
     console.log("\n🧩 NÍVEL 2: Section Synthesis");
     const sections = groupIntoSections(chunkAnalyses, pageCount);
-    const sectionPromises = sections.map((section, idx) => 
-      synthesizeSection(section, idx, sections.length, openAIApiKey)
-    );
-    const sectionSyntheses = await Promise.all(sectionPromises);
+    const sectionSyntheses: string[] = [];
+    
+    for (let i = 0; i < sections.length; i++) {
+      const synthesis = await synthesizeSection(sections[i], i, sections.length, openAIApiKey);
+      sectionSyntheses.push(synthesis);
+      
+      // Delay de 3s entre sínteses para evitar rate limit
+      if (i < sections.length - 1) {
+        console.log('⏳ Aguardando 3s antes da próxima síntese...');
+        await delay(3000);
+      }
+    }
     
     // NÍVEL 3: Document Consolidation + Streaming
     console.log("\n🎯 NÍVEL 3: Document Consolidation (streaming)");

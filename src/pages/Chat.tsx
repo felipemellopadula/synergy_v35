@@ -1590,7 +1590,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           functionName = "hierarchical-rag-chat";
           const targetPages = Math.floor(documentPageCount * 0.7);
           console.log(`🔍 Documento grande detectado: ${documentPageCount} páginas → Target: ${targetPages} páginas (70%)`);
-          setProcessingStatus(`🔍 Analisando ${documentPageCount} páginas com preservação de 70% do conteúdo (2-5 min)...`);
+          setProcessingStatus(`🔍 Iniciando análise de ${documentPageCount} páginas (6-8 min estimados)...`);
         } else {
           functionName = getEdgeFunctionName(internalModel);
         }
@@ -1622,6 +1622,12 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               contextEnabled: true,
             };
         
+        // Criar AbortController com timeout de 10 minutos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 600000); // 10 minutos
+
         const response = await fetch(CHAT_URL, {
           method: "POST",
           headers: {
@@ -1630,15 +1636,19 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cWdubnFsdGVtZnB6ZHh3eWJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4ODc3NjIsImV4cCI6MjA2OTQ2Mzc2Mn0.X0jHc8AkyZNZbi3kg5Qh6ngg7aAbijFXchM6bYsAnlE",
           },
           body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        }).finally(() => {
+          clearTimeout(timeoutId);
         });
 
         if (response.status === 429) {
           toast({
-            title: "🚫 Limite de requisições excedido",
-            description: "Tente novamente em 1 minuto.",
+            title: "⏳ Muitas requisições",
+            description: "A API OpenAI está com rate limit. Aguarde 2 minutos e tente novamente.",
             variant: "destructive",
           });
           setIsLoading(false);
+          setProcessingStatus("");
           return;
         }
 
@@ -1649,6 +1659,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             variant: "destructive",
           });
           setIsLoading(false);
+          setProcessingStatus("");
           return;
         }
 
@@ -1738,10 +1749,23 @@ Forneça uma resposta abrangente que integre informações de todos os documento
 
               try {
                 const parsed = JSON.parse(jsonStr);
+                
+                // Verificar se é evento de progresso
+                if (parsed.status) {
+                  console.log('📊 Progress:', parsed.status);
+                  setProcessingStatus(parsed.status);
+                  continue;
+                }
+                
                 const content = parsed.choices?.[0]?.delta?.content as string | undefined;
                 
                 if (content) {
                   accumulatedContent += content;
+                  
+                  // Limpar status de processamento quando conteúdo começar a chegar
+                  if (processingStatus) {
+                    setProcessingStatus("");
+                  }
                   
                   // Atualizar mensagem do bot em tempo real
                   setMessages((prev) =>
