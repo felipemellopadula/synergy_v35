@@ -1583,26 +1583,129 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         }
 
         // Ativar Hierarchical RAG se documento >= 20 páginas
-        shouldUseHierarchicalRAG = documentPageCount >= 20 && documentPageCount <= 40 && documentContent.length > 0;
-
-        if (documentPageCount > 40) {
-          toast({
-            title: "⚠️ Documento muito grande",
-            description: `Documentos com mais de 40 páginas (atual: ${documentPageCount}) podem exceder o tempo limite. Considere dividir em partes ou usar um modelo diferente.`,
-            variant: "destructive",
-          });
-        }
+        shouldUseHierarchicalRAG = documentPageCount >= 20 && documentContent.length > 0;
 
         let functionName: string;
         if (shouldUseHierarchicalRAG) {
           functionName = "hierarchical-rag-chat";
           const targetPages = Math.floor(documentPageCount * 0.7);
           console.log(`🔍 Documento grande detectado: ${documentPageCount} páginas → Target: ${targetPages} páginas (70%)`);
-          setProcessingStatus(`🔍 Análise de ${documentPageCount} páginas (2-4 min estimados)...`);
+          
+          const estimateTime = (pages: number): string => {
+            if (pages <= 50) return '2-4 min';
+            if (pages <= 100) return '4-7 min';
+            if (pages <= 200) return '7-12 min';
+            if (pages <= 500) return '12-20 min';
+            return '20-35 min';
+          };
+          
+          setProcessingStatus(`🔍 Processando ${documentPageCount} páginas (${estimateTime(documentPageCount)} estimados)...`);
         } else {
           functionName = getEdgeFunctionName(internalModel);
         }
 
+        // PROCESSAMENTO AGENTIC RAG NO FRONTEND
+        if (shouldUseHierarchicalRAG) {
+          console.log(`🚀 Iniciando Agentic RAG: ${documentPageCount} páginas`);
+          
+          try {
+            const { AgenticRAG } = await import("@/utils/AgenticRAG");
+            const rag = new AgenticRAG();
+            
+            // FASE 1: Chunking (instantâneo)
+            setProcessingStatus('📚 Dividindo documento em chunks...');
+            const chunks = rag.createChunks(documentContent, documentPageCount);
+            console.log(`✅ Criados ${chunks.length} chunks`);
+            
+            // FASE 2: Análise de chunks (paralelo)
+            setProcessingStatus(`🔍 Analisando ${chunks.length} chunks (3 paralelos)...`);
+            const analyses = await rag.analyzeChunks(
+              chunks,
+              documentPageCount,
+              (progress) => {
+                setProcessingStatus(`🔍 ${progress.status}`);
+              }
+            );
+            console.log(`✅ ${analyses.length} chunks analisados`);
+            
+            // FASE 3: Síntese de seções
+            setProcessingStatus('🧩 Sintetizando seções...');
+            const sections = await rag.synthesizeSections(
+              analyses,
+              (status) => setProcessingStatus(`🧩 ${status}`)
+            );
+            console.log(`✅ ${sections.length} seções sintetizadas`);
+            
+            // FASE 4: Consolidação final com streaming
+            setProcessingStatus('🎯 Gerando resposta final...');
+            
+            const newMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              content: '',
+              sender: "bot",
+              timestamp: new Date(),
+              model: selectedModel,
+              isStreaming: true,
+            };
+            
+            startTransition(() => {
+              setMessages((prev) => [...prev, newMessage]);
+              setIsStreamingResponse(true);
+              setIsLoading(false);
+            });
+            
+            let fullContent = '';
+            
+            for await (const chunk of rag.consolidateAndStream(
+              sections,
+              messageWithFiles,
+              documentFileName,
+              documentPageCount
+            )) {
+              fullContent += chunk;
+              
+              startTransition(() => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === newMessage.id
+                      ? { ...msg, content: fullContent }
+                      : msg
+                  )
+                );
+              });
+            }
+            
+            // Finalizar streaming
+            startTransition(() => {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === newMessage.id
+                    ? { ...msg, isStreaming: false }
+                    : msg
+                )
+              );
+              setIsStreamingResponse(false);
+            });
+            
+            setProcessingStatus('');
+            console.log('✅ Processamento Agentic RAG concluído');
+            
+          } catch (error: any) {
+            console.error('❌ Erro no Agentic RAG:', error);
+            toast({
+              title: "Erro no processamento",
+              description: error.message,
+              variant: "destructive",
+            });
+            setProcessingStatus('');
+            setIsLoading(false);
+            setIsStreamingResponse(false);
+          }
+          
+          return; // Não continuar com processamento normal
+        }
+        
+        // PROCESSAMENTO NORMAL (OUTROS MODELOS)
         const conversationHistory = messages.slice(-20).map((msg) => ({
           role: msg.sender === "user" ? "user" : "assistant",
           content: msg.content,
@@ -1610,27 +1713,17 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           timestamp: msg.timestamp.toISOString(),
         }));
 
-        // Preparar URL da edge function com SSE
         const CHAT_URL = `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/${functionName}`;
         const { data: sessionData } = await supabase.auth.getSession();
         
-        // Preparar body baseado no tipo de função
-        const requestBody = shouldUseHierarchicalRAG 
-          ? {
-              message: messageWithFiles,
-              documentContent,
-              pageCount: documentPageCount,
-              fileName: documentFileName,
-            }
-          : {
-              message: messageWithFiles,
-              model: internalModel,
-              files: fileData.length > 0 ? fileData : undefined,
-              conversationHistory,
-              contextEnabled: true,
-            };
+        const requestBody = {
+          message: messageWithFiles,
+          model: internalModel,
+          files: fileData.length > 0 ? fileData : undefined,
+          conversationHistory,
+          contextEnabled: true,
+        };
         
-        // Criar AbortController com timeout de 10 minutos
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           controller.abort();

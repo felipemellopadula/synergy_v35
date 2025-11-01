@@ -29,3 +29,12 @@ verify_jwt = true
 
 [functions.hierarchical-rag-chat]
 verify_jwt = true
+
+[functions.rag-analyze-chunk]
+verify_jwt = true
+
+[functions.rag-synthesize-section]
+verify_jwt = true
+
+[functions.rag-consolidate]
+verify_jwt = true
