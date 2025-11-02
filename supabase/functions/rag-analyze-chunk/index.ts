@@ -34,35 +34,65 @@ ${chunk}
 ⚠️ PRESERVE 90% do conteúdo original
 Use Markdown para estruturação`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openAIKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini-2025-04-14",
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 8000,
-        temperature: 0.3,
-      }),
-    });
+    // Retry logic com exponential backoff
+    const MAX_RETRIES = 2;
+    let lastError;
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error(`[RAG Chunk ${chunkIndex + 1}] OpenAI error:`, response.status, error);
-      throw new Error(`OpenAI error: ${response.status} - ${error}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${openAIKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-mini-2025-04-14",
+            messages: [{ role: "user", content: prompt }],
+            max_completion_tokens: 4000,
+            temperature: 0.3,
+          }),
+        });
+
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000 * Math.pow(2, attempt);
+          
+          if (attempt < MAX_RETRIES) {
+            console.log(`⏳ Rate limit (429), aguardando ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+
+        if (!response.ok) {
+          lastError = await response.text();
+          throw new Error(`OpenAI error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const analysis = data.choices[0].message.content;
+
+        console.log(`[RAG Chunk ${chunkIndex + 1}/${totalChunks}] ✅ Análise concluída`);
+
+        return new Response(
+          JSON.stringify({ analysis }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        lastError = error;
+        if (attempt < MAX_RETRIES) {
+          const delay = 3000 * Math.pow(2, attempt);
+          console.log(`⚠️ Chunk ${chunkIndex+1} tentativa ${attempt+1} falhou, aguardando ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
 
-    const data = await response.json();
-    const analysis = data.choices[0].message.content;
-
-    console.log(`[RAG Chunk ${chunkIndex + 1}/${totalChunks}] ✅ Análise concluída`);
-
-    return new Response(
-      JSON.stringify({ analysis }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    // Todas tentativas falharam
+    console.error(`[RAG Chunk ${chunkIndex + 1}] ❌ Falhou após ${MAX_RETRIES+1} tentativas`);
+    throw new Error(`Failed after ${MAX_RETRIES+1} attempts: ${lastError}`);
 
   } catch (error) {
     console.error('[RAG Chunk] Error:', error);

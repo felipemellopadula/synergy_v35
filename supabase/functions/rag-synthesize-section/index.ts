@@ -34,35 +34,65 @@ ${analyses.join('\n\n---\n\n')}
 ⚠️ PRESERVE 80% do conteúdo das análises
 Use Markdown extensivamente`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openAIKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-2025-04-14",
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 16000,
-        temperature: 0.2,
-      }),
-    });
+    // Retry logic
+    const MAX_RETRIES = 2;
+    let lastError;
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error(`[RAG Section ${sectionIndex + 1}] OpenAI error:`, response.status, error);
-      throw new Error(`OpenAI error: ${response.status} - ${error}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${openAIKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4.1-2025-04-14",
+            messages: [{ role: "user", content: prompt }],
+            max_completion_tokens: 16000,
+            temperature: 0.2,
+          }),
+        });
+
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('retry-after');
+          const delay = retryAfter ? parseInt(retryAfter) * 1000 : 5000 * Math.pow(2, attempt);
+          
+          if (attempt < MAX_RETRIES) {
+            console.log(`⏳ Section ${sectionIndex+1} rate limit, aguardando ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+
+        if (!response.ok) {
+          lastError = await response.text();
+          throw new Error(`OpenAI error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const synthesis = data.choices[0].message.content;
+
+        console.log(`[RAG Section ${sectionIndex + 1}/${totalSections}] ✅ Síntese concluída`);
+
+        return new Response(
+          JSON.stringify({ synthesis }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+
+      } catch (error) {
+        lastError = error;
+        if (attempt < MAX_RETRIES) {
+          const delay = 3000 * Math.pow(2, attempt);
+          console.log(`⚠️ Section ${sectionIndex+1} tentativa ${attempt+1} falhou, aguardando ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
 
-    const data = await response.json();
-    const synthesis = data.choices[0].message.content;
+    console.error(`[RAG Section ${sectionIndex + 1}] ❌ Falhou após ${MAX_RETRIES+1} tentativas`);
+    throw new Error(`Failed after ${MAX_RETRIES+1} attempts: ${lastError}`);
 
-    console.log(`[RAG Section ${sectionIndex + 1}/${totalSections}] ✅ Síntese concluída`);
-
-    return new Response(
-      JSON.stringify({ synthesis }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('[RAG Section] Error:', error);

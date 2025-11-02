@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { RAGCache } from "./RAGCache";
 
 interface ChunkProgress {
   current: number;
@@ -7,33 +8,57 @@ interface ChunkProgress {
 }
 
 export class AgenticRAG {
-  // FASE 1: Chunking no frontend (instantâneo)
+  private cache = new RAGCache();
+
+  // FASE 1: Chunking no frontend com validação
   createChunks(content: string, totalPages: number): string[] {
     const chunkPages = this.getChunkSize(totalPages);
-    const chunkSize = chunkPages * 3500; // chars por página
-    const overlapSize = Math.floor(chunkSize * 0.15); // 15% overlap
+    const chunkSize = chunkPages * 3500;
+    const MAX_CHUNK_SIZE = 120000; // 120K chars (~30K tokens)
+    
+    const finalChunkSize = Math.min(chunkSize, MAX_CHUNK_SIZE);
+    const overlapSize = Math.floor(finalChunkSize * 0.15);
+    
+    console.log(`📚 Criando chunks: ${totalPages} páginas → ${chunkPages} páginas/chunk (max ${finalChunkSize} chars)`);
     
     const chunks: string[] = [];
     let position = 0;
     
     while (position < content.length) {
-      const end = Math.min(position + chunkSize, content.length);
+      const end = Math.min(position + finalChunkSize, content.length);
       chunks.push(content.slice(position, end));
-      position += (chunkSize - overlapSize);
+      position += (finalChunkSize - overlapSize);
       if (end === content.length) break;
     }
     
+    console.log(`✅ ${chunks.length} chunks criados`);
     return chunks;
   }
 
-  // FASE 2: Análise paralela de chunks (3 por vez)
+  // FASE 2: Análise com retry e cache
   async analyzeChunks(
     chunks: string[],
     totalPages: number,
-    onProgress: (progress: ChunkProgress) => void
+    onProgress: (progress: ChunkProgress) => void,
+    documentHash?: string
   ): Promise<string[]> {
-    const BATCH_SIZE = 3;
+    // Tentar carregar do cache
+    if (documentHash) {
+      const cached = await this.cache.load(documentHash, 'analyses');
+      if (cached) {
+        console.log('✅ Análises carregadas do cache');
+        onProgress({
+          current: chunks.length,
+          total: chunks.length,
+          status: 'Carregado do cache'
+        });
+        return cached;
+      }
+    }
+
+    const BATCH_SIZE = 2; // Reduzido para evitar rate limit
     const results: string[] = [];
+    const failedChunks: number[] = [];
     
     for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
       const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -44,36 +69,83 @@ export class AgenticRAG {
         status: `Analisando chunks ${i+1}-${Math.min(i+BATCH_SIZE, chunks.length)} de ${chunks.length}`
       });
       
-      // Processar batch em paralelo
+      // Processar batch com Promise.allSettled
       const batchPromises = batch.map((chunk, idx) => 
         this.analyzeChunk(chunk, i + idx, chunks.length, totalPages)
       );
       
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Separar sucessos de falhas
+      batchResults.forEach((result, idx) => {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          const chunkIndex = i + idx;
+          failedChunks.push(chunkIndex);
+          console.error(`❌ Chunk ${chunkIndex+1} falhou:`, result.reason);
+          results.push(`[CHUNK ${chunkIndex+1} NÃO PROCESSADO: ${result.reason.message}]`);
+        }
+      });
+      
+      // Delay entre batches
+      if (i + BATCH_SIZE < chunks.length) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+    
+    if (failedChunks.length > 0) {
+      console.warn(`⚠️ ${failedChunks.length}/${chunks.length} chunks falharam`);
+    }
+    
+    // Salvar no cache
+    if (documentHash) {
+      await this.cache.save(documentHash, 'analyses', results);
     }
     
     return results;
   }
 
-  // Chamar edge function para análise de 1 chunk
+  // Análise de chunk com retry
   private async analyzeChunk(
     chunk: string,
     index: number,
     total: number,
-    totalPages: number
+    totalPages: number,
+    retryCount = 0
   ): Promise<string> {
-    const { data, error } = await supabase.functions.invoke('rag-analyze-chunk', {
-      body: {
-        chunk,
-        chunkIndex: index,
-        totalChunks: total,
-        totalPages
-      }
-    });
+    const MAX_RETRIES = 3;
+    const INITIAL_DELAY = 2000;
     
-    if (error) throw new Error(`Chunk ${index+1} failed: ${error.message}`);
-    return data.analysis;
+    try {
+      const { data, error } = await supabase.functions.invoke('rag-analyze-chunk', {
+        body: { chunk, chunkIndex: index, totalChunks: total, totalPages }
+      });
+      
+      if (error) {
+        // Detectar rate limit
+        if (error.message.includes('429') || error.message.includes('rate limit')) {
+          if (retryCount < MAX_RETRIES) {
+            const delay = INITIAL_DELAY * Math.pow(2, retryCount);
+            console.log(`⏳ Rate limit no chunk ${index+1}, aguardando ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return this.analyzeChunk(chunk, index, total, totalPages, retryCount + 1);
+          }
+        }
+        throw new Error(`Chunk ${index+1} failed: ${error.message}`);
+      }
+      
+      return data.analysis;
+      
+    } catch (error: any) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = INITIAL_DELAY * Math.pow(2, retryCount);
+        console.log(`⚠️ Erro no chunk ${index+1}, tentativa ${retryCount+1}/${MAX_RETRIES}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.analyzeChunk(chunk, index, total, totalPages, retryCount + 1);
+      }
+      throw error;
+    }
   }
 
   // FASE 3: Síntese de seções
@@ -102,7 +174,7 @@ export class AgenticRAG {
     return syntheses;
   }
 
-  // FASE 4: Consolidação final com streaming (hierárquica se necessário)
+  // FASE 4: Consolidação hierárquica melhorada
   async *consolidateAndStream(
     sections: string[],
     userMessage: string,
@@ -111,17 +183,29 @@ export class AgenticRAG {
   ): AsyncGenerator<string> {
     const { data: { session } } = await supabase.auth.getSession();
     
-    // Estimar tokens (aproximadamente 4 chars = 1 token)
     const totalChars = sections.reduce((sum, s) => sum + s.length, 0);
-    const estimatedTokens = Math.floor(totalChars / 4);
+    let estimatedTokens = Math.floor(totalChars / 4);
     
     console.log(`📊 Tokens estimados: ${estimatedTokens}`);
     
-    // Se ultrapassar 20K tokens, fazer consolidação progressiva
+    // Consolidação progressiva em múltiplos níveis
     let finalSections = sections;
-    if (estimatedTokens > 20000 && sections.length > 2) {
-      console.log('🔄 Tokens muito altos, fazendo pré-consolidação...');
-      finalSections = await this.preConsolidate(sections);
+    let level = 1;
+    
+    while (estimatedTokens > 12000 && finalSections.length > 1) {
+      console.log(`🔄 Nível ${level}: Consolidando ${finalSections.length} seções (${estimatedTokens} tokens)`);
+      finalSections = await this.preConsolidate(finalSections);
+      
+      const newTotalChars = finalSections.reduce((sum, s) => sum + s.length, 0);
+      const newEstimatedTokens = Math.floor(newTotalChars / 4);
+      
+      if (newEstimatedTokens >= estimatedTokens * 0.9) {
+        console.log('⚠️ Consolidação não reduziu tokens suficiente, prosseguindo');
+        break;
+      }
+      
+      estimatedTokens = newEstimatedTokens;
+      level++;
     }
     
     const response = await fetch(
@@ -172,16 +256,14 @@ export class AgenticRAG {
     }
   }
 
-  // Pré-consolidar seções em grupos menores
+  // Pré-consolidar seções
   private async preConsolidate(sections: string[]): Promise<string[]> {
     console.log(`🔄 Pré-consolidando ${sections.length} seções em pares...`);
     
     const consolidated: string[] = [];
     
-    // Consolidar em pares
     for (let i = 0; i < sections.length; i += 2) {
       if (i + 1 < sections.length) {
-        // Consolidar par
         const pair = [sections[i], sections[i + 1]];
         const { data, error } = await supabase.functions.invoke('rag-synthesize-section', {
           body: {
@@ -194,22 +276,23 @@ export class AgenticRAG {
         if (error) throw new Error(`Pre-consolidation failed: ${error.message}`);
         consolidated.push(data.synthesis);
       } else {
-        // Última seção ímpar
         consolidated.push(sections[i]);
       }
     }
     
-    console.log(`✅ Pré-consolidação completa: ${sections.length} → ${consolidated.length} seções`);
+    console.log(`✅ Pré-consolidação: ${sections.length} → ${consolidated.length} seções`);
     return consolidated;
   }
 
-  // Helpers
+  // Helpers otimizados
   private getChunkSize(pages: number): number {
-    if (pages <= 50) return 20;
-    if (pages <= 100) return 25;
-    if (pages <= 200) return 30;
-    if (pages <= 500) return 40;
-    return 50;
+    // Chunks menores para evitar timeout
+    if (pages <= 30) return 15;
+    if (pages <= 50) return 15;
+    if (pages <= 100) return 20;
+    if (pages <= 200) return 20;
+    if (pages <= 500) return 25;
+    return 30; // Max 30 páginas (~105K chars)
   }
 
   private groupIntoSections(analyses: string[]): string[][] {

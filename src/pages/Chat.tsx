@@ -556,6 +556,13 @@ const Chat: React.FC = () => {
   }>({});
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [ragProgress, setRagProgress] = useState({
+    phase: '',
+    current: 0,
+    total: 0,
+    percentage: 0,
+    details: ''
+  });
 
   const [isPending, startTransition] = useTransition();
 
@@ -1592,11 +1599,23 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           console.log(`🔍 Documento grande detectado: ${documentPageCount} páginas → Target: ${targetPages} páginas (70%)`);
           
           const estimateTime = (pages: number): string => {
-            if (pages <= 50) return '2-4 min';
-            if (pages <= 100) return '4-7 min';
-            if (pages <= 200) return '7-12 min';
-            if (pages <= 500) return '12-20 min';
-            return '20-35 min';
+            const chunkSize = pages <= 100 ? 20 : pages <= 500 ? 25 : 30;
+            const numChunks = Math.ceil(pages / chunkSize);
+            const batchSize = 2;
+            const numBatches = Math.ceil(numChunks / batchSize);
+            
+            const chunkTime = numBatches * 10;
+            const synthesisTime = Math.ceil(numChunks / 3) * 8;
+            const consolidationTime = 120;
+            
+            const totalSeconds = chunkTime + synthesisTime + consolidationTime;
+            const minutes = Math.ceil(totalSeconds / 60);
+            
+            if (minutes <= 3) return '2-3 min';
+            if (minutes <= 7) return '4-7 min';
+            if (minutes <= 12) return '8-12 min';
+            if (minutes <= 20) return '13-20 min';
+            return `${minutes-5}-${minutes+5} min`;
           };
           
           setProcessingStatus(`🔍 Processando ${documentPageCount} páginas (${estimateTime(documentPageCount)} estimados)...`);
@@ -1610,34 +1629,54 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           
           try {
             const { AgenticRAG } = await import("@/utils/AgenticRAG");
+            const { RAGCache } = await import("@/utils/RAGCache");
             const rag = new AgenticRAG();
+            const cache = new RAGCache();
+            
+            // Gerar hash do documento para cache
+            const documentHash = cache.generateHash(documentContent);
             
             // FASE 1: Chunking (instantâneo)
             setProcessingStatus('📚 Dividindo documento em chunks...');
+            setRagProgress({ phase: 'Preparação', current: 0, total: 1, percentage: 0, details: 'Dividindo documento' });
             const chunks = rag.createChunks(documentContent, documentPageCount);
             console.log(`✅ Criados ${chunks.length} chunks`);
             
             // FASE 2: Análise de chunks (paralelo)
-            setProcessingStatus(`🔍 Analisando ${chunks.length} chunks (3 paralelos)...`);
+            setProcessingStatus(`🔍 Analisando ${chunks.length} chunks (2 paralelos)...`);
             const analyses = await rag.analyzeChunks(
               chunks,
               documentPageCount,
               (progress) => {
-                setProcessingStatus(`🔍 ${progress.status}`);
-              }
+                const percentage = Math.floor((progress.current / progress.total) * 100);
+                setRagProgress({
+                  phase: 'Análise de Chunks',
+                  current: progress.current,
+                  total: progress.total,
+                  percentage,
+                  details: progress.status
+                });
+                setProcessingStatus(`🔍 ${progress.status} (${percentage}%)`);
+              },
+              documentHash
             );
             console.log(`✅ ${analyses.length} chunks analisados`);
             
             // FASE 3: Síntese de seções
             setProcessingStatus('🧩 Sintetizando seções...');
+            setRagProgress({ phase: 'Síntese', current: 0, total: 3, percentage: 0, details: 'Sintetizando seções' });
             const sections = await rag.synthesizeSections(
               analyses,
-              (status) => setProcessingStatus(`🧩 ${status}`)
+              (status) => {
+                setProcessingStatus(`🧩 ${status}`);
+                setRagProgress(prev => ({ ...prev, details: status }));
+              }
             );
             console.log(`✅ ${sections.length} seções sintetizadas`);
             
             // FASE 4: Consolidação final com streaming
             setProcessingStatus('🎯 Gerando resposta final...');
+            setRagProgress({ phase: 'Consolidação', current: 0, total: 1, percentage: 100, details: 'Gerando resposta final' });
             
             const newMessage: Message = {
               id: (Date.now() + 1).toString(),
@@ -1688,6 +1727,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             });
             
             setProcessingStatus('');
+            setRagProgress({ phase: '', current: 0, total: 0, percentage: 0, details: '' });
             console.log('✅ Processamento Agentic RAG concluído');
             
           } catch (error: any) {
@@ -1698,6 +1738,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               variant: "destructive",
             });
             setProcessingStatus('');
+            setRagProgress({ phase: '', current: 0, total: 0, percentage: 0, details: '' });
             setIsLoading(false);
             setIsStreamingResponse(false);
           }
@@ -2827,6 +2868,25 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* UI de Progresso do RAG */}
+              {ragProgress.phase && (
+                <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-card/95 backdrop-blur border border-border rounded-lg shadow-lg p-4 w-[90%] max-w-md z-50">
+                  <div className="text-sm font-medium mb-2 text-foreground">{ragProgress.phase}</div>
+                  <div className="text-xs text-muted-foreground mb-2">
+                    {ragProgress.details}
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2 mb-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${ragProgress.percentage}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-right text-muted-foreground">
+                    {ragProgress.current}/{ragProgress.total} ({ragProgress.percentage}%)
                   </div>
                 </div>
               )}
