@@ -1640,7 +1640,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             setProcessingStatus('📚 Dividindo documento em chunks...');
             setRagProgress({ phase: 'Preparação', current: 0, total: 1, percentage: 0, details: 'Dividindo documento' });
             const chunks = rag.createChunks(documentContent, documentPageCount);
-            console.log(`✅ Criados ${chunks.length} chunks`);
+            console.log(`📊 [FASE 1] Chunks criados: ${chunks.length}`);
             
             // FASE 2: Análise de chunks (paralelo)
             setProcessingStatus(`🔍 Analisando ${chunks.length} chunks (2 paralelos)...`);
@@ -1660,7 +1660,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
               },
               documentHash
             );
-            console.log(`✅ ${analyses.length} chunks analisados`);
+            console.log(`📊 [FASE 2] Análises concluídas: ${analyses.length}`);
             
             // FASE 3: Síntese de seções
             setProcessingStatus('🧩 Sintetizando seções...');
@@ -1672,11 +1672,12 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                 setRagProgress(prev => ({ ...prev, details: status }));
               }
             );
-            console.log(`✅ ${sections.length} seções sintetizadas`);
+            console.log(`📊 [FASE 3] Seções sintetizadas: ${sections.length}`);
             
             // FASE 4: Consolidação final com streaming
             setProcessingStatus('🎯 Gerando resposta final...');
             setRagProgress({ phase: 'Consolidação', current: 0, total: 1, percentage: 100, details: 'Gerando resposta final' });
+            console.log(`📊 [FASE 4] Iniciando consolidação final...`);
             
             const newMessage: Message = {
               id: (Date.now() + 1).toString(),
@@ -1732,11 +1733,28 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             
           } catch (error: any) {
             console.error('❌ Erro no Agentic RAG:', error);
+            
+            // Mensagem amigável baseada no tipo de erro
+            let errorTitle = "Erro no processamento";
+            let errorMessage = "Não foi possível processar o documento. Por favor, tente novamente.";
+            
+            if (error.message.includes('too large') || error.message.includes('Input muito grande')) {
+              errorTitle = "Documento muito complexo";
+              errorMessage = "⚠️ O documento é muito grande para processar. Tente dividir em arquivos menores ou remover conteúdo desnecessário.";
+            } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+              errorTitle = "Limite de requisições atingido";
+              errorMessage = "⏳ Muitas requisições simultâneas. Aguarde alguns segundos e tente novamente.";
+            } else if (error.message.includes('ERRO CRÍTICO')) {
+              errorTitle = "Erro na consolidação";
+              errorMessage = "❌ Sistema não conseguiu reduzir o documento suficientemente. Tente um documento menor.";
+            }
+            
             toast({
-              title: "Erro no processamento",
-              description: error.message,
+              title: errorTitle,
+              description: errorMessage,
               variant: "destructive",
             });
+            
             setProcessingStatus('');
             setRagProgress({ phase: '', current: 0, total: 0, percentage: 0, details: '' });
             setIsLoading(false);

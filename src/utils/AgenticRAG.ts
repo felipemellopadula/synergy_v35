@@ -174,35 +174,59 @@ export class AgenticRAG {
     return syntheses;
   }
 
-  // FASE 4: Consolidação hierárquica melhorada com estratégia MUITO mais agressiva
+  // FASE 4: Consolidação hierárquica MUITO mais agressiva
   async *consolidateAndStream(
     sections: string[],
     userMessage: string,
     fileName: string,
     totalPages: number
   ): AsyncGenerator<string> {
-    const { data: { session } } = await supabase.auth.getSession();
+    console.log(`🎯 [CONSOLIDAÇÃO] Iniciando com ${sections.length} seções`);
     
-    console.log(`📊 Tokens estimados: ${this.estimateTokens(sections)}`);
-    
-    // Consolidação hierárquica MUITO mais agressiva
+    // NÍVEL 3: Consolidação hierárquica MUITO mais agressiva
     let workingSections = sections;
     let round = 1;
+    const MAX_ROUNDS = 6;
+    const TARGET_TOKENS = 18000; // Alvo de 18K tokens (margem de 12K)
+    const TARGET_SECTIONS = 2; // Ideal: 2 seções finais
     
-    // Reduzir até ter no máximo 2 seções E menos de 8000 tokens
-    while (workingSections.length > 2 || this.estimateTokens(workingSections) > 8000) {
-      console.log(`🔄 Rodada ${round}: Pré-consolidando ${workingSections.length} seções (${this.estimateTokens(workingSections)} tokens)...`);
-      workingSections = await this.preConsolidate(workingSections);
-      console.log(`✅ Reduzido para ${workingSections.length} seções (${this.estimateTokens(workingSections)} tokens)`);
-      round++;
+    while (round <= MAX_ROUNDS) {
+      const currentTokens = this.estimateTokens(workingSections);
+      const numSections = workingSections.length;
       
-      // Limite de segurança para evitar loop infinito
-      if (round > 5) {
-        console.warn('⚠️ Limite de rodadas atingido, truncando seções');
-        workingSections = workingSections.map(s => s.slice(0, 15000));
+      console.log(`🔄 Rodada ${round}: ${numSections} seções, ~${currentTokens} tokens`);
+      
+      // Condição de parada: atingiu alvo OU não dá pra reduzir mais
+      if (currentTokens <= TARGET_TOKENS && numSections <= TARGET_SECTIONS) {
+        console.log(`✅ Meta atingida! ${numSections} seções, ${currentTokens} tokens`);
         break;
       }
+      
+      if (numSections === 1 && currentTokens > TARGET_TOKENS) {
+        // Última seção muito grande: truncar forçadamente
+        console.warn(`⚠️ Seção única muito grande (${currentTokens} tokens), truncando...`);
+        const targetChars = Math.floor(TARGET_TOKENS * 3.5);
+        workingSections = [
+          workingSections[0].slice(0, targetChars) + 
+          '\n\n[... Documento truncado para respeitar limites de tokens ...]'
+        ];
+        break;
+      }
+      
+      // Consolidar agressivamente
+      workingSections = await this.preConsolidate(workingSections);
+      round++;
     }
+    
+    const finalTokens = this.estimateTokens(workingSections);
+    console.log(`📊 [FINAL] ${workingSections.length} seções, ~${finalTokens} tokens → Enviando para consolidação`);
+    
+    if (finalTokens > 20000) {
+      throw new Error(`ERRO CRÍTICO: Ainda temos ${finalTokens} tokens! Sistema falhou.`);
+    }
+    
+    // Chamar backend para consolidação final
+    const { data: { session } } = await supabase.auth.getSession();
     
     const response = await fetch(
       `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/rag-consolidate`,
@@ -227,6 +251,7 @@ export class AgenticRAG {
       throw new Error('Consolidation failed');
     }
     
+    // Stream da resposta
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
     
@@ -252,51 +277,108 @@ export class AgenticRAG {
     }
   }
 
-  // Pré-consolidar seções de forma mais agressiva
+  // Pré-consolidação: agrupa seções de forma inteligente e agressiva
   private async preConsolidate(sections: string[]): Promise<string[]> {
-    // Agrupar em grupos de 3 se houver muitas seções, senão grupos de 2
-    const groupSize = sections.length > 6 ? 3 : 2;
-    const pairs: string[][] = [];
+    const currentTokens = this.estimateTokens(sections);
     
+    // Determinar estratégia de agrupamento baseado no tamanho
+    let groupSize: number;
+    if (sections.length <= 2) {
+      // Se já temos 2 ou menos, tentar comprimir cada uma
+      groupSize = 1;
+    } else if (currentTokens > 50000) {
+      // Muito grande: agrupar de 4 em 4
+      groupSize = 4;
+    } else if (currentTokens > 30000) {
+      // Grande: agrupar de 3 em 3
+      groupSize = 3;
+    } else {
+      // Normal: agrupar de 2 em 2
+      groupSize = 2;
+    }
+    
+    console.log(`🔧 Pré-consolidando: ${sections.length} seções em grupos de ${groupSize}`);
+    
+    const groups: string[][] = [];
     for (let i = 0; i < sections.length; i += groupSize) {
       const group = sections.slice(i, Math.min(i + groupSize, sections.length));
-      pairs.push(group);
+      groups.push(group);
     }
-
-    console.log(`🔄 Consolidando ${sections.length} seções em ${pairs.length} grupos de ~${groupSize}`);
-
-    const consolidated = await Promise.all(
-      pairs.map(async (group, idx) => {
-        if (group.length === 1) return group[0];
-        
-        // Truncar cada seção do grupo se necessário
-        const truncatedGroup = group.map(s => {
-          if (s.length > 20000) {
-            return s.slice(0, 20000) + '\n\n[... conteúdo truncado para limitar tokens ...]';
+    
+    // Processar grupos em paralelo (máx 3 por vez para não sobrecarregar)
+    const consolidated: string[] = [];
+    const PARALLEL_LIMIT = 3;
+    
+    for (let i = 0; i < groups.length; i += PARALLEL_LIMIT) {
+      const batch = groups.slice(i, i + PARALLEL_LIMIT);
+      
+      const results = await Promise.all(
+        batch.map(async (group, idx) => {
+          if (group.length === 1) {
+            // Seção única: tentar comprimir
+            if (group[0].length > 25000) {
+              console.log(`  📉 Comprimindo seção ${i + idx + 1} (${group[0].length} chars)`);
+              return this.compressSection(group[0]);
+            }
+            return group[0];
           }
-          return s;
-        });
-        
-        const { data, error } = await supabase.functions.invoke('rag-synthesize-section', {
-          body: {
-            analyses: truncatedGroup,
-            sectionIndex: idx + 1,
-            totalSections: pairs.length
+          
+          // Múltiplas seções: sintetizar
+          console.log(`  🔗 Sintetizando grupo ${i + idx + 1} (${group.length} seções)`);
+          
+          // Truncar cada seção do grupo se necessário
+          const truncatedGroup = group.map(s => {
+            if (s.length > 20000) {
+              return s.slice(0, 20000) + '\n\n[... conteúdo truncado ...]';
+            }
+            return s;
+          });
+          
+          const { data, error } = await supabase.functions.invoke('rag-synthesize-section', {
+            body: {
+              analyses: truncatedGroup,
+              sectionIndex: i + idx + 1,
+              totalSections: groups.length
+            }
+          });
+          
+          if (error) {
+            console.error(`❌ Erro ao sintetizar grupo ${i + idx + 1}:`, error);
+            // Fallback: concatenar e truncar
+            return truncatedGroup.join('\n\n---\n\n').slice(0, 15000) + '\n\n[... erro na síntese ...]';
           }
-        });
-
-        if (error) throw error;
-        return data.synthesis;
-      })
-    );
-
+          
+          return data.synthesis;
+        })
+      );
+      
+      consolidated.push(...results);
+    }
+    
+    console.log(`✅ Consolidação concluída: ${sections.length} → ${consolidated.length} seções`);
     return consolidated;
   }
-
-  // Estimar tokens de forma conservadora
+  
+  // NOVO: Método para comprimir seções individuais grandes
+  private async compressSection(section: string): Promise<string> {
+    try {
+      const { data, error } = await supabase.functions.invoke('rag-compress-section', {
+        body: { section }
+      });
+      
+      if (error) throw error;
+      return data.compressed;
+    } catch (error) {
+      console.error('❌ Erro ao comprimir seção:', error);
+      // Fallback: truncamento simples
+      return section.slice(0, 15000) + '\n\n[... seção truncada devido a erro ...]';
+    }
+  }
+  
+  // Estima tokens de múltiplas seções
   private estimateTokens(sections: string[]): number {
     const totalChars = sections.reduce((sum, s) => sum + s.length, 0);
-    return Math.floor(totalChars / 3); // Mais conservador
+    return Math.floor(totalChars / 3); // Estimativa conservadora
   }
 
   // Helpers otimizados

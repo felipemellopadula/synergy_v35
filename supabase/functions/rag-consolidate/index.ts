@@ -17,54 +17,62 @@ serve(async (req) => {
 
     console.log(`[RAG Consolidate] Documento: "${fileName}" (${totalPages} páginas, ${sections.length} seções)`);
 
-    // Limitar tamanho das seções para evitar rate limit
+    // VALIDAÇÃO CRÍTICA: Verificar tamanho do input
     const totalChars = sections.reduce((sum: number, s: string) => sum + s.length, 0);
-    const estimatedInputTokens = Math.floor(totalChars / 3); // Muito conservador
+    const estimatedInputTokens = Math.floor(totalChars / 3.5);
     
     console.log(`[RAG Consolidate] Input estimado: ${estimatedInputTokens} tokens`);
     
-    // Limites MUITO conservadores para garantir que fique abaixo de 30K tokens
-    const MAX_INPUT_TOKENS = 4000;  // Input muito reduzido
-    const MAX_OUTPUT_TOKENS = 5000;  // Output reduzido
-    
-    // Se muito grande, truncar seções proporcionalmente
-    let processedSections = sections;
-    if (estimatedInputTokens > MAX_INPUT_TOKENS) {
-      const ratio = MAX_INPUT_TOKENS / estimatedInputTokens;
-      console.log(`[RAG Consolidate] ⚠️ Truncando seções (ratio: ${ratio.toFixed(2)})`);
-      
-      processedSections = sections.map((s: string) => {
-        const targetLength = Math.floor(s.length * ratio);
-        return s.slice(0, targetLength) + '\n\n[... conteúdo truncado para limitar tokens ...]';
-      });
+    // HARD LIMIT: Se exceder 20K tokens de input, REJEITAR
+    if (estimatedInputTokens > 20000) {
+      console.error(`❌ INPUT MUITO GRANDE: ${estimatedInputTokens} tokens (limite: 20000)`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Input muito grande: ${estimatedInputTokens} tokens. O frontend deve reduzir antes de enviar.` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    const targetPages = Math.floor(totalPages * 0.7);
-    const maxOutputTokens = Math.min(MAX_OUTPUT_TOKENS, Math.floor(totalPages * 1000 * 0.5));
+    // Calcular output tokens (conservador)
+    const targetPages = Math.floor(totalPages * 0.6); // 60% do original
+    const maxOutputTokens = Math.min(8000, Math.floor(targetPages * 100)); // ~100 tokens/página
+    
+    const totalEstimatedTokens = estimatedInputTokens + maxOutputTokens + 500; // +500 para prompt
+    console.log(`[RAG Consolidate] Total estimado: ${totalEstimatedTokens} tokens (input: ${estimatedInputTokens}, output: ${maxOutputTokens})`);
+    
+    if (totalEstimatedTokens > 29000) {
+      console.error(`❌ TOTAL EXCEDE LIMITE: ${totalEstimatedTokens} tokens`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Total de tokens excede limite: ${totalEstimatedTokens}` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     const prompt = `Você é um especialista em ANÁLISE DOCUMENTAL PROFUNDA.
 
 📖 DOCUMENTO: "${fileName}" (${totalPages} páginas)
 
-SÍNTESES DAS SEÇÕES:
-${processedSections.map((s: string, i: number) => `\n[SEÇÃO ${i+1}/${processedSections.length}]\n${s}`).join('\n\n---\n\n')}
+SÍNTESES PRÉ-CONSOLIDADAS:
+${sections.map((s: string, i: number) => `\n[SEÇÃO ${i+1}/${sections.length}]\n${s}`).join('\n\n---\n\n')}
 
 PERGUNTA DO USUÁRIO:
 ${userMessage}
 
-🎯 MISSÃO: Crie análise final de ${targetPages} páginas (70% do original) com:
+🎯 MISSÃO: Crie análise final de ~${targetPages} páginas com:
 
-1. 🌍 PANORAMA GERAL
-2. 📋 CONTEÚDO CONSOLIDADO (todos os tópicos)
-3. 🔬 ANÁLISE PROFUNDA
+1. 🌍 VISÃO GERAL EXECUTIVA
+2. 📋 ANÁLISE COMPLETA (todos os tópicos)
+3. 🔬 INSIGHTS CRÍTICOS
 4. 📊 DADOS ESTRUTURADOS
 5. 🎯 RESPOSTA DIRETA à pergunta
-6. 💡 INSIGHTS e próximos passos
+6. 💡 CONCLUSÕES e próximos passos
 
-⚠️ PRESERVE 70% do conteúdo original
-Use Markdown extensivamente`;
+⚠️ Preserve 60% do conteúdo consolidado. Use Markdown.`;
 
-    console.log(`[RAG Consolidate] Tokens output: ${maxOutputTokens}`);
+    console.log(`[RAG Consolidate] Chamando OpenAI (gpt-4.1, max_completion_tokens: ${maxOutputTokens})`);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -88,7 +96,7 @@ Use Markdown extensivamente`;
 
     console.log('[RAG Consolidate] ✅ Streaming iniciado');
 
-    // Transformar stream OpenAI → SSE
+    // Stream da resposta
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body!.getReader();

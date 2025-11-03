@@ -38,3 +38,6 @@ verify_jwt = true
 
 [functions.rag-consolidate]
 verify_jwt = true
+
+[functions.rag-compress-section]
+verify_jwt = true
