@@ -1672,12 +1672,18 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                 setRagProgress(prev => ({ ...prev, details: status }));
               }
             );
-            console.log(`📊 [FASE 3] Seções sintetizadas: ${sections.length}`);
+            console.log(`📊 [FASE 3] ${sections.length} seções sintetizadas com sucesso`);
+            setProcessingStatus("🧩 Fase 3.5: Criando seções lógicas...");
+            
+            console.log(`🧩 [FASE 3.5] Criando seções lógicas...`);
+            setProcessingStatus("🔍 Fase 3.6: Filtrando seções relevantes...");
+            
+            console.log(`🔍 [FASE 3.6] Filtrando seções relevantes para o objetivo...`);
             
             // FASE 4: Consolidação final com streaming
             setProcessingStatus('🎯 Gerando resposta final...');
             setRagProgress({ phase: 'Consolidação', current: 0, total: 1, percentage: 100, details: 'Gerando resposta final' });
-            console.log(`📊 [FASE 4] Iniciando consolidação final...`);
+            console.log(`🎯 [FASE 4] Iniciando consolidação final...`);
             
             const newMessage: Message = {
               id: (Date.now() + 1).toString(),

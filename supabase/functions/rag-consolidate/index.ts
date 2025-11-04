@@ -17,41 +17,12 @@ serve(async (req) => {
 
     console.log(`[RAG Consolidate] Documento: "${fileName}" (${totalPages} páginas, ${sections.length} seções)`);
 
-    // VALIDAÇÃO CRÍTICA: Verificar tamanho do input
-    const totalChars = sections.reduce((sum: number, s: string) => sum + s.length, 0);
-    const estimatedInputTokens = Math.floor(totalChars / 2.5); // MUITO conservador
+    // Calcular output tokens primeiro
+    const targetPages = Math.min(Math.floor(totalPages * 0.4), 30);
+    const maxOutputTokens = Math.min(5000, Math.floor(targetPages * 80));
     
-    console.log(`[RAG Consolidate] Input estimado: ${estimatedInputTokens} tokens (${totalChars} chars)`);
-    
-    // HARD LIMIT: Se exceder 12K tokens de input, REJEITAR
-    if (estimatedInputTokens > 12000) {
-      console.error(`❌ INPUT MUITO GRANDE: ${estimatedInputTokens} tokens (limite: 12000)`);
-      return new Response(
-        JSON.stringify({ 
-          error: `Input muito grande: ${estimatedInputTokens} tokens. O frontend deve reduzir antes de enviar.` 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Calcular output tokens (MUITO conservador)
-    const targetPages = Math.min(Math.floor(totalPages * 0.4), 30); // Max 30 páginas
-    const maxOutputTokens = Math.min(5000, Math.floor(targetPages * 80)); // ~80 tokens/página
-    
-    const totalEstimatedTokens = estimatedInputTokens + maxOutputTokens + 1000; // +1K para prompt
-    console.log(`[RAG Consolidate] Total estimado: ${totalEstimatedTokens} tokens (input: ${estimatedInputTokens}, output: ${maxOutputTokens})`);
-    
-    if (totalEstimatedTokens > 25000) {
-      console.error(`❌ TOTAL EXCEDE LIMITE: ${totalEstimatedTokens} tokens`);
-      return new Response(
-        JSON.stringify({ 
-          error: `Total de tokens excede limite: ${totalEstimatedTokens}` 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const prompt = `Você é um especialista em ANÁLISE DOCUMENTAL PROFUNDA.
+    // CALCULAR O PROMPT COMPLETO PRIMEIRO
+    const promptTemplate = `Você é um especialista em ANÁLISE DOCUMENTAL PROFUNDA.
 
 📖 DOCUMENTO: "${fileName}" (${totalPages} páginas)
 
@@ -70,9 +41,40 @@ ${userMessage}
 5. 🎯 RESPOSTA DIRETA à pergunta
 6. 💡 CONCLUSÕES e próximos passos
 
-⚠️ Preserve 60% do conteúdo consolidado. Use Markdown.`;
+⚠️ Preserve 70% do conteúdo fornecido. Use Markdown.`;
 
-    console.log(`[RAG Consolidate] Chamando OpenAI (gpt-4.1, max_completion_tokens: ${maxOutputTokens})`);
+    // VALIDAÇÃO com o prompt REAL
+    const promptTokens = Math.floor(promptTemplate.length / 2.5);
+    console.log(`[RAG Consolidate] Prompt total: ${promptTokens} tokens (${promptTemplate.length} chars)`);
+
+    // HARD LIMIT baseado no prompt REAL
+    if (promptTokens > 15000) {
+      console.error(`❌ PROMPT MUITO GRANDE: ${promptTokens} tokens (limite: 15000)`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Prompt muito grande: ${promptTokens} tokens. Reduza o conteúdo antes de enviar.` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const totalEstimatedTokens = promptTokens + maxOutputTokens;
+    console.log(`[RAG Consolidate] Total estimado: ${totalEstimatedTokens} tokens (prompt: ${promptTokens}, output: ${maxOutputTokens})`);
+
+    if (totalEstimatedTokens > 20000) {
+      console.error(`❌ TOTAL EXCEDE LIMITE: ${totalEstimatedTokens} tokens`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Total de tokens excede limite: ${totalEstimatedTokens}` 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[RAG Consolidate] ✅ Validação OK, chamando OpenAI (gpt-4.1, max_completion_tokens: ${maxOutputTokens})`);
+
+    const prompt = promptTemplate;
+
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
