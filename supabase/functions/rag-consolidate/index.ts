@@ -34,14 +34,13 @@ serve(async (req) => {
     const maxOutputTokens = Math.min(5000, Math.floor(targetPages * 80));
     
     // CALCULAR O PROMPT COMPLETO PRIMEIRO
-    const promptTemplate = `Análise documental: "${fileName}" (${totalPages} págs)
+    const promptTemplate = `Doc: "${fileName}" (${totalPages}p)
 
-SEÇÕES:
 ${sections.map((s: string, i: number) => `[${i+1}] ${s}`).join('\n\n')}
 
-PERGUNTA: ${userMessage}
+Q: ${userMessage}
 
-TAREFA: Análise de ~${targetPages} páginas com visão geral, análise completa, insights, dados estruturados, resposta direta e conclusões. Use Markdown.`;
+Task: Análise ~${targetPages}p com visão geral, análise, insights, dados, resposta e conclusões. Markdown.`;
 
     // VALIDAÇÃO com o prompt REAL
     const promptTokens = Math.floor(promptTemplate.length / 2.5);
