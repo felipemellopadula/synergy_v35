@@ -48,7 +48,7 @@ Critérios de seleção:
 - Seções diretamente relacionadas ao objetivo
 - Seções com dados/exemplos necessários
 - Seções com contexto crítico
-- Máximo de 8 seções (priorize as mais importantes)
+- Máximo de 15 seções (priorize as mais importantes)
 
 FORMATO DE RESPOSTA (JSON):
 {
