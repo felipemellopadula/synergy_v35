@@ -538,7 +538,7 @@ const Chat: React.FC = () => {
   const [processedExcel, setProcessedExcel] = useState<Map<string, string>>(new Map());
   const [fileProcessingStatus, setFileProcessingStatus] = useState<Map<string, FileStatus>>(new Map());
   const [processedDocuments, setProcessedDocuments] = useState<
-    Map<string, { content: string; type: string; pages?: number; fileSize?: number; sheets?: any[] }>
+    Map<string, { content: string; type: string; pages?: number; fileSize?: number; sheets?: any[]; layout?: any[]; tables?: any[] }>
   >(new Map());
   const [comparativeAnalysisEnabled, setComparativeAnalysisEnabled] = useState(false);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
@@ -1633,6 +1633,17 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             const rag = new AgenticRAG();
             const cache = new RAGCache();
             
+            // Passar tabelas e layout extraídos (PDF ou Word)
+            const doc = processedDocuments.get(documentFileName);
+            if (doc?.tables) {
+              rag.setExtractedTables(doc.tables);
+              console.log(`📊 Passing ${doc.tables.length} tables to RAG`);
+            }
+            if (doc?.layout) {
+              rag.setExtractedLayout(doc.layout);
+              console.log(`📐 Passing ${doc.layout.length} layout elements to RAG`);
+            }
+            
             // Gerar hash do documento para cache
             const documentHash = cache.generateHash(documentContent);
             
@@ -2142,6 +2153,9 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                       content: result.content!,
                       type: "word",
                       fileSize: file.size,
+                      pages: result.pageCount,
+                      layout: result.layout,
+                      tables: result.tables,
                     }),
                   ),
               );

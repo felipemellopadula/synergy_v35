@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { RAGCache } from "./RAGCache";
 import { ChunkingStrategies, type DocType } from "./ChunkingStrategies";
-import type { ExtractedTable } from "./PdfProcessor";
+import type { ExtractedTable, LayoutElement } from "./PdfProcessor";
 
 interface ChunkProgress {
   current: number;
@@ -13,6 +13,7 @@ export class AgenticRAG {
   private cache = new RAGCache();
   private docType: DocType = 'general';
   private tables: ExtractedTable[] = [];
+  private layout: LayoutElement[] = [];
 
   /**
    * FASE 2: Detectar tipo do documento (se não fornecido)
@@ -45,6 +46,14 @@ export class AgenticRAG {
   setExtractedTables(tables: ExtractedTable[]) {
     this.tables = tables;
     console.log(`📊 ${tables.length} tables stored for RAG context`);
+  }
+
+  /**
+   * Armazenar layout extraído (para Word docs)
+   */
+  setExtractedLayout(layout: LayoutElement[]) {
+    this.layout = layout;
+    console.log(`📐 ${layout.length} layout elements stored for RAG context`);
   }
 
   // FASE 1: Chunking adaptativo no frontend
@@ -279,6 +288,20 @@ export class AgenticRAG {
         tablesContext += '\n';
       });
       console.log(`📊 Added ${this.tables.length} tables to context (${tablesContext.length} chars)`);
+    }
+    
+    // Preparar contexto de layout/hierarquia (se existir)
+    let layoutContext = '';
+    if (this.layout.length > 0) {
+      const headers = this.layout.filter(el => el.type === 'header');
+      if (headers.length > 0) {
+        layoutContext = `\n\n## ESTRUTURA DO DOCUMENTO\n\n`;
+        headers.forEach(h => {
+          const indent = '  '.repeat((h.level || 1) - 1);
+          layoutContext += `${indent}${'#'.repeat(h.level || 1)} ${h.content}\n`;
+        });
+        console.log(`📐 Added layout hierarchy (${headers.length} headers) to context`);
+      }
     }
     
     // NOVA ETAPA 1: Criar seções lógicas

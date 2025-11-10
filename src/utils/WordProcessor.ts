@@ -8,12 +8,30 @@ const loadMammoth = async () => {
   return mammothLib;
 };
 
+export interface LayoutElement {
+  type: 'header' | 'paragraph' | 'table' | 'list' | 'figure';
+  level?: number;
+  content: string;
+  position: string;
+}
+
+export interface ExtractedTable {
+  id: string;
+  headers: string[];
+  rows: string[][];
+  caption?: string;
+  position: string;
+}
+
 export interface WordProcessingResult {
   success: boolean;
   content?: string;
   error?: string;
   wordCount?: number;
   fileSize?: number;
+  layout?: LayoutElement[];
+  tables?: ExtractedTable[];
+  pageCount?: number;
 }
 
 export class WordProcessor {
@@ -24,7 +42,6 @@ export class WordProcessor {
     try {
       console.log('Processing Word file:', file.name, 'Size:', file.size);
 
-      // Verificar se é um arquivo Word válido
       const isDocx = file.type.includes('word') || file.name.toLowerCase().endsWith('.docx');
       const isDoc = file.name.toLowerCase().endsWith('.doc');
       
@@ -35,31 +52,27 @@ export class WordProcessor {
         };
       }
 
-      console.log('Convertendo Word para texto...');
-      
       if (onProgress) {
-        onProgress(1, 3, 'Lendo arquivo Word...');
+        onProgress(1, 5, 'Lendo arquivo Word...');
       }
 
       const arrayBuffer = await file.arrayBuffer();
       
       if (onProgress) {
-        onProgress(2, 3, 'Extraindo texto...');
+        onProgress(2, 5, 'Convertendo Word para HTML estruturado...');
       }
       
-      let result;
+      const mammoth = await loadMammoth();
+      
+      let htmlResult;
       
       if (isDoc) {
-        // Para arquivos .doc antigos, usar uma abordagem diferente
         try {
-          // Tentar extrair texto como texto simples
           const uint8Array = new Uint8Array(arrayBuffer);
           let textContent = '';
           
-          // Procurar por texto legível no arquivo .doc
           for (let i = 0; i < uint8Array.length - 1; i++) {
             const char = uint8Array[i];
-            // Filtrar caracteres imprimíveis (32-126 ASCII)
             if (char >= 32 && char <= 126) {
               textContent += String.fromCharCode(char);
             } else if (char === 10 || char === 13) {
@@ -67,71 +80,78 @@ export class WordProcessor {
             }
           }
           
-          // Limpar texto extraído removendo caracteres de controle e duplicados
           textContent = textContent
-            .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ') // Remove caracteres de controle
-            .replace(/\s+/g, ' ') // Normaliza espaços
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
+            .replace(/\s+/g, ' ')
             .trim();
           
-          // Se não conseguiu extrair texto suficiente, tentar mammoth mesmo assim
           if (textContent.length < 50) {
-            const mammoth = await loadMammoth();
-            result = await mammoth.extractRawText({ arrayBuffer });
+            htmlResult = await mammoth.convertToHtml({ arrayBuffer });
           } else {
-            result = { value: textContent, messages: [] };
+            htmlResult = { value: `<p>${textContent.replace(/\n/g, '</p><p>')}</p>`, messages: [] };
           }
         } catch (docError) {
           console.warn('Erro ao processar .doc, tentando mammoth:', docError);
-          const mammoth = await loadMammoth();
-          result = await mammoth.extractRawText({ arrayBuffer });
+          htmlResult = await mammoth.convertToHtml({ arrayBuffer });
         }
       } else {
-        // Para arquivos .docx, usar mammoth normalmente
-        const mammoth = await loadMammoth();
-        result = await mammoth.extractRawText({ arrayBuffer });
+        htmlResult = await mammoth.convertToHtml({ arrayBuffer });
       }
       
-      if (!result.value || result.value.trim().length === 0) {
+      if (!htmlResult.value || htmlResult.value.trim().length === 0) {
         return {
           success: false,
-          error: 'Documento Word parece estar vazio ou não foi possível extrair texto'
+          error: 'Documento Word parece estar vazio ou não foi possível extrair conteúdo'
         };
       }
 
-      // Log das mensagens de warning, se houver
-      if (result.messages && result.messages.length > 0) {
-        const warnings = result.messages.filter(m => m.type === 'warning');
-        if (warnings.length > 0) {
-          console.warn('Warnings during Word processing:', warnings);
-        }
+      if (onProgress) {
+        onProgress(3, 5, 'Extraindo estrutura do documento...');
       }
 
-      const content = result.value.trim();
+      // Parsear HTML para extrair estrutura
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlResult.value, 'text/html');
+      
+      const layout = this.extractLayoutFromHTML(doc);
+      const tables = this.extractTablesFromHTML(doc);
+      
+      // Extrair texto completo combinando layouts
+      const content = layout
+        .map(el => el.content)
+        .filter(text => text.length > 0)
+        .join('\n\n');
+
       const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+      const estimatedPages = Math.ceil(wordCount / 400);
       
       if (onProgress) {
-        onProgress(3, 3, 'Processamento concluído!');
+        onProgress(5, 5, 'Processamento concluído!');
       }
       
-      console.log('Word processed successfully:', {
+      console.log('Word processed with structure:', {
         fileName: file.name,
         fileType: isDoc ? '.doc' : '.docx',
         contentLength: content.length,
-        wordCount: wordCount,
-        contentPreview: content.substring(0, 200) + '...'
+        wordCount,
+        estimatedPages,
+        layoutElements: layout.length,
+        tablesFound: tables.length
       });
 
       return {
         success: true,
-        content: content,
-        wordCount: wordCount,
-        fileSize: file.size
+        content,
+        wordCount,
+        fileSize: file.size,
+        layout,
+        tables,
+        pageCount: estimatedPages
       };
 
     } catch (error: any) {
       console.error('Erro ao processar Word:', error);
       
-      // Verificar se o erro é devido ao formato .doc
       if (error.message && error.message.includes('Could not find the body element')) {
         return {
           success: false,
@@ -144,6 +164,92 @@ export class WordProcessor {
         error: `Falha ao processar documento Word: ${error.message || 'Erro desconhecido'}`
       };
     }
+  }
+
+  private static extractLayoutFromHTML(doc: Document): LayoutElement[] {
+    const layouts: LayoutElement[] = [];
+    let elementIndex = 0;
+
+    doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, ul, ol').forEach((el) => {
+      const tagName = el.tagName.toLowerCase();
+      
+      if (tagName.startsWith('h')) {
+        layouts.push({
+          type: 'header',
+          level: parseInt(tagName.charAt(1)),
+          content: el.textContent?.trim() || '',
+          position: `element_${elementIndex++}`
+        });
+      } else if (tagName === 'p') {
+        const text = el.textContent?.trim() || '';
+        if (text.length > 10) {
+          layouts.push({
+            type: 'paragraph',
+            content: text,
+            position: `element_${elementIndex++}`
+          });
+        }
+      } else if (tagName === 'ul' || tagName === 'ol') {
+        const listItems = Array.from(el.querySelectorAll('li'))
+          .map(li => `• ${li.textContent?.trim()}`)
+          .join('\n');
+        
+        layouts.push({
+          type: 'list',
+          content: listItems,
+          position: `element_${elementIndex++}`
+        });
+      }
+    });
+
+    return layouts;
+  }
+
+  private static extractTablesFromHTML(doc: Document): ExtractedTable[] {
+    const tables: ExtractedTable[] = [];
+    let tableIndex = 0;
+
+    doc.querySelectorAll('table').forEach((tableEl) => {
+      try {
+        const headerRow = tableEl.querySelector('thead tr') || tableEl.querySelector('tr');
+        const headers: string[] = [];
+        
+        if (headerRow) {
+          headerRow.querySelectorAll('th, td').forEach((cell) => {
+            headers.push(cell.textContent?.trim() || '');
+          });
+        }
+
+        const rows: string[][] = [];
+        const bodyRows = tableEl.querySelectorAll('tbody tr') || 
+                        Array.from(tableEl.querySelectorAll('tr')).slice(1);
+        
+        bodyRows.forEach((row) => {
+          const cells: string[] = [];
+          row.querySelectorAll('td, th').forEach((cell) => {
+            cells.push(cell.textContent?.trim() || '');
+          });
+          if (cells.length > 0) {
+            rows.push(cells);
+          }
+        });
+
+        if (headers.length > 0 && rows.length > 0) {
+          tables.push({
+            id: `table_${tableIndex}`,
+            headers,
+            rows,
+            caption: tableEl.caption?.textContent?.trim(),
+            position: `table_${tableIndex}`
+          });
+          tableIndex++;
+        }
+      } catch (err) {
+        console.warn('Erro ao extrair tabela:', err);
+      }
+    });
+
+    return tables;
   }
 
   static getMaxFileInfo(): string {
