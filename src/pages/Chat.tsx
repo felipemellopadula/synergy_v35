@@ -72,6 +72,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { WordTablesPreview } from "@/components/WordTablesPreview";
 
 // =====================
 // Tipos
@@ -2819,21 +2820,22 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-3">
-                    {attachedFiles.map((file, idx) => {
-                      const status = fileProcessingStatus.get(file.name);
-                      const isProcessing = status === "processing";
-                      const isCompleted = status === "completed";
-                      const hasError = status === "error";
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-3">
+                      {attachedFiles.map((file, idx) => {
+                        const status = fileProcessingStatus.get(file.name);
+                        const isProcessing = status === "processing";
+                        const isCompleted = status === "completed";
+                        const hasError = status === "error";
 
-                      return (
-                        <div key={idx} className="relative group">
-                          <div className={`relative ${isProcessing ? "opacity-60" : ""}`}>
-                            {renderFileIcon(
-                              file.name,
-                              file.type,
-                              file.type.startsWith("image/") ? filePreviewUrls.get(file.name) : undefined,
-                            )}
+                        return (
+                          <div key={idx} className="relative group">
+                            <div className={`relative ${isProcessing ? "opacity-60" : ""}`}>
+                              {renderFileIcon(
+                                file.name,
+                                file.type,
+                                file.type.startsWith("image/") ? filePreviewUrls.get(file.name) : undefined,
+                              )}
 
                             {isProcessing && (
                               <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
@@ -2905,7 +2907,23 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                               {isProcessing ? "Processando..." : hasError ? "Erro no processamento" : ""}
                             </div>
                           )}
-                        </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Preview de tabelas extraídas de Word */}
+                    {attachedFiles.map((file, idx) => {
+                      if (!isWordFile(file)) return null;
+                      const doc = processedDocuments.get(file.name);
+                      if (!doc?.tables || doc.tables.length === 0) return null;
+                      
+                      return (
+                        <WordTablesPreview 
+                          key={`preview-${idx}`} 
+                          tables={doc.tables} 
+                          fileName={file.name} 
+                        />
                       );
                     })}
                   </div>
