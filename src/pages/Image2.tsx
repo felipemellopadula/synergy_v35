@@ -35,6 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { RAGProgressDemo } from "@/components/RAGProgressDemo";
 
 const QUALITY_SETTINGS = [
   { id: "standard", label: "Padrão (1024x1024)", width: 1024, height: 1024, steps: 15 },
@@ -503,6 +504,11 @@ const Image2Page = () => {
           </div>
         </div>
       </header>
+
+      {/* Demo RAG Progress */}
+      <div className="container mx-auto max-w-7xl p-4 pt-8">
+        <RAGProgressDemo />
+      </div>
 
       {/* Grid de Imagens */}
       <main className="flex-1 overflow-auto p-4 pb-48">
