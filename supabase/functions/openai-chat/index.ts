@@ -18,6 +18,35 @@ const getMapReduceThreshold = (model: string): number => {
   return 10000; // ~25 páginas para modelos menores
 };
 
+// Mapeamento de nomes de modelo do frontend para nomes da API OpenAI
+const mapModelName = (model: string): string => {
+  const modelMap: Record<string, string> = {
+    // GPT-5 Series
+    'gpt-5.1': 'gpt-5-2025-08-07',
+    'gpt-5-mini': 'gpt-5-mini-2025-08-07',
+    'gpt-5-nano': 'gpt-5-nano-2025-08-07',
+    
+    // GPT-4.1 Series
+    'gpt-4.1': 'gpt-4.1-2025-04-14',
+    'gpt-4.1-mini': 'gpt-4.1-mini-2025-04-14',
+    'gpt-4.1-nano': 'gpt-4.1-nano-2025-04-14',
+    
+    // O-Series
+    'o3': 'o3-2025-04-16',
+    'o4-mini': 'o4-mini-2025-04-16',
+    
+    // Legacy models (fallback)
+    'gpt-4o-mini': 'gpt-4o-mini',
+    'gpt-4o': 'gpt-4o',
+  };
+  
+  const mappedModel = modelMap[model] || model;
+  if (mappedModel !== model) {
+    console.log(`🔄 Model mapped: ${model} → ${mappedModel}`);
+  }
+  return mappedModel;
+};
+
 // Função para dividir texto em chunks inteligentes
 const chunkText = (text: string, maxChunkTokens: number): string[] => {
   const estimatedTokens = estimateTokens(text);
@@ -180,6 +209,10 @@ serve(async (req) => {
   try {
     const { message, model = "gpt-5-mini-2025-08-07", files = [], conversationHistory = [], hasLargeDocument = false } = await req.json();
 
+    // ✅ Mapear nome do modelo para o formato da API OpenAI
+    const apiModel = mapModelName(model);
+    console.log(`📋 Using model: ${apiModel}${model !== apiModel ? ` (original: ${model})` : ''}`);
+
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
       throw new Error("OPENAI_API_KEY não configurada");
@@ -187,10 +220,10 @@ serve(async (req) => {
 
     // Estimar tokens da mensagem
     const estimatedTokens = estimateTokens(message);
-    console.log(`📊 Token estimation: ${estimatedTokens} tokens for model ${model}`);
+    console.log(`📊 Token estimation: ${estimatedTokens} tokens for model ${apiModel}`);
     console.log(`🔍 Document size: ${estimatedTokens} tokens (${Math.ceil(estimatedTokens / 400)} páginas aprox.)`);
 
-    // ✅ TIER-2-MAXOUT-PLUS: Threshold dinâmico baseado no modelo
+    // ✅ TIER-2-MAXOUT-PLUS: Threshold dinâmico baseado no modelo (usa nome original)
     const threshold = getMapReduceThreshold(model);
     const needsMapReduce = hasLargeDocument && estimatedTokens > threshold;
     
@@ -209,7 +242,7 @@ serve(async (req) => {
         console.log(`📚 Processing ${chunks.length} chunks in parallel...`);
         
         const chunkPromises = chunks.map((chunk, i) => 
-          processChunk(chunk, i, chunks.length, model, openAIApiKey, 1)
+          processChunk(chunk, i, chunks.length, apiModel, openAIApiKey, 1)
         );
         
         const chunkResponses = await Promise.all(chunkPromises);
@@ -221,7 +254,7 @@ serve(async (req) => {
           conversationHistory.length > 0 
             ? conversationHistory[conversationHistory.length - 1].content 
             : "Analise este documento",
-          model,
+          apiModel,
           openAIApiKey
         );
         
@@ -305,13 +338,13 @@ serve(async (req) => {
       });
     }
 
-    console.log(`🚀 Sending request to OpenAI with model: ${model}`);
+    console.log(`🚀 Sending request to OpenAI with model: ${apiModel}`);
 
     // Determinar parâmetros baseado no modelo
-    const isNewerModel = model.includes("gpt-5") || model.includes("gpt-4.1") || model.includes("o3") || model.includes("o4");
+    const isNewerModel = apiModel.includes("gpt-5") || apiModel.includes("gpt-4.1") || apiModel.includes("o3") || apiModel.includes("o4");
     
     const requestBody: any = {
-      model,
+      model: apiModel,
       messages,
       stream: true,
     };
