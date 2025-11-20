@@ -217,6 +217,9 @@ serve(async (req) => {
     if (!openAIApiKey) {
       throw new Error("OPENAI_API_KEY não configurada");
     }
+    
+    // ✅ Log para confirmar qual chave está sendo usada (primeiros 10 + últimos 4 chars)
+    console.log(`🔑 Using API Key: ${openAIApiKey.substring(0, 10)}...${openAIApiKey.substring(openAIApiKey.length - 4)}`);
 
     // Estimar tokens da mensagem
     const estimatedTokens = estimateTokens(message);
