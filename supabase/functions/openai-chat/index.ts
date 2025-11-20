@@ -352,12 +352,12 @@ serve(async (req) => {
       stream: true,
     };
 
-    // ✅ TIER-2-MAXOUT-PLUS: Output dinâmico baseado no tamanho do input
+    // ✅ CORREÇÃO: Output proporcional ao tamanho da mensagem
     const maxOutputTokens = Math.min(
-      16384, // Máximo absoluto (Tier 2)
+      4096, // Máximo razoável para chat normal (não precisa de 16K!)
       Math.max(
-        8000,  // Mínimo garantido
-        16384 - Math.floor(estimatedTokens * 1.2) // Margem de segurança para evitar overflow
+        512,  // Mínimo para respostas curtas
+        Math.floor(estimatedTokens * 3) // Output 3x o tamanho do input
       )
     );
     
