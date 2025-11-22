@@ -18,24 +18,26 @@ const getMapReduceThreshold = (model: string): number => {
   return 10000; // ~25 páginas para modelos menores
 };
 
-// Mapeamento de nomes de modelo do frontend para nomes da API OpenAI
+// ✅ CORREÇÃO: Usar nomes OFICIAIS dos modelos OpenAI (SEM sufixos de data)
+// Fonte: https://platform.openai.com/docs/models
 const mapModelName = (model: string): string => {
   const modelMap: Record<string, string> = {
-    // GPT-5 Series
-    'gpt-5.1': 'gpt-5-2025-08-07',
-    'gpt-5-mini': 'gpt-5-mini-2025-08-07',
-    'gpt-5-nano': 'gpt-5-nano-2025-08-07',
+    // GPT-5 Series - nomes oficiais sem sufixos
+    'gpt-5.1': 'gpt-5.1',
+    'gpt-5': 'gpt-5.1',           // Alias
+    'gpt-5-mini': 'gpt-5-mini',
+    'gpt-5-nano': 'gpt-5-nano',
     
-    // GPT-4.1 Series
-    'gpt-4.1': 'gpt-4.1-2025-04-14',
-    'gpt-4.1-mini': 'gpt-4.1-mini-2025-04-14',
-    'gpt-4.1-nano': 'gpt-4.1-nano-2025-04-14',
+    // GPT-4.1 Series - nomes oficiais sem sufixos
+    'gpt-4.1': 'gpt-4.1',
+    'gpt-4.1-mini': 'gpt-4.1-mini',
+    'gpt-4.1-nano': 'gpt-4.1-nano',
     
-    // O-Series
-    'o3': 'o3-2025-04-16',
-    'o4-mini': 'o4-mini-2025-04-16',
+    // O-Series - nomes oficiais sem sufixos
+    'o3': 'o3',
+    'o4-mini': 'o4-mini',
     
-    // Legacy models (fallback)
+    // Legacy models (sempre funcionaram)
     'gpt-4o-mini': 'gpt-4o-mini',
     'gpt-4o': 'gpt-4o',
   };
