@@ -18,6 +18,37 @@ const getMapReduceThreshold = (model: string): number => {
   return 10000; // ~25 páginas para modelos menores
 };
 
+// ✅ CORREÇÃO: Usar nomes OFICIAIS dos modelos OpenAI (SEM sufixos de data)
+// Fonte: https://platform.openai.com/docs/models
+const mapModelName = (model: string): string => {
+  const modelMap: Record<string, string> = {
+    // GPT-5 Series - nomes oficiais sem sufixos
+    'gpt-5.1': 'gpt-5.1',
+    'gpt-5': 'gpt-5.1',           // Alias
+    'gpt-5-mini': 'gpt-5-mini',
+    'gpt-5-nano': 'gpt-5-nano',
+    
+    // GPT-4.1 Series - nomes oficiais sem sufixos
+    'gpt-4.1': 'gpt-4.1',
+    'gpt-4.1-mini': 'gpt-4.1-mini',
+    'gpt-4.1-nano': 'gpt-4.1-nano',
+    
+    // O-Series - nomes oficiais sem sufixos
+    'o3': 'o3',
+    'o4-mini': 'o4-mini',
+    
+    // Legacy models (sempre funcionaram)
+    'gpt-4o-mini': 'gpt-4o-mini',
+    'gpt-4o': 'gpt-4o',
+  };
+  
+  const mappedModel = modelMap[model] || model;
+  if (mappedModel !== model) {
+    console.log(`🔄 Model mapped: ${model} → ${mappedModel}`);
+  }
+  return mappedModel;
+};
+
 // Função para dividir texto em chunks inteligentes
 const chunkText = (text: string, maxChunkTokens: number): string[] => {
   const estimatedTokens = estimateTokens(text);
@@ -178,36 +209,55 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = "gpt-5-mini-2025-08-07", files = [], conversationHistory = [] } = await req.json();
+    const { message, model = "gpt-5-mini-2025-08-07", files = [], conversationHistory = [], hasLargeDocument = false } = await req.json();
+
+    // ✅ Mapear nome do modelo para o formato da API OpenAI
+    const apiModel = mapModelName(model);
+    console.log(`📋 Using model: ${apiModel}${model !== apiModel ? ` (original: ${model})` : ''}`);
 
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
       throw new Error("OPENAI_API_KEY não configurada");
     }
+    
+    // ✅ Log para confirmar qual chave está sendo usada (primeiros 10 + últimos 4 chars)
+    console.log(`🔑 Using API Key: ${openAIApiKey.substring(0, 10)}...${openAIApiKey.substring(openAIApiKey.length - 4)}`);
 
     // Estimar tokens da mensagem
     const estimatedTokens = estimateTokens(message);
-    console.log(`📊 Token estimation: ${estimatedTokens} tokens for model ${model}`);
+    console.log(`📊 Token estimation: ${estimatedTokens} tokens for model ${apiModel}`);
     console.log(`🔍 Document size: ${estimatedTokens} tokens (${Math.ceil(estimatedTokens / 400)} páginas aprox.)`);
 
-    // ✅ TIER-2-MAXOUT-PLUS: Threshold dinâmico baseado no modelo
+    // ✅ TIER-2-MAXOUT-PLUS: Threshold dinâmico baseado no modelo (usa nome original)
     const threshold = getMapReduceThreshold(model);
-    const needsMapReduce = estimatedTokens > threshold;
-    console.log(`📊 Map-Reduce ${needsMapReduce ? 'ATIVADO ✅' : 'DESATIVADO ❌'} (threshold: ${threshold} tokens, modelo: ${model})`);
+    const needsMapReduce = hasLargeDocument && estimatedTokens > threshold;
+    
+    console.log(`📊 Map-Reduce Decision:`);
+    console.log(`  - Estimated tokens: ${estimatedTokens}`);
+    console.log(`  - Threshold: ${threshold}`);
+    console.log(`  - Has large document: ${hasLargeDocument}`);
+    console.log(`  - Result: ${needsMapReduce ? 'ATIVADO ✅' : 'DESATIVADO ❌'}`);
 
     if (needsMapReduce) {
       console.log(`🗂️ Large document detected (${estimatedTokens} tokens) - using Map-Reduce approach`);
       
       try {
-        // MAP PHASE: Dividir em chunks e processar cada um
+        // MAP PHASE: Dividir em chunks e processar SEQUENCIALMENTE
         const chunks = chunkText(message, 20000); // ✅ TIER 2: ~20k tokens por chunk (~50 páginas)
-        console.log(`📚 Processing ${chunks.length} chunks in parallel...`);
+        console.log(`📚 Processing ${chunks.length} chunks SEQUENTIALLY to avoid RPM limits...`);
         
-        const chunkPromises = chunks.map((chunk, i) => 
-          processChunk(chunk, i, chunks.length, model, openAIApiKey, 1)
-        );
-        
-        const chunkResponses = await Promise.all(chunkPromises);
+        // ✅ Processar sequencialmente para evitar Rate Limit (RPM)
+        const chunkResponses: string[] = [];
+        for (let i = 0; i < chunks.length; i++) {
+          const response = await processChunk(chunks[i], i, chunks.length, apiModel, openAIApiKey, 1);
+          chunkResponses.push(response);
+          
+          // Aguardar 2 segundos entre chunks para respeitar RPM limits
+          if (i < chunks.length - 1) {
+            console.log(`⏱️ Waiting 2s before next chunk to respect RPM limits...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        }
         console.log(`✅ All ${chunks.length} chunks processed successfully`);
         
         // REDUCE PHASE: Consolidar respostas e fazer streaming
@@ -216,7 +266,7 @@ serve(async (req) => {
           conversationHistory.length > 0 
             ? conversationHistory[conversationHistory.length - 1].content 
             : "Analise este documento",
-          model,
+          apiModel,
           openAIApiKey
         );
         
@@ -300,23 +350,23 @@ serve(async (req) => {
       });
     }
 
-    console.log(`🚀 Sending request to OpenAI with model: ${model}`);
+    console.log(`🚀 Sending request to OpenAI with model: ${apiModel}`);
 
     // Determinar parâmetros baseado no modelo
-    const isNewerModel = model.includes("gpt-5") || model.includes("gpt-4.1") || model.includes("o3") || model.includes("o4");
+    const isNewerModel = apiModel.includes("gpt-5") || apiModel.includes("gpt-4.1") || apiModel.includes("o3") || apiModel.includes("o4");
     
     const requestBody: any = {
-      model,
+      model: apiModel,
       messages,
       stream: true,
     };
 
-    // ✅ TIER-2-MAXOUT-PLUS: Output dinâmico baseado no tamanho do input
+    // ✅ CORREÇÃO: Output proporcional ao tamanho da mensagem
     const maxOutputTokens = Math.min(
-      16384, // Máximo absoluto (Tier 2)
+      4096, // Máximo razoável para chat normal (não precisa de 16K!)
       Math.max(
-        8000,  // Mínimo garantido
-        16384 - Math.floor(estimatedTokens * 1.2) // Margem de segurança para evitar overflow
+        512,  // Mínimo para respostas curtas
+        Math.floor(estimatedTokens * 3) // Output 3x o tamanho do input
       )
     );
     
@@ -348,7 +398,9 @@ serve(async (req) => {
       
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+          JSON.stringify({ 
+            error: "⏱️ Limite de requisições atingido\n\nAguarde 1-2 minutos antes de tentar novamente. A OpenAI limita requisições por minuto." 
+          }),
           {
             status: 429,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
