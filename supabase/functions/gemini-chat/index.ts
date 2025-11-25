@@ -41,6 +41,7 @@ serve(async (req) => {
     
     // Map frontend model names to correct Gemini API model names
     const modelMapping: Record<string, string> = {
+      'gemini-3-pro': 'gemini-3-pro-preview',
       'gemini-2.5-pro': 'gemini-2.0-flash-exp',
       'gemini-2.5-flash': 'gemini-2.0-flash-exp', 
       'gemini-2.5-flash-lite': 'gemini-2.0-flash-exp'

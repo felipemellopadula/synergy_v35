@@ -52,11 +52,12 @@ const modelsByProvider = {
     { id: 'grok-3', name: 'Grok 3', provider: 'xAI', category: 'standard' as const },
     { id: 'grok-3-mini', name: 'Grok 3 Mini', provider: 'xAI', category: 'fast' as const },
   ],
-  'Google': [
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', category: 'premium' as const },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', category: 'standard' as const },
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', category: 'fast' as const },
-  ],
+  'Google': [
+    { id: 'gemini-3-pro', name: 'Gemini 3 Pro', provider: 'Google', category: 'premium' as const },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', category: 'premium' as const },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', category: 'standard' as const },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', category: 'fast' as const },
+  ],
 };
 
 interface ModelSelectorProps {

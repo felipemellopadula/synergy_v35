@@ -56,6 +56,7 @@ const OPENAI_PRICING: Record<string, { input: number; output: number }> = {
 
 // Gemini pricing per token (USD) - Based on official Google pricing (corrected 2025-10-14)
 const GEMINI_PRICING: Record<string, { input: number; output: number }> = {
+  "gemini-3-pro": { input: 3.0 / 1_000_000, output: 15.0 / 1_000_000 }, // US$ 3.0/15.0 per million (média dos tiers)
   "gemini-2.5-pro": { input: 1.25 / 1_000_000, output: 10.0 / 1_000_000 }, // US$ 1.25/10.0 per million
   "gemini-2.5-flash": { input: 2.50 / 1_000_000, output: 15.0 / 1_000_000 }, // US$ 2.50/15.0 per million
   "gemini-2.5-flash-lite": { input: 0.31 / 1_000_000, output: 2.5 / 1_000_000 }, // US$ 0.31/2.5 per million
