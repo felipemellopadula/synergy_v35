@@ -262,6 +262,8 @@ serve(async (req) => {
 
   try {
     const { message, model = "gpt-5-mini", files = [], conversationHistory = [] } = await req.json();
+    
+    console.log(`🔄 Request for model: ${model}, History length: ${conversationHistory.length}`);
 
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
@@ -328,15 +330,18 @@ serve(async (req) => {
     // STREAMING DIRETO para documentos menores
     console.log("📝 Document size OK - using direct streaming");
     
-    // Preparar mensagens para OpenAI
+    // ✅ PROMPT CACHING: OpenAI automaticamente cacheia prompts com 1024+ tokens
+    // Estratégia: System prompt primeiro + histórico completo para maximizar cache hits
     const messages: any[] = [
       {
         role: "system",
-        content: "Você é um assistente útil e preciso. Responda de forma clara e organizada.",
+        content: "Você é um assistente útil e preciso. Responda de forma clara e organizada. " +
+                 "Analise cuidadosamente as mensagens anteriores para manter contexto e coerência nas respostas."
       },
     ];
 
-    // Adicionar histórico de conversa
+    // ✅ CACHE OPTIMIZATION: Adicionar TODO o histórico antes da mensagem atual
+    // Isso permite que a OpenAI cacheia o contexto completo da conversa
     if (conversationHistory && conversationHistory.length > 0) {
       conversationHistory.forEach((msg: any) => {
         messages.push({
@@ -344,7 +349,7 @@ serve(async (req) => {
           content: msg.content,
         });
       });
-    }
+      console.log(`💾 Cache-eligible context: ${conversationHistory.length} messages in history`);
 
     // Processar arquivos (imagens para visão)
     if (files && files.length > 0) {
@@ -433,6 +438,16 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("❌ OpenAI API error:", response.status, errorText);
       
+      // Log cache-related errors if present
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.type === 'invalid_request_error' && errorData.error?.message?.includes('cache')) {
+          console.error("⚠️ Cache-related error detected:", errorData.error.message);
+        }
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
@@ -457,6 +472,12 @@ serve(async (req) => {
     }
 
     console.log("✅ Streaming response from OpenAI");
+    
+    // 💾 CACHE MONITORING: Log usage headers if available
+    const cacheHeader = response.headers.get('openai-cache-status');
+    if (cacheHeader) {
+      console.log(`💾 Cache Status: ${cacheHeader}`);
+    }
 
     // Retornar stream SSE diretamente
     return new Response(response.body, {
