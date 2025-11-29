@@ -379,8 +379,14 @@ serve(async (req) => {
           const ab = await imgRes.arrayBuffer();
           console.log(`[Imagem ${index + 1}] ArrayBuffer size: ${ab.byteLength} bytes`);
           
-          // Verificar tamanho
-          const maxSize = (width >= 2048 || height >= 2048) ? 10 * 1024 * 1024 : 3 * 1024 * 1024;
+          // Verificar tamanho - limites ajustados para 4K
+          let maxSize = 5 * 1024 * 1024; // 5MB padrão
+          if (width >= 4096 || height >= 4096) {
+            maxSize = 50 * 1024 * 1024; // 50MB para 4K+
+          } else if (width >= 2048 || height >= 2048) {
+            maxSize = 20 * 1024 * 1024; // 20MB para 2K+
+          }
+          
           if (ab.byteLength > maxSize) {
             console.error(`[Imagem ${index + 1}] Muito grande:`, ab.byteLength, 'bytes');
             throw new Error(`Imagem ${index + 1} muito grande: ${(ab.byteLength / 1024 / 1024).toFixed(1)}MB`);
