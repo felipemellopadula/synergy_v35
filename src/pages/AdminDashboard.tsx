@@ -89,12 +89,16 @@ const IMAGE_PRICING: Record<string, { cost: number }> = {
   "ideogram-3.0": { cost: 0.06 },
   "flux.1-kontext-max": { cost: 0.08 },
   "seedream-4.0": { cost: 0.03 },
+  "nano-banana-2-pro": { cost: 0.134 }, // Google Nano Banana 2 Pro
+  "google:4@2": { cost: 0.134 }, // Google Nano Banana 2 Pro (alias)
 };
 
 // Video models pricing per video (USD)
 const VIDEO_PRICING: Record<string, { cost: number }> = {
   "bytedance:1@1": { cost: 0.162 }, // ByteDance Seedance 1.0 Lite
   "bytedance": { cost: 0.162 }, // Fallback genérico
+  "klingai:5@3": { cost: 0.90 }, // KlingAI V2.1 Master
+  "google:veo-3@fast": { cost: 0.90 }, // Google Veo3 Fast
 };
 const CLAUDE_PRICING: Record<string, { input: number; output: number }> = {
   // Latest models
