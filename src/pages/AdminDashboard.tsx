@@ -118,8 +118,8 @@ const IMAGE_PRICING: Record<string, { cost: number }> = {
 const VIDEO_PRICING: Record<string, { cost: number }> = {
   "bytedance:1@1": { cost: 0.162 }, // ByteDance Seedance 1.0 Lite
   "bytedance": { cost: 0.162 }, // Fallback genérico
-  "klingai:5@3": { cost: 0.90 }, // KlingAI V2.1 Master
-  "google:veo-3@fast": { cost: 0.90 }, // Google Veo3 Fast
+  "google:3@3": { cost: 1.2 }, // Veo 3.1 Fast
+  "klingai:6@1": { cost: 0.35 }, // KlingAI 2.5 Turbo PRO
 };
 const CLAUDE_PRICING: Record<string, { input: number; output: number }> = {
   // Latest models
