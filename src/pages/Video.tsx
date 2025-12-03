@@ -156,29 +156,49 @@ const LazyThumbVideo: React.FC<{
 }> = memo(({ src, poster, onTogglePlay, className }) => {
   const { ref, inView } = useInViewport<HTMLDivElement>("200px");
   const vRef = useRef<HTMLVideoElement | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Força o vídeo a ir para o primeiro frame quando carregado
+  const handleLoadedData = useCallback(() => {
+    if (vRef.current) {
+      vRef.current.currentTime = 0.1; // Vai para 0.1s para garantir que mostra um frame
+      setIsLoaded(true);
+    }
+  }, []);
 
   return (
     <div ref={ref} className={className} style={{ contentVisibility: "auto" as any, containIntrinsicSize: "180px" }}>
       {/* Monta o <video> somente quando entra na viewport */}
       {inView ? (
-        <video
-          ref={vRef}
-          src={src}
-          className="w-full h-full object-cover"
-          loop
-          muted
-          playsInline
-          preload="metadata"   // ✅ permite carregar poster/thumbnail
-          poster={poster}      // usa frame inicial se houver
-          onClick={() => vRef.current && onTogglePlay(vRef.current)}
-        />
+        <>
+          <video
+            ref={vRef}
+            src={src}
+            className={`w-full h-full object-cover ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loop
+            muted
+            playsInline
+            preload="auto"
+            poster={poster}
+            onLoadedData={handleLoadedData}
+            onClick={() => vRef.current && onTogglePlay(vRef.current)}
+          />
+          {/* Placeholder enquanto vídeo carrega */}
+          {!isLoaded && (
+            <div className="absolute inset-0 bg-muted/80 flex items-center justify-center">
+              <VideoIcon className="h-8 w-8 text-muted-foreground animate-pulse" />
+            </div>
+          )}
+        </>
       ) : (
-        // ✅ Mostra placeholder com cor de fundo ou poster enquanto não carrega
+        // Mostra placeholder com cor de fundo ou poster enquanto não carrega
         <div className="w-full h-full bg-muted flex items-center justify-center">
           {poster ? (
             <img src={poster} alt="" className="w-full h-full object-cover" />
           ) : (
-            <div className="animate-pulse bg-muted/50 w-full h-full" />
+            <div className="flex items-center justify-center w-full h-full">
+              <VideoIcon className="h-8 w-8 text-muted-foreground" />
+            </div>
           )}
         </div>
       )}
