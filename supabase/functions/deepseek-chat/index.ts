@@ -48,7 +48,12 @@ serve(async (req) => {
   try {
     const { message, model = 'deepseek-chat', files } = await req.json();
 
-    console.log(`DeepSeek Chat - Modelo: ${model}`);
+    // Determine actual API model and mode
+    const isThinkingOnlyMode = model === 'deepseek-reasoner-thinking-only';
+    const apiModel = isThinkingOnlyMode ? 'deepseek-reasoner' : model;
+
+    console.log(`DeepSeek Chat - Modelo: ${model} (API: ${apiModel})`);
+    console.log(`Modo Thinking Only: ${isThinkingOnlyMode}`);
     console.log(`Tamanho da mensagem: ${message.length} caracteres`);
 
     const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
@@ -88,7 +93,7 @@ serve(async (req) => {
     let chunks: string[] = [];
 
     // Configurar chunk size baseado no modelo
-    const maxChunkSize = model === 'deepseek-reasoner' ? 100000 : 120000; // Reasoner é mais conservador
+    const maxChunkSize = apiModel === 'deepseek-reasoner' ? 100000 : 120000; // Reasoner é mais conservador
 
     // Se a mensagem for muito longa, usar chunking
     if (message.length > maxChunkSize) {
@@ -145,18 +150,18 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model,
+        model: apiModel,
         messages: [
           { 
             role: 'system', 
-            content: model === 'deepseek-reasoner' 
+            content: apiModel === 'deepseek-reasoner' 
               ? 'Você é um assistente inteligente com capacidades de raciocínio avançado. Pense profundamente sobre cada pergunta antes de responder.' 
               : 'Você é um assistente inteligente e útil. Responda de forma clara e precisa.'
           },
           { role: 'user', content: processedMessage }
         ],
         max_tokens: 8000,
-        temperature: 0.7,
+        temperature: apiModel === 'deepseek-reasoner' ? undefined : 0.7, // Reasoner não suporta temperature
         stream: true // Usar stream para melhor performance
       }),
     });
@@ -172,6 +177,7 @@ serve(async (req) => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
+      let reasoningContent = '';
 
       try {
         while (true) {
@@ -188,8 +194,15 @@ serve(async (req) => {
               
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
-                  fullResponse += parsed.choices[0].delta.content;
+                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                  // Capturar content normal
+                  if (parsed.choices[0].delta.content) {
+                    fullResponse += parsed.choices[0].delta.content;
+                  }
+                  // Capturar reasoning_content para modo thinking
+                  if (parsed.choices[0].delta.reasoning_content) {
+                    reasoningContent += parsed.choices[0].delta.reasoning_content;
+                  }
                 }
               } catch (e) {
                 // Ignorar erros de parsing de chunks individuais
@@ -202,13 +215,22 @@ serve(async (req) => {
       }
 
       console.log('Resposta completa recebida');
+      console.log(`Content length: ${fullResponse.length}, Reasoning length: ${reasoningContent.length}`);
+      
+      // Se modo thinking only, retornar apenas o reasoning_content
+      let finalResponse = isThinkingOnlyMode && reasoningContent 
+        ? `## 🧠 Processo de Raciocínio\n\n${reasoningContent}`
+        : fullResponse;
       
       // Normalize line breaks to standard \n
-      fullResponse = fullResponse
+      finalResponse = finalResponse
         .replace(/\r\n/g, '\n')  // Normalize CRLF to LF
         .replace(/\r/g, '\n');   // Convert any remaining CR to LF
       
-      return new Response(JSON.stringify({ response: fullResponse }), {
+      return new Response(JSON.stringify({ 
+        response: finalResponse,
+        reasoning: reasoningContent || null 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

@@ -36,6 +36,7 @@ const modelsByProvider = {
   'DeepSeek': [
     { id: 'deepseek-chat', name: 'DeepSeek V3.2', provider: 'DeepSeek', category: 'standard' as const },
     { id: 'deepseek-reasoner', name: 'DeepSeek V3.2 Thinking', provider: 'DeepSeek', category: 'premium' as const },
+    { id: 'deepseek-reasoner-thinking-only', name: 'DeepSeek V3.2 Thinking Only', provider: 'DeepSeek', category: 'premium' as const },
   ],
   'META': [
     { id: 'llama-4-maverick', name: 'Llama 4 Maverick', provider: 'APILLM', category: 'premium' as const },
