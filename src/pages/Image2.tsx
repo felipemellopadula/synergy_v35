@@ -380,16 +380,13 @@ const Image2Page = () => {
         });
         if (editError) {
           console.error("Erro detalhado ao editar imagem:", editError);
-          toast.error("Erro ao editar imagem", {
-            description: editError.message || "Verifique se a imagem está no formato correto (PNG/JPG/WEBP)",
-          });
+          toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw editError;
         }
 
         if (!editData?.image) {
-          toast.error("Erro ao editar imagem", {
-            description: "A API não retornou uma imagem",
-          });
+          console.error("API não retornou imagem - editData:", editData);
+          toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw new Error("A API não retornou uma imagem.");
         }
 
@@ -436,16 +433,14 @@ const Image2Page = () => {
 
         const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
         if (apiError) {
-          toast.error("Erro ao gerar imagem", {
-            description: apiError.message || "Ocorreu um erro ao processar a imagem",
-          });
+          console.error("Erro ao gerar imagem:", apiError);
+          toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw apiError;
         }
 
         if (!apiData?.images || apiData.images.length === 0) {
-          toast.error("Erro ao gerar imagem", {
-            description: "A API não retornou nenhuma imagem",
-          });
+          console.error("API não retornou imagens - apiData:", apiData);
+          toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw new Error("A API não retornou nenhuma imagem.");
         }
 
@@ -454,12 +449,8 @@ const Image2Page = () => {
         setTimeout(() => loadSavedImages(), 1000);
       }
     } catch (e: any) {
-      console.error("Erro no processo:", e);
-      if (!e.message?.includes("não retornou")) {
-        toast.error("Erro ao processar imagem", {
-          description: e.message || "Ocorreu um erro inesperado",
-        });
-      }
+      console.error("Erro no processo de geração de imagem:", e);
+      // Toast já foi mostrado nos handlers específicos acima
     } finally {
       setIsGenerating(false);
     }
