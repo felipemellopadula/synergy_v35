@@ -14,6 +14,7 @@ import { useTokens } from '@/hooks/useTokens';
 import { PagePreview } from './PagePreview';
 import CleanMarkdownRenderer from './CleanMarkdownRenderer';
 import { DeepSeekThinkingIndicator } from './DeepSeekThinkingIndicator';
+import { DeepSeekReasoningHistory } from './DeepSeekReasoningHistory';
 
 interface Message {
   id: string;
@@ -21,12 +22,14 @@ interface Message {
   sender: 'user' | 'bot';
   timestamp: Date;
   model?: string;
+  reasoning?: string;
   files?: Array<{
     name: string;
     type: string;
     url: string;
   }>;
 }
+
 
 interface ChatInterfaceProps {
   isOpen: boolean;
@@ -555,6 +558,7 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
       console.log('data keys:', data ? Object.keys(data) : 'null');
       console.log('data.response exists?', data?.response ? 'YES' : 'NO');
       console.log('data.message exists?', data?.message ? 'YES' : 'NO');
+      console.log('data.reasoning exists?', data?.reasoning ? 'YES' : 'NO');
       
       if (error) {
         console.error('Function error details:', error);
@@ -567,15 +571,17 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
       }
 
       const aiMessageContent = data.response || data.message || data.text || 'Resposta vazia recebida.';
+      const reasoningContent = data.reasoning || null;
       
       console.log('=== AI MESSAGE CONTENT ===');
       console.log('aiMessageContent length:', aiMessageContent.length);
       console.log('aiMessageContent preview:', aiMessageContent.substring(0, 200));
+      console.log('reasoningContent length:', reasoningContent?.length || 0);
       
       setMessages(prev => 
         prev.map(msg => 
           msg.id === botMessageId 
-            ? { ...msg, content: aiMessageContent }
+            ? { ...msg, content: aiMessageContent, reasoning: reasoningContent }
             : msg
         )
       );
@@ -694,6 +700,11 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
                       </p>
                     )}
                   </div>
+                  
+                  {/* DeepSeek Reasoning History */}
+                  {message.sender === 'bot' && message.reasoning && (
+                    <DeepSeekReasoningHistory reasoning={message.reasoning} />
+                  )}
                   
                   {message.sender === 'user' && (
                     <PagePreview />
