@@ -178,18 +178,27 @@ serve(async (req) => {
       const decoder = new TextDecoder();
       let fullResponse = '';
       let reasoningContent = '';
+      let buffer = ''; // Buffer para dados incompletos
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          // Acumular no buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Processar linhas completas
+          const lines = buffer.split('\n');
+          // Guardar a última linha (pode estar incompleta)
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
+            const trimmedLine = line.trim();
+            if (!trimmedLine) continue;
+            
+            if (trimmedLine.startsWith('data: ')) {
+              const data = trimmedLine.slice(6);
               if (data === '[DONE]') continue;
               
               try {
@@ -206,6 +215,30 @@ serve(async (req) => {
                 }
               } catch (e) {
                 // Ignorar erros de parsing de chunks individuais
+                console.log('Parse error for line:', trimmedLine.substring(0, 100));
+              }
+            }
+          }
+        }
+        
+        // Processar qualquer dado restante no buffer
+        if (buffer.trim()) {
+          const trimmedBuffer = buffer.trim();
+          if (trimmedBuffer.startsWith('data: ')) {
+            const data = trimmedBuffer.slice(6);
+            if (data !== '[DONE]') {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                  if (parsed.choices[0].delta.content) {
+                    fullResponse += parsed.choices[0].delta.content;
+                  }
+                  if (parsed.choices[0].delta.reasoning_content) {
+                    reasoningContent += parsed.choices[0].delta.reasoning_content;
+                  }
+                }
+              } catch (e) {
+                console.log('Final buffer parse error');
               }
             }
           }
