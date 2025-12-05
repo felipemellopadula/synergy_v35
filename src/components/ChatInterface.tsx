@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTokens } from '@/hooks/useTokens';
 import { PagePreview } from './PagePreview';
 import CleanMarkdownRenderer from './CleanMarkdownRenderer';
+import { DeepSeekThinkingIndicator } from './DeepSeekThinkingIndicator';
 
 interface Message {
   id: string;
@@ -44,6 +45,8 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
   const [fileName, setFileName] = useState<string>('');
   const [filePages, setFilePages] = useState<number>(0);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isDeepSeekThinking, setIsDeepSeekThinking] = useState(false);
+  const [thinkingContent, setThinkingContent] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -432,6 +435,8 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         } finally {
           isCallingRef.current = false; // ✅ Resetar flag antes do return
           setIsLoading(false);
+          setIsDeepSeekThinking(false);
+          setThinkingContent('');
         }
         return;
       }
@@ -463,6 +468,13 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
+    
+    // Check if using DeepSeek model for thinking indicator
+    const isDeepSeekModel = selectedModel.includes('deepseek');
+    if (isDeepSeekModel) {
+      setIsDeepSeekThinking(true);
+      setThinkingContent('');
+    }
 
     // Create a temporary message for streaming
     const botMessageId = crypto.randomUUID();
@@ -601,6 +613,8 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
     } finally {
       isCallingRef.current = false; // ✅ Sempre resetar flag, mesmo em caso de erro
       setIsLoading(false);
+      setIsDeepSeekThinking(false);
+      setThinkingContent('');
     }
   };
 
@@ -696,7 +710,7 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
               </div>
             ))}
 
-            {isLoading && (
+            {isLoading && !isDeepSeekThinking && (
               <div className="flex gap-3">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary text-primary-foreground">
@@ -709,6 +723,23 @@ export const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
+                </div>
+              </div>
+            )}
+            
+            {/* DeepSeek Thinking Indicator */}
+            {isDeepSeekThinking && (
+              <div className="flex gap-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-violet-600 text-white">
+                    <Bot className="h-4 w-4" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 max-w-2xl">
+                  <DeepSeekThinkingIndicator 
+                    isVisible={isDeepSeekThinking} 
+                    thinkingContent={thinkingContent}
+                  />
                 </div>
               </div>
             )}
