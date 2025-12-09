@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Brain, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,7 @@ interface DeepSeekThinkingIndicatorProps {
 export const DeepSeekThinkingIndicator = ({ isVisible, thinkingContent }: DeepSeekThinkingIndicatorProps) => {
   const [dots, setDots] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isVisible) return;
@@ -20,6 +21,13 @@ export const DeepSeekThinkingIndicator = ({ isVisible, thinkingContent }: DeepSe
 
     return () => clearInterval(dotsInterval);
   }, [isVisible]);
+
+  // Auto-scroll para o final quando o conteúdo muda
+  useEffect(() => {
+    if (isExpanded && contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  }, [thinkingContent, isExpanded]);
 
   if (!isVisible) return null;
 
@@ -69,7 +77,10 @@ export const DeepSeekThinkingIndicator = ({ isVisible, thinkingContent }: DeepSe
 
       {/* Conteúdo expandido */}
       {isExpanded && hasContent && (
-        <div className="px-3 py-2 bg-violet-500/5 border border-t-0 border-violet-500/20 rounded-b-xl max-h-40 overflow-y-auto">
+        <div 
+          ref={contentRef}
+          className="px-3 py-2 bg-violet-500/5 border border-t-0 border-violet-500/20 rounded-b-xl max-h-40 overflow-y-auto scroll-smooth"
+        >
           <p className="text-xs text-muted-foreground font-mono leading-relaxed whitespace-pre-wrap">
             {thinkingContent}
             <span className="animate-pulse text-violet-400">▊</span>
