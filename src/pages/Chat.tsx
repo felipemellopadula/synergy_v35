@@ -41,6 +41,7 @@ import {
   FileSpreadsheet,
   FileCode2,
   Loader2,
+  Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -567,6 +568,11 @@ const Chat: React.FC = () => {
   const [processingStatus, setProcessingStatus] = useState<string>("");
   const [isDeepSeekThinking, setIsDeepSeekThinking] = useState(false);
   const [thinkingContent, setThinkingContent] = useState("");
+  const [reasoningEnabled, setReasoningEnabled] = useState(false);
+  
+  // Models that support OpenAI Reasoning (Responses API)
+  const reasoningCapableModels = ['gpt-5.1', 'gpt-5-mini', 'gpt-5-nano', 'o4-mini'];
+  const isReasoningCapable = selectedModel ? reasoningCapableModels.includes(selectedModel) : false;
   
   // RAG Progress hook com cancelamento
   const {
@@ -3270,9 +3276,36 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                           <Globe className="h-4 w-4 mr-2" />
                           {isWebSearchMode ? "Desativar Busca Web" : "Busca Web"}
                         </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            if (isReasoningCapable) {
+                              setReasoningEnabled((p) => !p);
+                            } else {
+                              toast({
+                                title: "Modelo não suportado",
+                                description: "Reasoning está disponível apenas para GPT-5.1, GPT-5 Mini, GPT-5 Nano e o4-mini",
+                                variant: "destructive"
+                              });
+                            }
+                          }}
+                          className={`cursor-pointer ${reasoningEnabled ? 'bg-violet-500/20 text-violet-400' : ''} ${!isReasoningCapable ? 'opacity-50' : ''}`}
+                        >
+                          <Brain className={`h-4 w-4 mr-2 ${reasoningEnabled ? 'text-violet-400' : ''}`} />
+                          {reasoningEnabled ? "✓ Reasoning Ativo" : "Reasoning (GPT)"}
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
+
+                  {/* Reasoning Badge - mostrado quando ativo */}
+                  {reasoningEnabled && isReasoningCapable && (
+                    <div className="absolute left-12 sm:left-14 top-2.5 z-10">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-500/20 border border-violet-500/50 text-violet-400 text-xs font-medium">
+                        <Brain className="h-3 w-3" />
+                        <span className="hidden sm:inline">Reasoning</span>
+                      </div>
+                    </div>
+                  )}
 
                   <Textarea
                     ref={textareaRef}
@@ -3294,9 +3327,9 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                           : "Pergunte alguma coisa..."
                     }
                     disabled={isLoading}
-                    className={`w-full pl-12 md:pl-14 pr-16 md:pr-24 py-3 rounded-lg resize-none min-h-[52px] max-h-[128px] transition-colors ${
-                      isDragOver ? "bg-accent border-primary border-dashed" : ""
-                    }`}
+                    className={`w-full py-3 rounded-lg resize-none min-h-[52px] max-h-[128px] transition-colors ${
+                      reasoningEnabled && isReasoningCapable ? 'pl-24 sm:pl-32 md:pl-36' : 'pl-12 md:pl-14'
+                    } pr-16 md:pr-24 ${isDragOver ? "bg-accent border-primary border-dashed" : ""}`}
                     rows={1}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !isMobile && !e.shiftKey) {
