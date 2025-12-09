@@ -42,6 +42,7 @@ import {
   FileCode2,
   Loader2,
   Brain,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -404,23 +405,24 @@ const BotMessage = React.memo(
             
             <div className="space-y-3">
               {!!message.reasoning && (
-                <div className="border-b border-border/50 pb-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                <div className="mb-2">
+                  <button
                     onClick={() => toggleReasoning(message.id)}
-                    className="h-auto p-1 text-xs opacity-70 hover:opacity-100"
+                    className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                   >
+                    <Sparkles className="h-4 w-4" />
+                    <span className="font-medium">Mostrar raciocínio</span>
                     {expandedReasoning[message.id] ? (
-                      <ChevronUp className="h-3 w-3 mr-1" />
+                      <ChevronUp className="h-4 w-4" />
                     ) : (
-                      <ChevronDown className="h-3 w-3 mr-1" />
-                    )}{" "}
-                    Raciocínio
-                  </Button>
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </button>
                   {expandedReasoning[message.id] && (
-                    <div className="mt-2 text-xs opacity-80 bg-background/50 rounded p-2 whitespace-pre-wrap overflow-x-auto">
-                      {message.reasoning}
+                    <div className="mt-3 pl-4 border-l-2 border-blue-400/50 dark:border-blue-500/50">
+                      <div className="text-sm text-muted-foreground italic leading-relaxed whitespace-pre-wrap">
+                        {message.reasoning}
+                      </div>
                     </div>
                   )}
                 </div>
