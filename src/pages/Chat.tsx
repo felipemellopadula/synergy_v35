@@ -3088,9 +3088,9 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                 </div>
               )}
 
-              {/* DeepSeek Thinking Indicator */}
+              {/* DeepSeek Thinking Indicator - posicionado no topo */}
               {isDeepSeekThinking && (
-                <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-[90%] max-w-2xl z-50">
+                <div className="fixed top-20 left-1/2 transform -translate-x-1/2 w-[95%] sm:w-[90%] max-w-xl z-50">
                   <DeepSeekThinkingIndicator 
                     isVisible={isDeepSeekThinking} 
                     thinkingContent={thinkingContent} 
