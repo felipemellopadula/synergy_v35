@@ -403,36 +403,8 @@ const BotMessage = React.memo(
               </div>
             )}
             
-            <div className="flex flex-col gap-3">
-              {/* Reasoning Section - fluxo normal, empurra resposta para baixo */}
-              {!!message.reasoning && (
-                <div className="relative z-0">
-                  <button
-                    onClick={() => toggleReasoning(message.id)}
-                    className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    <span className="font-medium">
-                      {expandedReasoning[message.id] ? 'Ocultar raciocínio' : 'Mostrar raciocínio'}
-                    </span>
-                    {expandedReasoning[message.id] ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
-                  {expandedReasoning[message.id] && (
-                    <div className="mt-3 pl-4 border-l-2 border-blue-400/50 dark:border-blue-500/50 animate-fade-in">
-                      <div className="text-sm text-muted-foreground italic leading-relaxed whitespace-pre-wrap">
-                        {message.reasoning}
-                      </div>
-                    </div>
-                  )}
-                  <div className="border-b border-border/30 mt-3" />
-                </div>
-              )}
-
-              {/* Resposta da IA - sempre abaixo do reasoning */}
+            <div className="space-y-3">
+              {/* Resposta da IA */}
               <div className="text-sm max-w-full break-words whitespace-pre-wrap overflow-x-auto">
                 <MarkdownRendererLazy content={displayedContent} isUser={false} />
               </div>
