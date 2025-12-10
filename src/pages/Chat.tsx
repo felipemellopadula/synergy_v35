@@ -3226,10 +3226,10 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                     className={`w-full py-3 rounded-lg resize-none min-h-[52px] max-h-[128px] transition-colors ${
                       (reasoningEnabled && isReasoningCapable) || isWebSearchMode 
                         ? (reasoningEnabled && isReasoningCapable && isWebSearchMode) 
-                          ? 'pl-36 sm:pl-44 md:pl-52' 
-                          : 'pl-24 sm:pl-32 md:pl-36' 
+                          ? 'pl-44 sm:pl-56 md:pl-64' 
+                          : 'pl-32 sm:pl-44 md:pl-48' 
                         : 'pl-12 md:pl-14'
-                    } pr-16 md:pr-24 ${isDragOver ? "bg-accent border-primary border-dashed" : ""} ${isWebSearchMode ? "border-emerald-500/30" : ""}`}
+                    } pr-16 md:pr-24 ${isDragOver ? "bg-accent border-primary border-dashed" : ""} ${isWebSearchMode ? "border-emerald-500/30" : ""} ${reasoningEnabled && isReasoningCapable ? "border-violet-500/30" : ""}`}
                     rows={1}
                     onKeyDown={(e) => {
                       // Escape para cancelar geração
