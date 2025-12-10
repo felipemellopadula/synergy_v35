@@ -262,14 +262,213 @@ serve(async (req) => {
   }
 
   try {
-    const { message, model = "gpt-5-mini", files = [], conversationHistory = [] } = await req.json();
+    const { 
+      message, 
+      model = "gpt-5-mini", 
+      files = [], 
+      conversationHistory = [],
+      webSearchEnabled = false 
+    } = await req.json();
     
-    console.log(`🔄 Request for model: ${model}, History length: ${conversationHistory.length}`);
+    console.log(`🔄 Request for model: ${model}, History length: ${conversationHistory.length}, Web Search: ${webSearchEnabled}`);
 
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
       throw new Error("OPENAI_API_KEY não configurada");
     }
+
+    // ============ WEB SEARCH MODE ============
+    // Uses OpenAI Responses API with web_search tool
+    if (webSearchEnabled) {
+      console.log("🌐 Web Search mode enabled - using Responses API");
+      
+      // Models that support web search
+      const webSearchModels = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-4.1', 'o4-mini', 'o3'];
+      const apiModel = mapModelToOpenAI(model);
+      
+      if (!webSearchModels.some(m => apiModel.includes(m))) {
+        console.warn(`⚠️ Model ${apiModel} may not support web search, proceeding anyway`);
+      }
+      
+      // Build conversation context for Responses API
+      const conversationInput: any[] = [];
+      
+      // Add conversation history
+      if (conversationHistory && conversationHistory.length > 0) {
+        conversationHistory.slice(-6).forEach((msg: any) => {
+          conversationInput.push({
+            role: msg.role === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          });
+        });
+      }
+      
+      // Add current message
+      conversationInput.push({
+        role: 'user',
+        content: message
+      });
+      
+      const responsesBody: any = {
+        model: apiModel,
+        input: conversationInput,
+        tools: [
+          { type: "web_search" }
+        ],
+        tool_choice: "auto",
+        stream: true,
+      };
+      
+      console.log(`🌐 Sending web search request to Responses API with model: ${apiModel}`);
+      
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openAIApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(responsesBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ OpenAI Responses API error:", response.status, errorText);
+        
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        throw new Error(`OpenAI Responses API error: ${response.status} - ${errorText}`);
+      }
+
+      console.log("✅ Streaming web search response from OpenAI");
+      
+      // Transform Responses API SSE to Chat Completions format for frontend compatibility
+      const encoder = new TextEncoder();
+      const transformedStream = new ReadableStream({
+        async start(controller) {
+          const reader = response.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let webSearchCalls: any[] = [];
+          let outputText = '';
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue;
+                if (!line.startsWith('data: ')) continue;
+
+                const jsonStr = line.slice(6);
+                if (jsonStr === '[DONE]') continue;
+
+                try {
+                  const event = JSON.parse(jsonStr);
+                  
+                  // Handle different Responses API event types
+                  if (event.type === 'response.web_search_call.searching') {
+                    // Web search in progress
+                    const searchQuery = event.query || 'searching...';
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: 'web_search_status',
+                      status: `🔍 Searching: "${searchQuery}"`
+                    })}\n\n`));
+                    console.log(`🔍 Web search query: ${searchQuery}`);
+                  }
+                  
+                  if (event.type === 'response.web_search_call.completed') {
+                    webSearchCalls.push(event);
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: 'web_search_status',
+                      status: '✅ Search completed, generating response...'
+                    })}\n\n`));
+                    console.log('✅ Web search completed');
+                  }
+                  
+                  // Handle content delta (text being streamed)
+                  if (event.type === 'response.output_text.delta') {
+                    const text = event.delta || '';
+                    outputText += text;
+                    // Convert to Chat Completions format
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      choices: [{
+                        delta: { content: text }
+                      }]
+                    })}\n\n`));
+                  }
+                  
+                  // Alternative: content_part.delta for some response types
+                  if (event.type === 'response.content_part.delta' && event.delta?.text) {
+                    const text = event.delta.text;
+                    outputText += text;
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      choices: [{
+                        delta: { content: text }
+                      }]
+                    })}\n\n`));
+                  }
+                  
+                  // Handle completed response with annotations (citations)
+                  if (event.type === 'response.output_text.done') {
+                    const annotations = event.annotations || [];
+                    if (annotations.length > 0) {
+                      console.log(`📚 Found ${annotations.length} citations`);
+                      // Send citations as metadata
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                        type: 'citations',
+                        citations: annotations.map((a: any) => ({
+                          url: a.url,
+                          title: a.title,
+                          startIndex: a.start_index,
+                          endIndex: a.end_index
+                        }))
+                      })}\n\n`));
+                    }
+                  }
+                  
+                  if (event.type === 'response.done') {
+                    console.log('🎉 Response complete');
+                  }
+                  
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+            }
+
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            
+            console.log(`📊 Web search response completed: ${outputText.length} chars, ${webSearchCalls.length} searches`);
+            
+          } catch (e) {
+            console.error('Stream error:', e);
+            controller.error(e);
+          }
+        }
+      });
+
+      return new Response(transformedStream, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      });
+    }
+
+    // ============ NORMAL CHAT MODE ============
 
     // Estimar tokens da mensagem
     const estimatedTokens = estimateTokens(message);

@@ -1637,6 +1637,14 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           hasLargeDocument: false,
         };
         
+        // Add webSearchEnabled for OpenAI models
+        const isOpenAIModel = internalModel.includes('gpt') || internalModel.includes('o3') || internalModel.includes('o4');
+        if (isWebSearchMode && isOpenAIModel) {
+          requestBody.webSearchEnabled = true;
+          console.log('🌐 Web Search mode enabled for OpenAI model');
+          setProcessingStatus('🔍 Buscando na web...');
+        }
+        
         // Add reasoningEnabled for Gemini, Claude, and Grok models
         if (isGeminiWithReasoning || isClaudeWithReasoning || isGrokWithReasoning) {
           requestBody.reasoningEnabled = true;
@@ -1795,20 +1803,35 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                   continue;
                 }
                 
+                // 🌐 Web Search status events
+                if (parsed.type === 'web_search_status') {
+                  console.log('🌐 Web Search:', parsed.status);
+                  setProcessingStatus(parsed.status);
+                  continue;
+                }
+                
+                // 🌐 Citations from web search
+                if (parsed.type === 'citations' && parsed.citations) {
+                  console.log('📚 Citations received:', parsed.citations.length);
+                  // Store citations for later display (could be added to message metadata)
+                  continue;
+                }
+                
                 // 🧠 DeepSeek/Gemini Reasoner format - reasoning em tempo real
-                if (parsed.type === 'reasoning' && parsed.reasoning) {
+                if (parsed.type === 'reasoning' && (parsed.reasoning || parsed.content)) {
                   // Mostrar indicador de thinking
                   setIsDeepSeekThinking(true);
-                  accumulatedReasoning += parsed.reasoning;
-                  setThinkingContent(prev => prev + parsed.reasoning);
-                  console.log('🧠 Reasoning chunk:', parsed.reasoning.length, 'chars');
+                  const reasoningText = parsed.reasoning || parsed.content;
+                  accumulatedReasoning += reasoningText;
+                  setThinkingContent(prev => prev + reasoningText);
+                  console.log('🧠 Reasoning chunk:', reasoningText.length, 'chars');
                   continue;
                 }
                 
                 // 🧠 Final reasoning summary (Gemini sends this at the end)
-                if (parsed.type === 'reasoning_final' && parsed.reasoning) {
-                  accumulatedReasoning = parsed.reasoning;
-                  console.log('🧠 Final reasoning received:', parsed.reasoning.length, 'chars');
+                if (parsed.type === 'reasoning_final' && (parsed.reasoning || parsed.content)) {
+                  accumulatedReasoning = parsed.reasoning || parsed.content;
+                  console.log('🧠 Final reasoning received:', accumulatedReasoning.length, 'chars');
                   continue;
                 }
                 
