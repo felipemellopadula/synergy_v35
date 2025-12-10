@@ -470,10 +470,10 @@ serve(async (req) => {
                     try {
                       const IMAGE_COSTS: Record<string, number> = {
                         'gpt-image-1': 0.167, 'gemini-flash': 0.039, 'qwen-image': 0.0058,
-                        'ideogram-3.0': 0.06, 'flux.1-kontext-max': 0.08, 'seedream-4.0': 0.03,
+                        'ideogram-3.0': 0.06, 'flux.1-kontext-max': 0.08, 'flux.2-pro': 0.045, 'seedream-4.0': 0.03,
                         'seedream-4.5': 0.03, 'runware:100@1': 0.04, 'runware:101@1': 0.04, 'openai:1@1': 0.167,
                         'google:4@1': 0.039, 'google:4@2': 0.08, 'ideogram:4@1': 0.06, 'bfl:3@1': 0.08,
-                        'bytedance:5@0': 0.03, 'bytedance:seedream@4.5': 0.03, 'runware:108@1': 0.0058,
+                        'bfl:4@1': 0.045, 'bytedance:5@0': 0.03, 'bytedance:seedream@4.5': 0.03, 'runware:108@1': 0.0058,
                       };
                       
                       let modelCost = 0.02;
@@ -497,6 +497,9 @@ serve(async (req) => {
                       } else if (model === 'bfl:3@1') {
                         modelForTracking = 'flux.1-kontext-max';
                         modelCost = IMAGE_COSTS['flux.1-kontext-max'] || 0.08;
+                      } else if (model === 'bfl:4@1') {
+                        modelForTracking = 'flux.2-pro';
+                        modelCost = IMAGE_COSTS['flux.2-pro'] || 0.045;
                       } else if (model === 'bytedance:5@0') {
                         modelForTracking = 'seedream-4.0';
                         modelCost = IMAGE_COSTS['seedream-4.0'] || 0.03;
