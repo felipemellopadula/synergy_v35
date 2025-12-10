@@ -2713,7 +2713,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                       {[
                         { icon: "✍️", text: "Escreva um artigo sobre IA" },
                         { icon: "💡", text: "Me dê ideias para um projeto" },
-                        { icon: "📝", text: "Resuma um documento para mim" },
+                        { icon: "📝", text: "Resuma um documento" },
                         { icon: "🔍", text: "Explique um conceito técnico" },
                       ].map((suggestion, idx) => (
                         <Button
