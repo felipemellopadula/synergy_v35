@@ -82,12 +82,12 @@ serve(async (req) => {
       webSearchEnabled = false // New parameter for enabling Google Search grounding
     } = await req.json();
     
-    // Map frontend model names to correct Gemini API model names
+    // Map frontend model names to correct Gemini API model names (per official docs)
     const modelMapping: Record<string, string> = {
-      'gemini-3-pro': 'gemini-3-pro-preview',
-      'gemini-2.5-pro': 'gemini-2.5-pro',
-      'gemini-2.5-flash': 'gemini-2.5-flash', 
-      'gemini-2.5-flash-lite': 'gemini-2.0-flash'
+      'gemini-3-pro': 'gemini-3-pro-preview',      // Gemini 3 Pro Preview
+      'gemini-2.5-pro': 'gemini-2.5-pro',          // Gemini 2.5 Pro
+      'gemini-2.5-flash': 'gemini-2.5-flash',      // Gemini 2.5 Flash
+      'gemini-2.5-flash-lite': 'gemini-2.5-flash-lite' // Gemini 2.5 Flash-Lite (corrigido!)
     };
     
     const actualModel = modelMapping[model] || model;
