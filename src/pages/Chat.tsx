@@ -171,7 +171,9 @@ const Chat: React.FC = () => {
     // Gemini (2.5 and 3 Pro support thinking)
     'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-3-pro',
     // Claude (Extended Thinking)
-    'claude-sonnet-4-5', 'claude-3-7-sonnet', 'claude-opus-4'
+    'claude-sonnet-4-5', 'claude-3-7-sonnet', 'claude-opus-4',
+    // Grok (grok-3-mini shows reasoning_content, others use internally)
+    'grok-3-mini', 'grok-3', 'grok-4'
   ];
   const isReasoningCapable = selectedModel ? reasoningCapableModels.includes(selectedModel) : false;
   
@@ -1619,10 +1621,12 @@ Forneça uma resposta abrangente que integre informações de todos os documento
         const CHAT_URL = `https://myqgnnqltemfpzdxwybj.supabase.co/functions/v1/${functionName}`;
         const { data: sessionData } = await supabase.auth.getSession();
         
-        // Check if this is a Gemini or Claude model with reasoning enabled
+        // Check if this is a Gemini, Claude, or Grok model with reasoning enabled
         const isGeminiWithReasoning = internalModel.includes('gemini') && reasoningEnabled;
         const isClaudeWithReasoning = internalModel.includes('claude') && reasoningEnabled && 
           (internalModel.includes('sonnet-4-5') || internalModel.includes('3-7-sonnet') || internalModel.includes('opus-4'));
+        const isGrokWithReasoning = internalModel.includes('grok') && reasoningEnabled &&
+          (internalModel.includes('grok-3') || internalModel.includes('grok-4'));
         
         const requestBody: any = {
           message: messageWithFiles,
@@ -1633,14 +1637,15 @@ Forneça uma resposta abrangente que integre informações de todos os documento
           hasLargeDocument: false,
         };
         
-        // Add reasoningEnabled for Gemini and Claude models
-        if (isGeminiWithReasoning || isClaudeWithReasoning) {
+        // Add reasoningEnabled for Gemini, Claude, and Grok models
+        if (isGeminiWithReasoning || isClaudeWithReasoning || isGrokWithReasoning) {
           requestBody.reasoningEnabled = true;
-          console.log(`🧠 ${isGeminiWithReasoning ? 'Gemini' : 'Claude'} reasoning mode enabled`);
+          const providerName = isGeminiWithReasoning ? 'Gemini' : isClaudeWithReasoning ? 'Claude' : 'Grok';
+          console.log(`🧠 ${providerName} reasoning mode enabled`);
         }
         
-        // For Claude with reasoning, set up thinking indicator
-        if (isClaudeWithReasoning) {
+        // For Claude and Grok with reasoning, set up thinking indicator
+        if (isClaudeWithReasoning || isGrokWithReasoning) {
           setIsDeepSeekThinking(true);
           setThinkingContent('');
         }
