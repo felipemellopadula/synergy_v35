@@ -139,13 +139,26 @@ const QWEN_QUALITY_SETTINGS = [
   { id: "3:2", label: "3:2 (Photo)", width: 1024, height: 640, steps: 15 },
 ];
 
+const FLUX2_PRO_QUALITY_SETTINGS = [
+  { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
+  { id: "21:9", label: "21:9 (Ultra-Wide / Landscape)", width: 1568, height: 672, steps: 15 },
+  { id: "16:9", label: "16:9 (Wide / Landscape)", width: 1392, height: 784, steps: 15 },
+  { id: "4:3", label: "4:3 (Standard / Landscape)", width: 1184, height: 888, steps: 15 },
+  { id: "3:2", label: "3:2 (Classic / Landscape)", width: 1248, height: 832, steps: 15 },
+  { id: "2:3", label: "2:3 (Classic / Portrait)", width: 832, height: 1248, steps: 15 },
+  { id: "3:4", label: "3:4 (Standard / Portrait)", width: 888, height: 1184, steps: 15 },
+  { id: "9:16", label: "9:16 (Tall / Portrait)", width: 784, height: 1392, steps: 15 },
+  { id: "9:21", label: "9:21 (Ultra-Tall / Portrait)", width: 672, height: 1568, steps: 15 },
+];
+
 const MODELS = [
-  { id: "google:4@2", label: "Google Nano Banana 2 Pro", maxImages: 4 },
+  { id: "google:4@2", label: "Google Nano Banana 2 Pro", maxImages: 14 },
   { id: "google:4@1", label: "Google Nano Banana", maxImages: 2 },
   { id: "openai:1@1", label: "Gpt-Image 1", maxImages: 1 },
   { id: "ideogram:4@1", label: "Ideogram 3.0", maxImages: 1 },
   { id: "runware:108@1", label: "Qwen-Image", maxImages: 0 },
   { id: "bfl:3@1", label: "FLUX.1 Kontext [max]", maxImages: 1 },
+  { id: "bfl:4@1", label: "FLUX.2 [pro]", maxImages: 10 },
   { id: "bytedance:seedream@4.5", label: "Seedream 4.5", maxImages: 2 },
 ];
 
@@ -194,6 +207,7 @@ const Image2Page = () => {
 
   const availableQualitySettings = useMemo(() => {
     if (model === "bfl:3@1") return KONTEXT_QUALITY_SETTINGS;
+    if (model === "bfl:4@1") return FLUX2_PRO_QUALITY_SETTINGS;
     if (model === "ideogram:4@1") return IDEOGRAM_QUALITY_SETTINGS;
     if (model === "google:4@1") return GEMINI_QUALITY_SETTINGS;
     if (model === "google:4@2") return NANO_BANANA_PRO_QUALITY_SETTINGS;
