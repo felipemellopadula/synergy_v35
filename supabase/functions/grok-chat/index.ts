@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Function to estimate token count (optimized for Portuguese)
 function estimateTokenCount(text: string): number {
-  return Math.ceil(text.length / 3.2); // More accurate for Portuguese
+  return Math.ceil(text.length / 3.2);
 }
 
 // Function to split text into chunks
@@ -23,14 +23,31 @@ function splitIntoChunks(text: string, maxTokens: number): string[] {
   return chunks;
 }
 
+// Check if model supports reasoning with visible content
+function supportsReasoningContent(model: string): boolean {
+  return model.includes('grok-3-mini');
+}
+
+// Check if model is a reasoning model (even without visible content)
+function isReasoningModel(model: string): boolean {
+  return model.includes('grok-3') || model.includes('grok-4');
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { message, model = 'grok-3', files, conversationHistory = [], contextEnabled = false } = await req.json();
+    const { 
+      message, 
+      model = 'grok-3', 
+      files, 
+      conversationHistory = [], 
+      contextEnabled = false,
+      reasoningEnabled = false,
+      reasoningEffort = 'medium'
+    } = await req.json();
     
     const xaiApiKey = Deno.env.get('XAI_API_KEY');
     if (!xaiApiKey) {
@@ -40,14 +57,22 @@ serve(async (req) => {
     // Define token limits for different xAI models
     const getModelLimits = (modelName: string) => {
       if (modelName.includes('grok-4')) return { input: 128000, output: 8192 };
-      if (modelName.includes('grok-3-mini')) return { input: 32000, output: 4096 };
-      if (modelName.includes('grok-3')) return { input: 128000, output: 8192 };
-      return { input: 128000, output: 8192 }; // Default for Grok models
+      if (modelName.includes('grok-3-mini')) return { input: 131072, output: 131072 };
+      if (modelName.includes('grok-3')) return { input: 131072, output: 131072 };
+      return { input: 128000, output: 8192 };
     };
 
     const limits = getModelLimits(model);
+    const useReasoning = reasoningEnabled && isReasoningModel(model);
+    const showReasoningContent = useReasoning && supportsReasoningContent(model);
     
-    // Log files information
+    console.log('🧠 Grok Reasoning:', { 
+      enabled: useReasoning, 
+      model, 
+      showContent: showReasoningContent,
+      effort: reasoningEffort 
+    });
+    
     if (files && files.length > 0) {
       console.log('📄 Files received:', files.map((f: any) => ({ 
         name: f.name, 
@@ -57,7 +82,7 @@ serve(async (req) => {
       })));
     }
     
-    // Process PDF and DOC files if present
+    // Process files
     let finalMessage = message;
     if (files && files.length > 0) {
       const fileContents = [];
@@ -87,7 +112,6 @@ serve(async (req) => {
       hasFiles: files && files.length > 0
     });
     
-    // Build messages array with conversation history if context is enabled
     let messages: any[] = [];
     let chunkResponses: string[] = [];
     let cachedTokens = 0;
@@ -147,7 +171,6 @@ serve(async (req) => {
         console.log('Building conversation context with', conversationHistory.length, 'previous messages');
         const recentHistory = conversationHistory.slice(-3);
         
-        // For grok-4.1-fast, add cache_control to enable prompt caching (75% discount)
         const useCache = model === 'grok-4.1-fast' && recentHistory.length > 0;
         
         messages = recentHistory.map((historyMsg: any, index: number) => {
@@ -156,7 +179,6 @@ serve(async (req) => {
             content: historyMsg.content
           };
           
-          // Add cache_control to the last message in history to cache the conversation
           if (useCache && index === recentHistory.length - 1) {
             msg.cache_control = { type: "ephemeral" };
             cachedTokens = Math.ceil((historyMsg.content?.length || 0) / 3.2);
@@ -173,20 +195,33 @@ serve(async (req) => {
       });
     }
 
-    let processedMessages = messages;
-    
-    const requestBody = {
+    // Build request body
+    const requestBody: any = {
       model: model,
-      messages: processedMessages,
+      messages: messages,
       max_tokens: limits.output,
       temperature: 0.7,
     };
+    
+    // Add reasoning_effort for grok-3-mini only
+    if (useReasoning && supportsReasoningContent(model)) {
+      requestBody.reasoning_effort = reasoningEffort; // 'low', 'medium', or 'high'
+      console.log('🧠 Added reasoning_effort:', reasoningEffort);
+    }
+    
+    // Enable streaming for reasoning models to get incremental updates
+    if (useReasoning) {
+      requestBody.stream = true;
+      console.log('🌊 Streaming enabled for reasoning');
+    }
 
     console.log('Sending request to xAI with model:', model);
     console.log('Request config:', { 
       model, 
       maxTokens: requestBody.max_tokens,
-      temperature: requestBody.temperature 
+      temperature: requestBody.temperature,
+      reasoning: useReasoning,
+      reasoningEffort: requestBody.reasoning_effort
     });
 
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -204,13 +239,139 @@ serve(async (req) => {
       throw new Error(`Erro da API xAI: ${response.status} - ${errorData}`);
     }
 
+    // Handle streaming response for reasoning
+    if (useReasoning && response.body) {
+      console.log('🔄 Processing streaming response with reasoning...');
+      
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const reader = response.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let reasoningContent = '';
+          let textContent = '';
+          let inputTokens = 0;
+          let outputTokens = 0;
+          let reasoningTokens = 0;
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                if (!line.trim() || line.startsWith(':')) continue;
+                if (!line.startsWith('data: ')) continue;
+
+                const jsonStr = line.slice(6);
+                if (jsonStr === '[DONE]') continue;
+
+                try {
+                  const data = JSON.parse(jsonStr);
+                  const delta = data.choices?.[0]?.delta;
+                  
+                  if (delta) {
+                    // grok-3-mini returns reasoning_content in delta
+                    if (delta.reasoning_content) {
+                      reasoningContent += delta.reasoning_content;
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                        type: 'reasoning', 
+                        content: delta.reasoning_content 
+                      })}\n\n`));
+                    }
+                    
+                    // Regular content
+                    if (delta.content) {
+                      textContent += delta.content;
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                        type: 'content', 
+                        content: delta.content 
+                      })}\n\n`));
+                    }
+                  }
+                  
+                  // Token usage in final chunk
+                  if (data.usage) {
+                    inputTokens = data.usage.prompt_tokens || 0;
+                    outputTokens = data.usage.completion_tokens || 0;
+                    reasoningTokens = data.usage.completion_tokens_details?.reasoning_tokens || 0;
+                  }
+                } catch (e) {
+                  // Ignore parse errors
+                }
+              }
+            }
+
+            // Send final reasoning summary if we collected any
+            if (reasoningContent) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                type: 'reasoning_final', 
+                content: reasoningContent 
+              })}\n\n`));
+            }
+
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+
+            // Record token usage
+            const authHeader = req.headers.get('authorization');
+            if (authHeader) {
+              const token = authHeader.replace('Bearer ', '');
+              const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+              const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+              const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+              const supabase = createClient(supabaseUrl, supabaseServiceKey);
+              
+              const { data: { user } } = await supabase.auth.getUser(token);
+              
+              if (user?.id) {
+                const totalTokens = inputTokens + outputTokens;
+                console.log('📊 Grok reasoning token usage:', { 
+                  inputTokens, 
+                  outputTokens, 
+                  reasoningTokens,
+                  total: totalTokens 
+                });
+                
+                await supabase.from('token_usage').insert({
+                  user_id: user.id,
+                  model_name: model,
+                  tokens_used: totalTokens,
+                  input_tokens: inputTokens,
+                  output_tokens: outputTokens,
+                });
+              }
+            }
+          } catch (e) {
+            console.error('Stream error:', e);
+            controller.error(e);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        },
+      });
+    }
+
+    // Non-streaming response (no reasoning or model doesn't support it)
     const data = await response.json();
     let generatedText = data.choices?.[0]?.message?.content || 'Não foi possível gerar resposta';
     
-    // Normalize line breaks to standard \n
+    // Normalize line breaks
     generatedText = generatedText
-      .replace(/\r\n/g, '\n')  // Normalize CRLF to LF
-      .replace(/\r/g, '\n');   // Convert any remaining CR to LF
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n');
 
     console.log('xAI response received successfully');
 
@@ -220,7 +381,6 @@ serve(async (req) => {
     
     if (token) {
       try {
-        // Get user info from JWT
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
@@ -230,18 +390,13 @@ serve(async (req) => {
         const userId = user?.id;
         
         if (userId) {
-          // Calculate token usage - 3.2 characters = 1 token (optimized for Portuguese)
           const inputTokens = Math.ceil((finalMessage?.length || 0) / 3.2);
           const outputTokens = Math.ceil(generatedText.length / 3.2);
           
-          // Apply 75% discount to cached tokens for grok-4.1-fast
-          // Cached tokens cost $0.05/1M (75% discount from $0.20/1M)
           const uncachedInputTokens = Math.max(0, inputTokens - cachedTokens);
-          const cachedInputCost = (cachedTokens / 1000000) * 0.05; // $0.05 per 1M cached tokens
-          const uncachedInputCost = (uncachedInputTokens / 1000000) * 0.20; // $0.20 per 1M regular input tokens
+          const cachedInputCost = (cachedTokens / 1000000) * 0.05;
+          const uncachedInputCost = (uncachedInputTokens / 1000000) * 0.20;
           
-          // For billing purposes, convert cached tokens to "effective" tokens at regular price
-          // effectiveTokens = (cachedCost + uncachedCost) / regularPrice
           const effectiveInputTokens = Math.ceil(
             ((cachedInputCost + uncachedInputCost) / 0.20) * 1000000
           );
@@ -259,7 +414,6 @@ serve(async (req) => {
             savedTokens: cachedTokens > 0 ? Math.ceil(cachedTokens * 0.75) : 0
           });
 
-          // Save token usage to database
           const { error: tokenError } = await supabase
             .from('token_usage')
             .insert({
@@ -317,7 +471,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Erro na função xai-chat:', error);
+    console.error('Erro na função grok-chat:', error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
