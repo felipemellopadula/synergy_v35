@@ -1,42 +1,26 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Copy, Check, Share, RefreshCw, Brain, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import MarkdownRendererLazy from "@/components/CleanMarkdownRenderer";
+import { supabase } from "@/integrations/supabase/client";
 import { Message } from "./types";
 
-// Função para gerar sugestões contextuais baseadas no conteúdo da resposta
-const generateFollowUpSuggestions = (content: string, userMessage?: string): string[] => {
-  const suggestions: string[] = [];
+// Fallback suggestions when AI fails
+const getFallbackSuggestions = (content: string): string[] => {
   const contentLower = content.toLowerCase();
-
-  // Sugestões baseadas em palavras-chave no conteúdo
-  if (contentLower.includes("código") || contentLower.includes("function") || contentLower.includes("programação")) {
-    suggestions.push("Explique esse código linha por linha");
-    suggestions.push("Como posso otimizar isso?");
-  } else if (contentLower.includes("lista") || contentLower.includes("passos") || contentLower.includes("etapas")) {
-    suggestions.push("Detalhe mais o primeiro ponto");
-    suggestions.push("Quais são os desafios comuns?");
-  } else if (contentLower.includes("exemplo") || contentLower.includes("demonstra")) {
-    suggestions.push("Me dê mais exemplos");
-    suggestions.push("Como aplicar isso na prática?");
-  } else if (contentLower.includes("vantagem") || contentLower.includes("benefício")) {
-    suggestions.push("Quais são as desvantagens?");
-    suggestions.push("Compare com alternativas");
+  
+  if (contentLower.includes("código") || contentLower.includes("function")) {
+    return ["Explique linha por linha", "Como otimizar?", "Mostre alternativas"];
   }
-
-  // Sugestões genéricas se não houver específicas
-  if (suggestions.length === 0) {
-    suggestions.push("Explique com mais detalhes");
-    suggestions.push("Me dê um exemplo prático");
-    suggestions.push("Resuma em tópicos");
+  if (contentLower.includes("lista") || contentLower.includes("passos")) {
+    return ["Detalhe o primeiro ponto", "Quais desafios comuns?", "Dê exemplos práticos"];
   }
-
-  // Limitar a 3 sugestões
-  return suggestions.slice(0, 3);
+  return ["Explique mais", "Dê um exemplo", "Resuma em tópicos"];
 };
 
 interface BotMessageProps {
@@ -84,17 +68,58 @@ export const BotMessage: React.FC<BotMessageProps> = React.memo(
     const [displayedContent, setDisplayedContent] = useState("");
     const [isTyping, setIsTyping] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
+    const [followUpSuggestions, setFollowUpSuggestions] = useState<string[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
     useEffect(() => {
       setDisplayedContent(message.content);
       setIsTyping(!!message.isStreaming);
     }, [message.content, message.isStreaming]);
 
-    // Gerar sugestões de follow-up apenas para a última mensagem e quando não está em streaming
-    const followUpSuggestions = useMemo(() => {
-      if (!isLastMessage || message.isStreaming || !displayedContent) return [];
-      return generateFollowUpSuggestions(displayedContent, immediateUserMessage?.content);
-    }, [isLastMessage, message.isStreaming, displayedContent, immediateUserMessage?.content]);
+    // Fetch AI-generated follow-up suggestions
+    const fetchFollowUpSuggestions = useCallback(async () => {
+      if (!isLastMessage || message.isStreaming || !displayedContent || displayedContent.length < 50) {
+        setFollowUpSuggestions([]);
+        return;
+      }
+
+      setIsLoadingSuggestions(true);
+      try {
+        const conversationContext = immediateUserMessage 
+          ? [{ role: 'user', content: immediateUserMessage.content }, { role: 'assistant', content: displayedContent }]
+          : [{ role: 'assistant', content: displayedContent }];
+
+        const { data, error } = await supabase.functions.invoke('generate-followups', {
+          body: { 
+            messages: conversationContext,
+            lastResponse: displayedContent 
+          }
+        });
+
+        if (error) throw error;
+        
+        if (data?.suggestions && Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          setFollowUpSuggestions(data.suggestions.slice(0, 3));
+        } else {
+          setFollowUpSuggestions(getFallbackSuggestions(displayedContent));
+        }
+      } catch (error) {
+        console.error('Failed to fetch follow-up suggestions:', error);
+        setFollowUpSuggestions(getFallbackSuggestions(displayedContent));
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, [isLastMessage, message.isStreaming, displayedContent, immediateUserMessage]);
+
+    // Trigger AI suggestions when message is complete
+    useEffect(() => {
+      if (isLastMessage && !message.isStreaming && displayedContent) {
+        const timer = setTimeout(() => {
+          fetchFollowUpSuggestions();
+        }, 500); // Small delay to ensure streaming is complete
+        return () => clearTimeout(timer);
+      }
+    }, [isLastMessage, message.isStreaming, displayedContent, fetchFollowUpSuggestions]);
 
     const handleRegenerate = async () => {
       if (!immediateUserMessage || isRegenerating) return;
@@ -286,24 +311,32 @@ export const BotMessage: React.FC<BotMessageProps> = React.memo(
               )}
 
               {/* Sugestões de Follow-up - apenas na última mensagem */}
-              {isLastMessage && !message.isStreaming && followUpSuggestions.length > 0 && onFollowUpClick && (
+              {isLastMessage && !message.isStreaming && onFollowUpClick && (
                 <div className="pt-3 border-t border-border/30">
                   <div className="flex items-center gap-1.5 mb-2">
                     <Sparkles className="h-3 w-3 text-primary/70" />
                     <span className="text-xs text-muted-foreground">Continuar conversa:</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {followUpSuggestions.map((suggestion, idx) => (
-                      <Button
-                        key={idx}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onFollowUpClick(suggestion)}
-                        className="text-xs h-7 px-3 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all duration-200"
-                      >
-                        {suggestion}
-                      </Button>
-                    ))}
+                    {isLoadingSuggestions ? (
+                      <>
+                        <Skeleton className="h-7 w-32" />
+                        <Skeleton className="h-7 w-40" />
+                        <Skeleton className="h-7 w-28" />
+                      </>
+                    ) : followUpSuggestions.length > 0 ? (
+                      followUpSuggestions.map((suggestion, idx) => (
+                        <Button
+                          key={idx}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onFollowUpClick(suggestion)}
+                          className="text-xs h-7 px-3 hover:bg-primary/10 hover:text-primary hover:border-primary/50 transition-all duration-200"
+                        >
+                          {suggestion}
+                        </Button>
+                      ))
+                    ) : null}
                   </div>
                 </div>
               )}
