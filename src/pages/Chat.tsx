@@ -103,6 +103,51 @@ const isExcelFile = (file: File) =>
 const isWordFile = (file: File) =>
   file.type.includes("word") || file.name.toLowerCase().endsWith(".docx") || file.name.toLowerCase().endsWith(".doc");
 
+// Extensões de arquivos de código suportadas
+const CODE_EXTENSIONS = [
+  // Frontend/Web
+  '.tsx', '.ts', '.jsx', '.js', '.html', '.css', '.scss', '.sass', '.less', '.vue', '.svelte',
+  // Config/Data
+  '.json', '.yaml', '.yml', '.toml', '.xml', '.env', '.ini', '.conf',
+  // Docs/Text
+  '.md', '.mdx', '.txt', '.rst', '.log',
+  // Backend
+  '.py', '.rb', '.php', '.java', '.go', '.rs', '.c', '.cpp', '.h', '.hpp', '.cs', '.kt', '.swift',
+  // Scripts
+  '.sh', '.bash', '.zsh', '.ps1', '.bat', '.cmd',
+  // Database
+  '.sql', '.prisma', '.graphql',
+  // DevOps
+  '.dockerfile', '.tf', '.hcl',
+  // Other
+  '.r', '.lua', '.perl', '.scala'
+];
+
+// Limite de tamanho para arquivos de código (500KB)
+const MAX_CODE_FILE_SIZE = 500 * 1024;
+
+// Função auxiliar para detectar arquivos de código
+const isCodeFile = (file: File) => {
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+  return CODE_EXTENSIONS.includes(ext);
+};
+
+// Detectar tipo de linguagem pelo nome do arquivo
+const getCodeLanguage = (fileName: string): string => {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const languageMap: Record<string, string> = {
+    'tsx': 'TypeScript React', 'ts': 'TypeScript', 'jsx': 'JavaScript React', 'js': 'JavaScript',
+    'html': 'HTML', 'css': 'CSS', 'scss': 'SCSS', 'sass': 'Sass', 'less': 'Less',
+    'json': 'JSON', 'yaml': 'YAML', 'yml': 'YAML', 'xml': 'XML', 'toml': 'TOML',
+    'md': 'Markdown', 'mdx': 'MDX', 'txt': 'Text',
+    'py': 'Python', 'rb': 'Ruby', 'php': 'PHP', 'java': 'Java', 'go': 'Go',
+    'rs': 'Rust', 'c': 'C', 'cpp': 'C++', 'cs': 'C#', 'kt': 'Kotlin', 'swift': 'Swift',
+    'sh': 'Shell', 'bash': 'Bash', 'sql': 'SQL', 'graphql': 'GraphQL', 'prisma': 'Prisma',
+    'vue': 'Vue', 'svelte': 'Svelte', 'dockerfile': 'Dockerfile', 'tf': 'Terraform'
+  };
+  return languageMap[ext] || ext.toUpperCase();
+};
+
 // =====================
 // Componente Principal
 // =====================
@@ -129,6 +174,7 @@ const Chat: React.FC = () => {
   const [processedWords, setProcessedWords] = useState<Map<string, string>>(new Map());
   const [processedPython, setProcessedPython] = useState<Map<string, string>>(new Map());
   const [processedExcel, setProcessedExcel] = useState<Map<string, string>>(new Map());
+  const [processedCode, setProcessedCode] = useState<Map<string, string>>(new Map());
   const [fileProcessingStatus, setFileProcessingStatus] = useState<Map<string, FileStatus>>(new Map());
   const [processedDocuments, setProcessedDocuments] = useState<
     Map<string, { content: string; type: string; pages?: number; fileSize?: number; sheets?: any[]; layout?: any[]; tables?: any[] }>
@@ -623,6 +669,8 @@ const Chat: React.FC = () => {
       fileType.includes("word") || fileName.toLowerCase().endsWith(".docx") || fileName.toLowerCase().endsWith(".doc");
     const isPython = fileName.toLowerCase().endsWith(".py");
     const isExcel = fileName.toLowerCase().endsWith(".xlsx") || fileName.toLowerCase().endsWith(".xls");
+    const fileExt = '.' + fileName.split('.').pop()?.toLowerCase();
+    const isCode = !isPython && CODE_EXTENSIONS.includes(fileExt);
 
     return (
       <div className="flex items-center gap-3 p-2 bg-muted/30 rounded-lg border max-w-xs">
@@ -651,6 +699,10 @@ const Chat: React.FC = () => {
             <div className="w-12 h-12 rounded-md bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center border">
               <FileCode2 className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
+          ) : isCode ? (
+            <div className="w-12 h-12 rounded-md bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center border">
+              <FileCode2 className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+            </div>
           ) : (
             <div className="w-12 h-12 rounded-md bg-gray-100 dark:bg-gray-800 flex items-center justify-center border">
               <File className="w-6 h-6 text-gray-600 dark:text-gray-400" />
@@ -662,7 +714,7 @@ const Chat: React.FC = () => {
             {fileName}
           </p>
           <p className="text-xs text-muted-foreground">
-            {isPdf ? "PDF" : isWord ? "Word" : isImage ? "Imagem" : "Arquivo"}
+            {isPdf ? "PDF" : isWord ? "Word" : isImage ? "Imagem" : isPython ? "Python" : isExcel ? "Excel" : isCode ? getCodeLanguage(fileName) : "Arquivo"}
           </p>
         </div>
       </div>
@@ -2215,6 +2267,46 @@ Forneça uma resposta abrangente que integre informações de todos os documento
             setProcessedExcel((prev) => new Map(prev).set(fileName, textContent));
             setFileProcessingStatus((prev) => new Map(prev.set(fileName, "completed")));
             return { fileName, success: true };
+          } else if (isCodeFile(file) && !isPythonFile(file)) {
+            // Verificar tamanho máximo para arquivos de código
+            if (file.size > MAX_CODE_FILE_SIZE) {
+              throw new Error(`Arquivo de código muito grande (máx. ${MAX_CODE_FILE_SIZE / 1024}KB)`);
+            }
+            
+            // Ler arquivo como texto puro
+            const text = await file.text();
+            const language = getCodeLanguage(file.name);
+            const lineCount = text.split('\n').length;
+            
+            // Formatar com metadados
+            const formattedContent = `=== ARQUIVO DE CÓDIGO ===
+Nome: ${file.name}
+Linguagem: ${language}
+Linhas: ${lineCount}
+Tamanho: ${(file.size / 1024).toFixed(1)}KB
+${'='.repeat(50)}
+
+${text}`;
+            
+            setProcessedDocuments(
+              (prev) =>
+                new Map(
+                  prev.set(fileName, {
+                    content: formattedContent,
+                    type: "code",
+                    fileSize: file.size,
+                  }),
+                ),
+            );
+            setProcessedCode((prev) => new Map(prev).set(fileName, formattedContent));
+            setFileProcessingStatus((prev) => new Map(prev.set(fileName, "completed")));
+            
+            toast({
+              title: `📄 Código anexado`,
+              description: `${file.name} (${lineCount} linhas)`,
+            });
+            
+            return { fileName, success: true };
           }
           return {
             fileName,
@@ -2258,20 +2350,24 @@ Forneça uma resposta abrangente que integre informações de todos os documento
       }
 
       const validFiles = files.filter((file) => {
+        const isCode = isCodeFile(file);
         const isValidType =
           file.type.startsWith("image/") ||
           isPdfFile(file) ||
           isWordFile(file) ||
           isPythonFile(file) ||
-          isExcelFile(file);
-        return isValidType && file.size <= 50 * 1024 * 1024;
+          isExcelFile(file) ||
+          isCode;
+        // Arquivos de código têm limite menor (500KB)
+        const maxSize = isCode ? MAX_CODE_FILE_SIZE : 50 * 1024 * 1024;
+        return isValidType && file.size <= maxSize;
       });
 
       if (validFiles.length === 0) {
         toast({
           title: "Nenhum arquivo válido",
           description:
-            "Arraste apenas imagens, PDFs, documentos Word, arquivos Python (.py) ou Excel (.xlsx/.xls, máx. 50MB cada).",
+            "Formatos aceitos: imagens, PDFs, Word, Excel, e arquivos de código (.tsx, .js, .html, .css, .json, .md, .py, .sql, etc.). Código máx. 500KB.",
           variant: "destructive",
         });
         return;
@@ -2320,20 +2416,24 @@ Forneça uma resposta abrangente que integre informações de todos os documento
       }
 
       const validFiles = files.filter((file) => {
+        const isCode = isCodeFile(file);
         const isValidType =
           file.type.startsWith("image/") ||
           isPdfFile(file) ||
           isWordFile(file) ||
           isPythonFile(file) ||
-          isExcelFile(file);
-        return isValidType && file.size <= 50 * 1024 * 1024;
+          isExcelFile(file) ||
+          isCode;
+        // Arquivos de código têm limite menor (500KB)
+        const maxSize = isCode ? MAX_CODE_FILE_SIZE : 50 * 1024 * 1024;
+        return isValidType && file.size <= maxSize;
       });
 
       if (validFiles.length === 0) {
         toast({
           title: "Nenhum arquivo válido",
           description:
-            "Arraste apenas imagens, PDFs, documentos Word, arquivos Python (.py) ou Excel (.xlsx/.xls, máx. 50MB cada).",
+            "Formatos aceitos: imagens, PDFs, Word, Excel, e arquivos de código (.tsx, .js, .html, .css, .json, .md, .py, .sql, etc.). Código máx. 500KB.",
           variant: "destructive",
         });
         return;
@@ -3132,7 +3232,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                     onChange={handleFileUpload}
                     className="hidden"
                     multiple
-                    accept="image/*,.pdf,.docx,.doc"
+                    accept="image/*,.pdf,.docx,.doc,.xlsx,.xls,.tsx,.ts,.jsx,.js,.html,.css,.scss,.json,.yaml,.yml,.xml,.md,.mdx,.txt,.py,.sql,.sh,.graphql,.prisma,.vue,.svelte,.go,.rs,.java,.c,.cpp,.h,.rb,.php,.env"
                   />
                   {/* Botões laterais com espaçamento menor no mobile */}
                   <div className="absolute left-1.5 sm:left-2 top-2.5 z-10">
@@ -3145,7 +3245,7 @@ Forneça uma resposta abrangente que integre informações de todos os documento
                       <DropdownMenuContent side="top" align="start" className="mb-2">
                         <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer">
                           <Paperclip className="h-4 w-4 mr-2" />
-                          Anexar (.pdf, .doc/.docx, imagens)
+                          Anexar (docs, código, imagens)
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={captureScreenshot} className="cursor-pointer">
                           <Camera className="h-4 w-4 mr-2" />
