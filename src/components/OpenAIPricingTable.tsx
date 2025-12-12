@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const OPENAI_MODELS = [
   {
-    name: 'GPT-5.1',
-    inputPrice: '$1.25',
-    outputPrice: '$10.00',
-    inputCostPerToken: '$0.00000125',
-    outputCostPerToken: '$0.00001000'
+    name: 'GPT-5.2',
+    inputPrice: '$1.75',
+    outputPrice: '$14.00',
+    inputCostPerToken: '$0.00000175',
+    outputCostPerToken: '$0.00001400'
   },
   {
     name: 'GPT-5 Mini',
@@ -15,13 +15,6 @@ const OPENAI_MODELS = [
     outputPrice: '$2.00',
     inputCostPerToken: '$0.00000025',
     outputCostPerToken: '$0.00000200'
-  },
-  {
-    name: 'GPT-5 Nano',
-    inputPrice: '$0.05',
-    outputPrice: '$0.40',
-    inputCostPerToken: '$0.00000005',
-    outputCostPerToken: '$0.00000040'
   },
   {
     name: 'GPT-4.1',

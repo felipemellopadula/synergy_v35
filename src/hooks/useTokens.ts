@@ -18,9 +18,8 @@ const MODEL_COSTS = {
   'grok-3': 10000,
   'grok-3-mini': 3000,
   // OpenAI Models baseado na documentação oficial
-  'gpt-5.1': 25000, // $1.25 entrada + $10 saída (média)
+  'gpt-5.2': 39375, // $1.75 entrada + $14 saída (média)
   'gpt-5-mini': 5625, // $0.25 entrada + $2 saída (média)
-  'gpt-5-nano': 1125, // $0.05 entrada + $0.4 saída (média)
   'gpt-4.1': 15000, // $3 entrada + $12 saída (ajuste fino)
   'gpt-4.1-mini': 4000, // $0.8 entrada + $3.2 saída (ajuste fino)
   'gpt-4.1-nano': 1000, // $0.2 entrada + $0.8 saída (ajuste fino)
@@ -183,9 +182,8 @@ export const useTokens = () => {
       // Synergy
       'synergy-ia': 'SynergyIA',
       // OpenAI Models
-      'gpt-5.1': 'GPT-5.1',
+      'gpt-5.2': 'GPT-5.2',
       'gpt-5-mini': 'GPT-5 Mini', 
-      'gpt-5-nano': 'GPT-5 Nano',
       'gpt-4.1': 'GPT-4.1',
       'gpt-4.1-mini': 'GPT-4.1 Mini',
       'gpt-4.1-nano': 'GPT-4.1 Nano', 
