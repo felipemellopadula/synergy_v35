@@ -14,31 +14,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-// Sample video URLs for hero cards (royalty-free from Pexels)
+// Sample video URLs for hero cards (reliable CDN sources)
 const heroCards = [
   {
-    video: "https://videos.pexels.com/video-files/3129671/3129671-uhd_2560_1440_30fps.mp4",
+    video: "https://cdn.pixabay.com/video/2020/05/25/40130-424930032_large.mp4",
     title: "PROMOÇÃO DE FIM DE ANO",
     description: "Até 67% off em todos os planos + 1 ano de gerações ilimitadas",
     badge: "-67% OFF",
     badgeColor: "bg-red-500",
   },
   {
-    video: "https://videos.pexels.com/video-files/5377684/5377684-uhd_2560_1440_25fps.mp4",
+    video: "https://cdn.pixabay.com/video/2021/04/06/70400-534201936_large.mp4",
     title: "INPAINT",
     description: "Pincel para editar áreas específicas ou transformar imagens inteiras",
     badge: "NANO BANANA",
     badgeColor: "bg-primary",
   },
   {
-    video: "https://videos.pexels.com/video-files/4625518/4625518-uhd_2560_1440_30fps.mp4",
+    video: "https://cdn.pixabay.com/video/2019/06/17/24634-343753908_large.mp4",
     title: "SHOTS",
     description: "Uma imagem se torna 9 shots. Escolha e melhore seus favoritos",
     badge: null,
     badgeColor: "",
   },
   {
-    video: "https://videos.pexels.com/video-files/5752729/5752729-uhd_2560_1440_30fps.mp4",
+    video: "https://cdn.pixabay.com/video/2020/07/30/46026-446001743_large.mp4",
     title: "SKIN ENHANCER",
     description: "Transforme pele artificial em textura natural e realista",
     badge: "INTRODUZINDO",
