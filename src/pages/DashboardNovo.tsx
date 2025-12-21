@@ -337,6 +337,7 @@ const DashboardNovo: React.FC = () => {
           "relative flex-shrink-0 z-10",
           isTabletOrMobile ? "w-full" : "h-full"
         )}
+        style={isTabletOrMobile ? { height: '50%', width: '100%' } : { width: '50%', height: '100%' }}
         onClick={() => handleSideClick('left')}
         onMouseEnter={!isTabletOrMobile ? () => setHoveredSide('left') : undefined}
         onMouseLeave={!isTabletOrMobile ? () => setHoveredSide(null) : undefined}
@@ -375,6 +376,7 @@ const DashboardNovo: React.FC = () => {
           "relative flex-shrink-0 z-10",
           isTabletOrMobile ? "w-full" : "h-full"
         )}
+        style={isTabletOrMobile ? { height: '50%', width: '100%' } : { width: '50%', height: '100%' }}
         onClick={() => handleSideClick('right')}
         onMouseEnter={!isTabletOrMobile ? () => setHoveredSide('right') : undefined}
         onMouseLeave={!isTabletOrMobile ? () => setHoveredSide(null) : undefined}

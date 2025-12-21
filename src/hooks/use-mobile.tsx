@@ -20,7 +20,12 @@ export function useIsMobile() {
 }
 
 export function useIsTabletOrMobile() {
-  const [isTabletOrMobile, setIsTabletOrMobile] = React.useState<boolean | undefined>(undefined)
+  const [isTabletOrMobile, setIsTabletOrMobile] = React.useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < TABLET_BREAKPOINT;
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${TABLET_BREAKPOINT - 1}px)`)
@@ -32,5 +37,5 @@ export function useIsTabletOrMobile() {
     return () => mql.removeEventListener("change", onChange)
   }, [])
 
-  return !!isTabletOrMobile
+  return isTabletOrMobile
 }
