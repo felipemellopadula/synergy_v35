@@ -3,7 +3,7 @@ import type { ImageModel } from "../types";
 export const MODELS: ImageModel[] = [
   { id: "google:4@2", label: "Google Nano Banana 2 Pro", maxImages: 14 },
   { id: "google:4@1", label: "Google Nano Banana", maxImages: 2 },
-  { id: "openai:1@1", label: "Gpt-Image 1", maxImages: 1 },
+  { id: "openai:4@1", label: "GPT Image 1.5", maxImages: 6 },
   { id: "ideogram:4@1", label: "Ideogram 3.0", maxImages: 1 },
   { id: "runware:108@1", label: "Qwen-Image", maxImages: 0 },
   { id: "bfl:3@1", label: "FLUX.1 Kontext [max]", maxImages: 1 },

@@ -115,6 +115,12 @@ export const FLUX2_PRO_QUALITY_SETTINGS: QualitySetting[] = [
   { id: "9:21", label: "9:21 (Ultra-Tall / Portrait)", width: 672, height: 1568, steps: 15 },
 ];
 
+export const GPT_IMAGE_15_QUALITY_SETTINGS: QualitySetting[] = [
+  { id: "1:1", label: "1:1 (Square)", width: 1024, height: 1024, steps: 15 },
+  { id: "3:2", label: "3:2 (Landscape)", width: 1536, height: 1024, steps: 15 },
+  { id: "2:3", label: "2:3 (Portrait)", width: 1024, height: 1536, steps: 15 },
+];
+
 /**
  * Returns the appropriate quality settings array for a given model ID
  */
@@ -134,6 +140,8 @@ export function getQualitySettingsForModel(modelId: string): QualitySetting[] {
       return SEEDREAM_QUALITY_SETTINGS;
     case "runware:108@1":
       return QWEN_QUALITY_SETTINGS;
+    case "openai:4@1":
+      return GPT_IMAGE_15_QUALITY_SETTINGS;
     default:
       return QUALITY_SETTINGS;
   }

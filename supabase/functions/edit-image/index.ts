@@ -18,20 +18,27 @@ serve(async (req) => {
       throw new Error('RUNWARE_API_KEY não configurada');
     }
 
-    const { model, positivePrompt, inputImage, inputImage2, width, height } = await req.json();
+    const { model, positivePrompt, inputImage, inputImage2, inputImages, width, height } = await req.json();
 
-    if (!positivePrompt || !inputImage) {
+    // Suporte a array de imagens (inputImages) ou imagens individuais (inputImage, inputImage2)
+    const allImages: string[] = inputImages && Array.isArray(inputImages) 
+      ? inputImages 
+      : [inputImage, inputImage2].filter(Boolean);
+
+    if (!positivePrompt || allImages.length === 0) {
       throw new Error('Prompt e imagem de entrada são obrigatórios');
     }
 
-    console.log('Editando imagem com Runware:', { model, width, height, promptLength: positivePrompt.length, hasSecondImage: !!inputImage2 });
+    console.log('Editando imagem com Runware:', { model, width, height, promptLength: positivePrompt.length, imageCount: allImages.length });
 
     const isGoogleModel = model && model.startsWith('google:');
+    const isOpenAIModel = model && model.startsWith('openai:');
     const isSeedream = model === 'bytedance:5@0';
     const isNanoBanana2Pro = model === 'google:4@2';
+    const isGPTImage15 = model === 'openai:4@1';
     
-    // Seedream e Google precisam de upload + referenceImages
-    const needsUploadFlow = isGoogleModel || isSeedream;
+    // Seedream, Google e OpenAI precisam de upload + referenceImages
+    const needsUploadFlow = isGoogleModel || isSeedream || isOpenAIModel;
     
     let runwarePayload: any[] = [
       {
@@ -40,27 +47,20 @@ serve(async (req) => {
       }
     ];
 
-    // Para modelos Google (Gemini) e Seedream, precisa fazer upload da imagem primeiro
+    // Para modelos Google (Gemini), Seedream e OpenAI, precisa fazer upload da imagem primeiro
     if (needsUploadFlow) {
-      console.log(`Modelo ${isGoogleModel ? 'Google' : 'Seedream'} detectado, fazendo upload da(s) imagem(ns)...`);
+      const modelType = isGoogleModel ? 'Google' : isOpenAIModel ? 'OpenAI' : 'Seedream';
+      console.log(`Modelo ${modelType} detectado, fazendo upload de ${allImages.length} imagem(ns)...`);
       
-      const uploadTaskUUID = crypto.randomUUID();
-      runwarePayload.push({
-        taskType: "imageUpload",
-        taskUUID: uploadTaskUUID,
-        image: inputImage
-      });
-
-      // Se tiver segunda imagem, adiciona também
-      let uploadTaskUUID2: string | null = null;
-      if (inputImage2) {
-        uploadTaskUUID2 = crypto.randomUUID();
+      // Fazer upload de todas as imagens
+      for (let i = 0; i < allImages.length; i++) {
+        const uploadTaskUUID = crypto.randomUUID();
         runwarePayload.push({
           taskType: "imageUpload",
-          taskUUID: uploadTaskUUID2,
-          image: inputImage2
+          taskUUID: uploadTaskUUID,
+          image: allImages[i]
         });
-        console.log('Segunda imagem detectada, fazendo upload...');
+        console.log(`Preparando upload da imagem ${i + 1}...`);
       }
 
       // Faz o upload primeiro
@@ -109,13 +109,14 @@ serve(async (req) => {
           outputFormat: "PNG",
           outputType: "URL",
           includeCost: true,
-          // Adicionar width/height para Nano Banana 2 Pro e Seedream
-          ...((isNanoBanana2Pro || isSeedream) && width && height ? { width, height } : {}),
+          // Adicionar width/height para Nano Banana 2 Pro, Seedream e GPT Image 1.5
+          ...((isNanoBanana2Pro || isSeedream || isGPTImage15) && width && height ? { width, height } : {}),
         }
       ];
       
-      if (isNanoBanana2Pro || isSeedream) {
-        console.log(`${isNanoBanana2Pro ? 'Nano Banana 2 Pro' : 'Seedream 4.0'} - adicionando dimensões:`, { width, height });
+      if (isNanoBanana2Pro || isSeedream || isGPTImage15) {
+        const modelName = isNanoBanana2Pro ? 'Nano Banana 2 Pro' : isGPTImage15 ? 'GPT Image 1.5' : 'Seedream 4.0';
+        console.log(`${modelName} - adicionando dimensões:`, { width, height });
       }
       console.log(`Usando ${referenceImageUUIDs.length} imagem(ns) de referência`);
 

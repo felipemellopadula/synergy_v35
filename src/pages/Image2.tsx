@@ -277,13 +277,12 @@ const Image2Page = () => {
       const inputImageBase64Second = inputImagesBase64[1];
 
       if (inputImageBase64 && canAttachImage) {
-        // Usar edit-image da Runware para todos os modelos (incluindo Google)
+        // Usar edit-image da Runware para todos os modelos (incluindo Google e OpenAI)
         const { data: editData, error: editError } = await supabase.functions.invoke("edit-image", {
           body: {
             model,
             positivePrompt: finalPrompt,
-            inputImage: inputImageBase64,
-            inputImage2: inputImageBase64Second, // Segunda imagem opcional
+            inputImages: inputImagesBase64, // Array com todas as imagens (até 6 para GPT Image 1.5)
             width: selectedQualityInfo.width,
             height: selectedQualityInfo.height,
           },
