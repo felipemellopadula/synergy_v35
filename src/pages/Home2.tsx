@@ -183,7 +183,6 @@ const Home2 = () => {
               />
             </Link>
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/home2" className="text-sm font-medium text-foreground hover:text-primary transition-colors">Explorar</Link>
               <Link to="/image" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Imagem</Link>
               <Link to="/video" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Vídeo</Link>
               <Link to="/image2" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Editar</Link>
@@ -277,41 +276,50 @@ const Home2 = () => {
       </section>
 
       {/* What Will You Create Section */}
-      <section className="container mx-auto px-4 py-12">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-3xl font-bold">
-              O QUE VOCÊ VAI <span className="text-primary">CRIAR HOJE?</span>
-            </h2>
-            <p className="text-muted-foreground mt-2">
-              Crie imagens e vídeos autênticos com textura natural e estilo fácil.
-            </p>
-          </div>
-          <Button className="bg-primary hover:bg-primary/90 gap-2">
-            <Zap className="w-4 h-4" />
-            Explorar todas as ferramentas
-          </Button>
-        </div>
+      <section className="bg-card/30 border-y border-border/50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+            {/* Left side - Text */}
+            <div className="flex-shrink-0 lg:w-[280px]">
+              <h2 className="text-2xl md:text-3xl font-bold italic leading-tight">
+                O QUE VOCÊ VAI<br />
+                <span className="text-primary">CRIAR HOJE?</span>
+              </h2>
+              <p className="text-muted-foreground text-sm mt-3">
+                Crie imagens e vídeos autênticos com textura natural e estilo fácil
+              </p>
+              <Button className="mt-4 bg-primary hover:bg-primary/90 gap-2 text-sm">
+                <Zap className="w-4 h-4" />
+                Explorar todas as ferramentas
+              </Button>
+            </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {tools.map((tool, index) => (
-            <div 
-              key={index}
-              onClick={() => tool.path && navigate(tool.path)}
-              className="group relative rounded-xl overflow-hidden aspect-square cursor-pointer bg-card hover:ring-2 hover:ring-primary/50 transition-all"
-            >
-              <img
-                src={tool.image}
-                alt={tool.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between">
-                <span className="text-sm font-semibold text-white">{tool.name}</span>
-                {tool.hasArrow && <ArrowRight className="w-4 h-4 text-white" />}
+            {/* Right side - Tool cards */}
+            <div className="flex-1 overflow-x-auto pb-2">
+              <div className="flex gap-4 min-w-max">
+                {tools.map((tool, index) => (
+                  <div 
+                    key={index}
+                    onClick={() => tool.path && navigate(tool.path)}
+                    className="group relative flex-shrink-0 w-[140px] cursor-pointer"
+                  >
+                    <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-card hover:ring-2 hover:ring-primary/50 transition-all">
+                      <img
+                        src={tool.image}
+                        alt={tool.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    </div>
+                    <div className="flex items-center justify-center gap-1 mt-2">
+                      <span className="text-xs font-medium text-foreground">{tool.name}</span>
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
