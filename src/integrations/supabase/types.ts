@@ -844,6 +844,33 @@ export type Database = {
           },
         ]
       }
+      user_avatars: {
+        Row: {
+          created_at: string
+          id: string
+          image_path: string
+          prompt: string | null
+          style: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_path: string
+          prompt?: string | null
+          style?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_path?: string
+          prompt?: string | null
+          style?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_images: {
         Row: {
           created_at: string

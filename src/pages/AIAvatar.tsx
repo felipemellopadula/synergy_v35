@@ -1,14 +1,22 @@
-import { useState, useRef, useCallback, Suspense } from "react";
+import { useState, useRef, useCallback, Suspense, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Upload, Download, X, Sparkles, UserCircle, Wand2, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Download, X, Sparkles, UserCircle, Wand2, Loader2, Trash2, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import UserProfile from "@/components/UserProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface SavedAvatar {
+  id: string;
+  image_path: string;
+  style: string | null;
+  prompt: string | null;
+  created_at: string;
+}
 
 const AVATAR_STYLES = [
   { id: "professional", label: "Profissional", prompt: "Transform this photo into a professional corporate headshot with studio lighting, clean background, and polished appearance" },
@@ -29,7 +37,40 @@ const AIAvatar = () => {
   const [selectedStyle, setSelectedStyle] = useState<string>("professional");
   const [customPrompt, setCustomPrompt] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [savedAvatars, setSavedAvatars] = useState<SavedAvatar[]>([]);
+  const [isLoadingAvatars, setIsLoadingAvatars] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load saved avatars
+  useEffect(() => {
+    if (user) {
+      loadSavedAvatars();
+    } else {
+      setSavedAvatars([]);
+      setIsLoadingAvatars(false);
+    }
+  }, [user]);
+
+  const loadSavedAvatars = async () => {
+    if (!user) return;
+    
+    setIsLoadingAvatars(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_avatars")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setSavedAvatars(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar avatares:", error);
+    } finally {
+      setIsLoadingAvatars(false);
+    }
+  };
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -40,7 +81,6 @@ const AIAvatar = () => {
       return;
     }
 
-    // Check file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error("A imagem deve ter no máximo 10MB");
       return;
@@ -76,6 +116,39 @@ const AIAvatar = () => {
     toast.success("Avatar baixado com sucesso!");
   }, [generatedAvatar, uploadedImage]);
 
+  const saveAvatarToStorage = async (base64Image: string): Promise<string | null> => {
+    if (!user) return null;
+
+    try {
+      // Convert base64 to blob
+      const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: "image/png" });
+
+      // Upload to storage
+      const fileName = `${user.id}/${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("images")
+        .upload(fileName, blob, { contentType: "image/png" });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from("images")
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Erro ao salvar no storage:", error);
+      return null;
+    }
+  };
+
   const handleGenerate = async () => {
     if (!uploadedImage) {
       toast.error("Por favor, faça upload de uma foto primeiro");
@@ -85,19 +158,16 @@ const AIAvatar = () => {
     setIsProcessing(true);
 
     try {
-      // Get the base prompt from selected style
       const stylePrompt = AVATAR_STYLES.find(s => s.id === selectedStyle)?.prompt || "";
       const finalPrompt = customPrompt.trim() 
         ? `${stylePrompt}. Additional instructions: ${customPrompt}` 
         : stylePrompt;
 
-      // Extract base64 from data URL
       const base64Image = uploadedImage.split(",")[1] || uploadedImage;
 
-      // Use edit-image with Nano Banana 2 Pro model
       const { data, error } = await supabase.functions.invoke("edit-image", {
         body: {
-          model: "google:4@2", // Nano Banana 2 Pro
+          model: "google:4@2",
           positivePrompt: finalPrompt,
           inputImage: base64Image,
           width: 1024,
@@ -111,6 +181,28 @@ const AIAvatar = () => {
         const avatarUrl = `data:image/png;base64,${data.image}`;
         setGeneratedAvatar(avatarUrl);
         toast.success("Avatar gerado com sucesso!");
+
+        // Auto-save if user is logged in
+        if (user) {
+          setIsSaving(true);
+          const storedUrl = await saveAvatarToStorage(avatarUrl);
+          if (storedUrl) {
+            const { error: insertError } = await supabase
+              .from("user_avatars")
+              .insert({
+                user_id: user.id,
+                image_path: storedUrl,
+                style: selectedStyle,
+                prompt: customPrompt || null,
+              });
+
+            if (!insertError) {
+              loadSavedAvatars();
+              toast.success("Avatar salvo na galeria!");
+            }
+          }
+          setIsSaving(false);
+        }
       } else {
         throw new Error("Nenhuma imagem retornada");
       }
@@ -119,6 +211,40 @@ const AIAvatar = () => {
       toast.error(error.message || "Erro ao gerar avatar");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteAvatar = async (avatarId: string, imagePath: string) => {
+    try {
+      // Delete from database
+      const { error } = await supabase
+        .from("user_avatars")
+        .delete()
+        .eq("id", avatarId);
+
+      if (error) throw error;
+
+      // Try to delete from storage
+      const pathMatch = imagePath.match(/images\/(.+)$/);
+      if (pathMatch) {
+        await supabase.storage.from("images").remove([pathMatch[1]]);
+      }
+
+      setSavedAvatars(prev => prev.filter(a => a.id !== avatarId));
+      toast.success("Avatar removido!");
+    } catch (error: any) {
+      console.error("Erro ao deletar avatar:", error);
+      toast.error("Erro ao remover avatar");
+    }
+  };
+
+  const handleSelectSavedAvatar = (avatar: SavedAvatar) => {
+    setGeneratedAvatar(avatar.image_path);
+    if (avatar.style) {
+      setSelectedStyle(avatar.style);
+    }
+    if (avatar.prompt) {
+      setCustomPrompt(avatar.prompt);
     }
   };
 
@@ -189,11 +315,13 @@ const AIAvatar = () => {
                 alt="Avatar"
                 className="max-w-full max-h-[60vh] lg:max-h-[70vh] object-contain rounded-2xl shadow-2xl"
               />
-              {isProcessing && (
+              {(isProcessing || isSaving) && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-2xl flex items-center justify-center">
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                    <p className="text-sm text-muted-foreground">Gerando avatar...</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isSaving ? "Salvando..." : "Gerando avatar..."}
+                    </p>
                   </div>
                 </div>
               )}
@@ -215,66 +343,124 @@ const AIAvatar = () => {
         </div>
 
         {/* Controls Sidebar */}
-        <div className="lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-border bg-muted/30 p-4 lg:p-6 space-y-6 overflow-y-auto">
-          <div>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Wand2 className="h-5 w-5 text-primary" />
-              Estilo do Avatar
-            </h2>
-            <div className="grid grid-cols-2 gap-2">
-              {AVATAR_STYLES.map((style) => (
-                <button
-                  key={style.id}
-                  onClick={() => setSelectedStyle(style.id)}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                    selectedStyle === style.id
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "bg-background hover:bg-muted border border-border"
-                  }`}
-                >
-                  {style.label}
-                </button>
-              ))}
+        <div className="lg:w-80 xl:w-96 border-t lg:border-t-0 lg:border-l border-border bg-muted/30 flex flex-col max-h-[calc(100vh-65px)]">
+          <ScrollArea className="flex-1">
+            <div className="p-4 lg:p-6 space-y-6">
+              <div>
+                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Wand2 className="h-5 w-5 text-primary" />
+                  Estilo do Avatar
+                </h2>
+                <div className="grid grid-cols-2 gap-2">
+                  {AVATAR_STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => setSelectedStyle(style.id)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                        selectedStyle === style.id
+                          ? "bg-primary text-primary-foreground shadow-md"
+                          : "bg-background hover:bg-muted border border-border"
+                      }`}
+                    >
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium mb-2 text-muted-foreground">
+                  Personalização (opcional)
+                </h3>
+                <Textarea
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Adicione detalhes extras... Ex: fundo azul, olhos verdes, cabelo curto"
+                  className="resize-none h-24"
+                />
+              </div>
+
+              <Button
+                onClick={handleGenerate}
+                disabled={!uploadedImage || isProcessing}
+                className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Gerar Avatar
+                  </>
+                )}
+              </Button>
+
+              {/* Gallery Section */}
+              {user && (
+                <div className="pt-4 border-t border-border">
+                  <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Meus Avatares ({savedAvatars.length})
+                  </h3>
+                  
+                  {isLoadingAvatars ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : savedAvatars.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhum avatar salvo ainda
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {savedAvatars.map((avatar) => (
+                        <div
+                          key={avatar.id}
+                          className="relative group aspect-square rounded-lg overflow-hidden border border-border cursor-pointer hover:border-primary transition-colors"
+                          onClick={() => handleSelectSavedAvatar(avatar)}
+                        >
+                          <img
+                            src={avatar.image_path}
+                            alt="Saved avatar"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteAvatar(avatar.id, avatar.image_path);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {avatar.style && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs py-1 px-2 truncate">
+                              {AVATAR_STYLES.find(s => s.id === avatar.style)?.label || avatar.style}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!user && (
+                <div className="pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Faça login para salvar seus avatares
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium mb-2 text-muted-foreground">
-              Personalização (opcional)
-            </h3>
-            <Textarea
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Adicione detalhes extras... Ex: fundo azul, olhos verdes, cabelo curto"
-              className="resize-none h-24"
-            />
-          </div>
-
-          <Button
-            onClick={handleGenerate}
-            disabled={!uploadedImage || isProcessing}
-            className="w-full h-12 text-base font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Gerando...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2 h-5 w-5" />
-                Gerar Avatar
-              </>
-            )}
-          </Button>
-
-          {generatedAvatar && (
-            <div className="pt-4 border-t border-border">
-              <p className="text-sm text-muted-foreground text-center">
-                Não gostou? Ajuste o estilo ou adicione detalhes e gere novamente!
-              </p>
-            </div>
-          )}
+          </ScrollArea>
         </div>
       </div>
 
