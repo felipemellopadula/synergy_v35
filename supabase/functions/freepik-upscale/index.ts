@@ -58,23 +58,48 @@ serve(async (req) => {
     }
 
     console.log("Calling Freepik API with params:", { scale_factor, flavor, ultra_detail, sharpen, smart_grain });
+    console.log("Image size (approx):", Math.round(image.length / 1024), "KB");
 
-    // Call Freepik Upscaler API
-    const freepikResponse = await fetch("https://api.freepik.com/v1/ai/image-upscaler-precision-v2", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-freepik-api-key": FREEPIK_API_KEY,
-      },
-      body: JSON.stringify({
-        image,
-        scale_factor,
-        flavor,
-        ultra_detail,
-        sharpen,
-        smart_grain,
-      }),
-    });
+    // Call Freepik Upscaler API with retry logic
+    let freepikResponse: Response | null = null;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`Retry attempt ${attempt + 1}/3...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Exponential backoff
+        }
+        
+        freepikResponse = await fetch("https://api.freepik.com/v1/ai/image-upscaler-precision-v2", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-freepik-api-key": FREEPIK_API_KEY,
+          },
+          body: JSON.stringify({
+            image,
+            scale_factor,
+            flavor,
+            ultra_detail,
+            sharpen,
+            smart_grain,
+          }),
+        });
+        
+        if (freepikResponse.ok) {
+          break;
+        }
+      } catch (fetchError) {
+        console.error(`Attempt ${attempt + 1} failed:`, fetchError);
+        lastError = fetchError as Error;
+        freepikResponse = null;
+      }
+    }
+    
+    if (!freepikResponse) {
+      throw lastError || new Error("Failed to connect to Freepik API after 3 attempts");
+    }
 
     if (!freepikResponse.ok) {
       const errorText = await freepikResponse.text();
