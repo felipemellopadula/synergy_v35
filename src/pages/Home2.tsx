@@ -288,10 +288,6 @@ const Home2 = () => {
               <p className="text-muted-foreground text-sm mt-3">
                 Crie imagens e vídeos autênticos com textura natural e estilo fácil
               </p>
-              <Button className="mt-4 bg-primary hover:bg-primary/90 gap-2 text-sm">
-                <Zap className="w-4 h-4" />
-                Explorar todas as ferramentas
-              </Button>
             </div>
 
             {/* Right side - Tool cards */}
