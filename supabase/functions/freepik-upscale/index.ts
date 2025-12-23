@@ -114,6 +114,7 @@ serve(async (req) => {
 
       const statusData = await statusResponse.json();
       console.log("Task status:", statusData.data?.status, "attempt:", attempts);
+      console.log("Full status response:", JSON.stringify(statusData, null, 2));
 
       if (statusData.data?.status === "COMPLETED") {
         result = statusData.data;
@@ -129,9 +130,19 @@ serve(async (req) => {
       throw new Error("Upscale timed out after 2 minutes");
     }
 
-    // Get the upscaled image URL
-    const upscaledImageUrl = result.generated?.[0]?.url;
+    console.log("Full result object:", JSON.stringify(result, null, 2));
+
+    // Get the upscaled image URL - try different possible paths
+    let upscaledImageUrl = result.generated?.[0]?.url 
+      || result.generated?.[0]?.image 
+      || result.image 
+      || result.output 
+      || result.url
+      || result.result?.url
+      || result.result?.image;
+    
     if (!upscaledImageUrl) {
+      console.error("Could not find image URL in result:", JSON.stringify(result, null, 2));
       throw new Error("No upscaled image URL in result");
     }
 
