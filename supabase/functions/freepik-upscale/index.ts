@@ -132,14 +132,21 @@ serve(async (req) => {
 
     console.log("Full result object:", JSON.stringify(result, null, 2));
 
-    // Get the upscaled image URL - try different possible paths
-    let upscaledImageUrl = result.generated?.[0]?.url 
-      || result.generated?.[0]?.image 
-      || result.image 
-      || result.output 
-      || result.url
-      || result.result?.url
-      || result.result?.image;
+    // Get the upscaled image URL - Freepik returns array of string URLs directly
+    const generatedItem = result.generated?.[0];
+    let upscaledImageUrl: string | undefined;
+    
+    // Check if it's a direct string URL (Freepik's format)
+    if (typeof generatedItem === 'string') {
+      upscaledImageUrl = generatedItem;
+    } else if (generatedItem?.url) {
+      upscaledImageUrl = generatedItem.url;
+    } else if (generatedItem?.image) {
+      upscaledImageUrl = generatedItem.image;
+    } else {
+      // Fallback paths
+      upscaledImageUrl = result.image || result.output || result.url;
+    }
     
     if (!upscaledImageUrl) {
       console.error("Could not find image URL in result:", JSON.stringify(result, null, 2));
