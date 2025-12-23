@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.generate-followups]
 verify_jwt = true
+
+[functions.freepik-upscale]
+verify_jwt = true

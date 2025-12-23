@@ -26,6 +26,7 @@ const Home2 = lazy(() => import("./pages/Home2"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const DashboardNovo = lazy(() => import("./pages/DashboardNovo"));
+const Upscale = lazy(() => import("./pages/Upscale"));
 
 // Create queryClient
 const queryClient = new QueryClient();
@@ -91,6 +92,9 @@ const App = () => (
           } />
           <Route path="/dashboard-novo" element={
             <ProtectedRoute><DashboardNovo /></ProtectedRoute>
+          } />
+          <Route path="/upscale" element={
+            <ProtectedRoute><Upscale /></ProtectedRoute>
           } />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           
