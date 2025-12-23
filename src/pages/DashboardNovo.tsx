@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { motion, AnimatePresence, Transition } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
-import { ChevronDown, Sparkles, ArrowUpCircle, UserCircle, Smile, Video, LogOut, ZoomIn } from 'lucide-react';
+import { ChevronDown, Sparkles, ArrowUpCircle, UserCircle, Smile, Video, LogOut, ZoomIn, Wand2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -195,6 +195,10 @@ const ImageCarousel: React.FC<CarouselProps> = ({ isActive, isTabletOrMobile }) 
               <DropdownMenuItem onClick={() => navigate('/image2?mode=avatar')} className="hover:bg-cyan-500/20 focus:bg-cyan-500/20 cursor-pointer gap-2">
                 <UserCircle className="w-4 h-4" />
                 AI Avatar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/image-editor')} className="hover:bg-cyan-500/20 focus:bg-cyan-500/20 cursor-pointer gap-2">
+                <Wand2 className="w-4 h-4" />
+                Image Editor
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
