@@ -7,6 +7,7 @@ import { Check, Zap, Crown, Star, ArrowRight, LogOut, User, Loader2 } from "luci
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { supabase } from "@/integrations/supabase/client";
+import LogoLoop from "@/components/LogoLoop";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+const aiLogos = [
+  { src: "/images/logos/openai.svg", alt: "OpenAI", title: "OpenAI" },
+  { src: "/images/logos/anthropic.svg", alt: "Anthropic", title: "Anthropic" },
+  { src: "/images/logos/google.svg", alt: "Google", title: "Google" },
+  { src: "/images/logos/meta.svg", alt: "Meta", title: "Meta" },
+  { src: "/images/logos/deepseek.svg", alt: "DeepSeek", title: "DeepSeek" },
+  { src: "/images/logos/xai.svg", alt: "xAI", title: "xAI" },
+];
 
 interface PublicImage {
   id: string;
@@ -319,11 +329,26 @@ const Home2 = () => {
         </div>
       </section>
 
-      {/* Social Proof */}
-      <section className="container mx-auto px-4 py-8 text-center">
-        <p className="text-muted-foreground text-sm uppercase tracking-widest">
-          CONFIADO POR 700.000 EQUIPES CRIATIVAS
-        </p>
+      {/* Social Proof with Logo Loop */}
+      <section className="py-12 bg-background">
+        <div className="container mx-auto px-4 text-center mb-6">
+          <p className="text-muted-foreground text-sm uppercase tracking-widest">
+            CONFIADO POR 700.000 EQUIPES CRIATIVAS
+          </p>
+        </div>
+        <div className="h-[60px] relative overflow-hidden">
+          <LogoLoop
+            logos={aiLogos}
+            speed={60}
+            direction="left"
+            logoHeight={32}
+            gap={80}
+            hoverSpeed={0}
+            scaleOnHover
+            fadeOut
+            ariaLabel="AI technology partners"
+          />
+        </div>
       </section>
 
       {/* Recent Creations Section */}
