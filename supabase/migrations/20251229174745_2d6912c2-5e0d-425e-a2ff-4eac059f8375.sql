@@ -1,0 +1,1 @@
+DELETE FROM token_usage;

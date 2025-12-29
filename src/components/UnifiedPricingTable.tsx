@@ -40,67 +40,13 @@ export default function UnifiedPricingTable({
       color: string;
     }> = [];
 
-    if (selectedProvider === 'todos' || selectedProvider === 'openai') {
-      Object.entries(openaiPricing).forEach(([model, pricing]) => {
-        models.push({
-          name: model,
-          provider: 'OpenAI',
-          pricing,
-          color: 'text-blue-400'
-        });
-      });
-    }
-
-    if (selectedProvider === 'todos' || selectedProvider === 'gemini') {
-      Object.entries(geminiPricing).forEach(([model, pricing]) => {
-        models.push({
-          name: model,
-          provider: 'Google Gemini',
-          pricing,
-          color: 'text-green-400'
-        });
-      });
-    }
-
-    if (selectedProvider === 'todos' || selectedProvider === 'claude') {
-      Object.entries(claudePricing).forEach(([model, pricing]) => {
-        models.push({
-          name: model,
-          provider: 'Anthropic Claude',
-          pricing,
-          color: 'text-purple-400'
-        });
-      });
-    }
-
-    if (selectedProvider === 'todos' || selectedProvider === 'grok') {
-      Object.entries(grokPricing).forEach(([model, pricing]) => {
-        models.push({
-          name: model,
-          provider: 'xAI Grok',
-          pricing,
-          color: 'text-orange-400'
-        });
-      });
-    }
-
-    if (selectedProvider === 'todos' || selectedProvider === 'deepseek') {
-      Object.entries(deepseekPricing).forEach(([model, pricing]) => {
-        models.push({
-          name: model,
-          provider: 'DeepSeek',
-          pricing,
-          color: 'text-blue-400'
-        });
-      });
-    }
-
+    // APENAS modelos de imagem e vídeo - chat models removidos
     if (selectedProvider === 'todos' || selectedProvider === 'image') {
       Object.entries(imagePricing).forEach(([model, pricingData]) => {
         models.push({
           name: model,
           provider: 'Modelos de Imagem',
-          pricing: { input: pricingData.cost, output: 0 }, // Image models don't have output tokens
+          pricing: { input: pricingData.cost, output: 0 },
           color: 'text-pink-400'
         });
       });
@@ -111,7 +57,7 @@ export default function UnifiedPricingTable({
         models.push({
           name: model,
           provider: 'Modelos de Vídeo',
-          pricing: { input: pricingData.cost, output: 0 }, // Video models don't have output tokens
+          pricing: { input: pricingData.cost, output: 0 },
           color: 'text-red-400'
         });
       });
