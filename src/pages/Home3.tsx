@@ -311,12 +311,8 @@ const Home3: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
 
-  // Redirect authenticated users to dashboard
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard-novo');
-    }
-  }, [user, navigate]);
+  // Usuários autenticados podem ver a Home3 normalmente
+  // O header mostra opção de ir ao Dashboard quando logado
 
   useEffect(() => {
     const handleScroll = () => {
