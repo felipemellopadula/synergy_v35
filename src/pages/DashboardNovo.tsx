@@ -279,7 +279,10 @@ const VideoLoop: React.FC<VideoLoopProps> = ({ isActive, isTabletOrMobile }) => 
                 <ChevronDown className="w-3 h-3" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="bg-black/90 backdrop-blur-xl border-fuchsia-500/30 text-fuchsia-400 min-w-[180px]">
+            <DropdownMenuContent 
+              side={isTabletOrMobile ? "top" : "bottom"}
+              className="bg-black/90 backdrop-blur-xl border-fuchsia-500/30 text-fuchsia-400 min-w-[180px]"
+            >
               <DropdownMenuItem onClick={() => navigate('/video')} className="hover:bg-fuchsia-500/20 focus:bg-fuchsia-500/20 cursor-pointer gap-2">
                 <Video className="w-4 h-4" />
                 Gerar Vídeo
@@ -354,7 +357,7 @@ const DashboardNovo: React.FC = () => {
       isTabletOrMobile && "flex-col"
     )}>
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-md border-b border-white/10">
+      <header className="absolute top-0 left-0 right-0 z-50 backdrop-blur-md border-b border-white/10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link to="/home3" className="flex items-center gap-2">
             <img
