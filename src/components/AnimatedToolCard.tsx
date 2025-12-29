@@ -58,17 +58,30 @@ export const AnimatedToolCard = ({ tool }: AnimatedToolCardProps) => {
     ? tool.images[currentIndex] 
     : tool.image;
 
+  const nextImage = tool.animated && tool.images 
+    ? tool.images[(currentIndex + 1) % tool.images.length] 
+    : tool.image;
+
   return (
     <div 
       onClick={() => tool.path && navigate(tool.path)}
       className="group relative flex-shrink-0 w-[140px] cursor-pointer"
     >
       <div className="relative rounded-xl overflow-hidden aspect-[3/4] bg-card hover:ring-2 hover:ring-primary/50 transition-all">
+        {/* Next image (underneath) */}
+        {tool.animated && (
+          <img
+            src={nextImage}
+            alt={tool.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        {/* Current image (on top, fades out) */}
         <img
           src={currentImage}
           alt={tool.name}
-          className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-500 ${
-            isTransitioning ? 'opacity-0 scale-110' : 'opacity-100 scale-100'
+          className={`absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-200 ${
+            isTransitioning ? 'opacity-0' : 'opacity-100'
           }`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
