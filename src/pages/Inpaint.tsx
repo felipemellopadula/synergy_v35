@@ -406,11 +406,16 @@ Generate the edited image now with the green masked areas replaced according to 
         inpaintPrompt = `Edit this image with the following instruction: ${prompt}. Generate the edited image now.`;
       }
 
-      const { data, error } = await supabase.functions.invoke("edit-image-nano-banana", {
+      // Usar Runware com Nano Banana 2 Pro (google:4@2)
+      const inputImages = [canvasDataUrl, ...referenceImages.map(img => img.dataUrl)];
+      
+      const { data, error } = await supabase.functions.invoke("edit-image", {
         body: {
-          prompt: inpaintPrompt,
-          imageBase64: canvasDataUrl,
-          referenceImages: referenceImages.map(img => img.dataUrl),
+          model: "google:4@2", // Nano Banana 2 Pro (Gemini 3.0) via Runware
+          positivePrompt: inpaintPrompt,
+          inputImages,
+          width: 1024,
+          height: 1024,
         },
       });
 
