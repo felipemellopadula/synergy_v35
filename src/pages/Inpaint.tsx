@@ -171,9 +171,11 @@ const Inpaint = () => {
 
   // Load uploaded image onto canvas
   useEffect(() => {
+    console.log("🖼️ useEffect disparado:", { canvasReady, hasUploadedImage: !!uploadedImage });
+    
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !uploadedImage) {
-      console.log("🖼️ Aguardando canvas ou imagem:", { hasCanvas: !!canvas, hasImage: !!uploadedImage });
+    if (!canvas || !uploadedImage || !canvasReady) {
+      console.log("🖼️ Aguardando canvas ou imagem:", { hasCanvas: !!canvas, hasImage: !!uploadedImage, canvasReady });
       return;
     }
 
@@ -310,12 +312,19 @@ const Inpaint = () => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    console.log("📁 Arquivo selecionado:", file?.name, file?.type, file?.size);
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setUploadedImage(event.target?.result as string);
+      const result = event.target?.result as string;
+      console.log("📁 FileReader carregou imagem, tamanho do base64:", result?.length);
+      setUploadedImage(result);
       setGeneratedImage(null);
+    };
+    reader.onerror = (err) => {
+      console.error("📁 Erro no FileReader:", err);
+      toast.error("Erro ao ler arquivo");
     };
     reader.readAsDataURL(file);
   };
