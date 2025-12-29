@@ -21,7 +21,7 @@ const aiLogos = [
   { src: "/images/logos/google.svg", alt: "Google", title: "Google" },
   { src: "/images/logos/openai.svg", alt: "OpenAI", title: "OpenAI" },
   { src: "/images/logos/kling.svg", alt: "Kling AI", title: "Kling AI" },
-  { src: "/images/logos/bytedance.svg", alt: "ByteDance", title: "ByteDance" },
+  { src: "/images/logos/bytedance.png", alt: "ByteDance Seed", title: "ByteDance Seed" },
 ];
 
 interface PublicImage {
