@@ -148,7 +148,7 @@ const tools: ToolCard[] = [
     id: '4',
     title: 'Inpaint',
     description: 'Edição precisa',
-    imageUrl: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=400&fit=crop',
+    imageUrl: 'https://images.pexels.com/photos/29645160/pexels-photo-29645160/free-photo-of-caneta-para-tablet-grafico-ferramenta-de-design-tinta-escrita-nota-estudio-interior.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&dpr=1',
     path: '/inpaint',
   },
   {
