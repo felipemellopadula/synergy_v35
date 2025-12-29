@@ -513,7 +513,7 @@ const Home2 = () => {
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <img src="/images/logo-light-optimized.webp" alt="Synergy" className="h-8 w-auto mb-4" />
+              <img src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png" alt="Synergy AI" className="h-8 w-auto mb-4" />
               <p className="text-sm text-muted-foreground">
                 A maior biblioteca do mundo de conteúdo gerado por IA. Descubra fotos, vídeos e vetores de alta
                 qualidade criados por nossos modelos de ponta, incluindo Gemini e Veo.
