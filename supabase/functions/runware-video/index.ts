@@ -63,6 +63,14 @@ serve(async (req) => {
         });
       }
 
+      // FPS suportados por modelo - Sora 2 só suporta 30 fps
+      const getFpsForModel = (model: string): number => {
+        if (model.startsWith('openai:')) {
+          return 30;
+        }
+        return 24;
+      };
+
       const taskUUID = crypto.randomUUID();
 
       // ✅ Motion Transfer: Kling 2.6 Pro suporta referenceVideoUrl para capturar movimentos
@@ -83,7 +91,7 @@ serve(async (req) => {
             duration,
             width,
             height,
-            fps: 24,
+            fps: getFpsForModel(resolvedModel),
             numberResults,
             outputFormat: "mp4",
             includeCost: true,
@@ -113,7 +121,7 @@ serve(async (req) => {
             duration,
             width,
             height,
-            fps: 24,
+            fps: getFpsForModel(resolvedModel),
             numberResults,
             outputFormat: "mp4",
             includeCost: true,
