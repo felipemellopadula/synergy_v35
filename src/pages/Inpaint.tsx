@@ -631,9 +631,9 @@ Generate the edited image now.`;
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setGeneratedImage(null)}
+                    onClick={handleDeleteImage}
                     className="bg-black/50 border-white/20 hover:bg-red-500/20 hover:border-red-500/50"
-                    title="Fechar e editar novamente"
+                    title="Fechar e começar de novo"
                   >
                     <X className="w-4 h-4" />
                   </Button>
@@ -644,7 +644,7 @@ Generate the edited image now.`;
                   className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                 />
                 <p className="text-muted-foreground text-sm mt-4">
-                  Clique no X para voltar a editar ou baixe a imagem
+                  Clique no X para começar de novo ou baixe a imagem
                 </p>
               </div>
             )}
