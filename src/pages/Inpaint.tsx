@@ -544,8 +544,14 @@ Generate the edited image now with the green masked areas replaced according to 
             ref={containerRef}
             className="flex-1 relative bg-[#0d0d0d] overflow-hidden"
           >
+            {/* Canvas is always rendered but hidden when not needed */}
+            <canvas 
+              ref={canvasRef} 
+              className={`absolute inset-0 ${(!uploadedImage || generatedImage) ? 'invisible pointer-events-none' : ''}`} 
+            />
+            
             {!uploadedImage ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -567,16 +573,14 @@ Generate the edited image now with the green masked areas replaced according to 
                 </p>
               </div>
             ) : generatedImage ? (
-              <div className="absolute inset-0 flex items-center justify-center p-4">
+              <div className="absolute inset-0 flex items-center justify-center p-4 z-10">
                 <img 
                   src={generatedImage} 
                   alt="Resultado" 
                   className="max-w-full max-h-full object-contain rounded-lg"
                 />
               </div>
-            ) : (
-              <canvas ref={canvasRef} className="absolute inset-0" />
-            )}
+            ) : null}
           </div>
 
           {/* Bottom Input Area */}
