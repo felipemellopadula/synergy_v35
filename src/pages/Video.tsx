@@ -737,24 +737,59 @@ const VideoPage: React.FC = () => {
     [toast, uploadImage]
   );
 
+  // ✅ Estado para tempo decorrido e cancelamento
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const elapsedRef = useRef<number | null>(null);
+
+  // ✅ Cancelar geração
+  const cancelGeneration = useCallback(() => {
+    if (pollRef.current) {
+      window.clearTimeout(pollRef.current);
+      pollRef.current = null;
+    }
+    if (elapsedRef.current) {
+      window.clearInterval(elapsedRef.current);
+      elapsedRef.current = null;
+    }
+    setIsSubmitting(false);
+    setTaskUUID(null);
+    setElapsedTime(0);
+    toast({
+      title: "Geração cancelada",
+      description: "A geração foi cancelada. Você pode tentar novamente.",
+    });
+  }, [toast]);
+
   // Geração com TIMEOUT e LIMITE de tentativas
   const beginPolling = useCallback((uuid: string) => {
     if (pollRef.current) {
       window.clearTimeout(pollRef.current);
       pollRef.current = null;
     }
+    if (elapsedRef.current) {
+      window.clearInterval(elapsedRef.current);
+      elapsedRef.current = null;
+    }
     
     const MAX_ATTEMPTS = 60; // Máximo 60 tentativas (aproximadamente 5-10 minutos)
     const startTime = Date.now();
     const MAX_DURATION = 10 * 60 * 1000; // 10 minutos timeout absoluto
+    
+    // ✅ Atualizar tempo decorrido a cada segundo
+    setElapsedTime(0);
+    elapsedRef.current = window.setInterval(() => {
+      setElapsedTime(Math.round((Date.now() - startTime) / 1000));
+    }, 1000) as unknown as number;
     
     const poll = async (attempt = 0) => {
       try {
         // ✅ Verificar timeout absoluto
         const elapsed = Date.now() - startTime;
         if (elapsed > MAX_DURATION) {
+          if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           setIsSubmitting(false);
           setTaskUUID(null);
+          setElapsedTime(0);
           toast({
             title: "Timeout",
             description: "A geração do vídeo demorou muito. Por favor, tente novamente.",
@@ -765,8 +800,10 @@ const VideoPage: React.FC = () => {
         
         // ✅ Verificar limite de tentativas
         if (attempt >= MAX_ATTEMPTS) {
+          if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           setIsSubmitting(false);
           setTaskUUID(null);
+          setElapsedTime(0);
           toast({
             title: "Timeout",
             description: `Máximo de tentativas atingido (${MAX_ATTEMPTS}). Por favor, tente novamente.`,
@@ -779,15 +816,31 @@ const VideoPage: React.FC = () => {
           body: { action: "status", taskUUID: uuid },
         });
         
+        // ✅ Detectar falha explícita da API
+        if (data?.failed) {
+          if (elapsedRef.current) window.clearInterval(elapsedRef.current);
+          setIsSubmitting(false);
+          setTaskUUID(null);
+          setElapsedTime(0);
+          toast({
+            title: "Falha na geração",
+            description: data?.details || "O vídeo não pôde ser gerado. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
         if (error) throw error;
         
         const statusItem = data?.result;
         const videoURL = statusItem?.videoURL || statusItem?.url;
         
         if (videoURL) {
+          if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           setVideoUrl(videoURL);
           setIsSubmitting(false);
           setTaskUUID(null);
+          setElapsedTime(0);
           toast({ title: "Vídeo pronto", description: "Seu vídeo foi gerado com sucesso." });
           // ✅ Salvar o vídeo automaticamente no banco
           saveVideoToDatabase(videoURL);
@@ -806,8 +859,10 @@ const VideoPage: React.FC = () => {
         
         // ✅ Limite de erros consecutivos
         if (attempt >= 5) {
+          if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           setIsSubmitting(false);
           setTaskUUID(null);
+          setElapsedTime(0);
           toast({
             title: "Erro",
             description: "Falha ao verificar status do vídeo. Por favor, tente novamente.",
@@ -828,6 +883,7 @@ const VideoPage: React.FC = () => {
   useEffect(
     () => () => {
       if (pollRef.current) window.clearTimeout(pollRef.current);
+      if (elapsedRef.current) window.clearInterval(elapsedRef.current);
     },
     []
   );
@@ -1406,18 +1462,29 @@ const VideoPage: React.FC = () => {
                 </div>
               )}
 
-              <Button className="w-full" onClick={() => debounce(startGeneration)} disabled={isProcessing || isDebouncing || !prompt}>
-                {isProcessing ? (
-                  <span className="inline-flex items-center">
-                    <span className="mr-2 inline-grid place-items-center">
-                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+              <div className="flex flex-col gap-2">
+                <Button className="w-full" onClick={() => debounce(startGeneration)} disabled={isProcessing || isDebouncing || !prompt}>
+                  {isProcessing ? (
+                    <span className="inline-flex items-center">
+                      <span className="mr-2 inline-grid place-items-center">
+                        <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                      </span>
+                      Gerando... {elapsedTime > 0 && `(${Math.floor(elapsedTime / 60)}:${String(elapsedTime % 60).padStart(2, '0')})`}
                     </span>
-                    Gerando...
-                  </span>
-                ) : (
-                  "Gerar Vídeo"
+                  ) : (
+                    "Gerar Vídeo"
+                  )}
+                </Button>
+                {isProcessing && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full text-destructive border-destructive/50 hover:bg-destructive/10"
+                    onClick={cancelGeneration}
+                  >
+                    Cancelar Geração
+                  </Button>
                 )}
-              </Button>
+              </div>
             </CardContent>
           </Card>
 

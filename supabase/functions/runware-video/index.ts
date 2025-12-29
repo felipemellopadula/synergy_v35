@@ -284,7 +284,7 @@ serve(async (req) => {
         { taskType: "getResponse", taskUUID },
       ];
 
-      console.log("[runware-video] status -> tasks:", tasks);
+      console.log("[runware-video] status -> tasks:", JSON.stringify(tasks, null, 2));
 
       const res = await fetch(API_URL, {
         method: "POST",
@@ -297,7 +297,14 @@ serve(async (req) => {
         throw new Error("Invalid JSON from Runware (status)");
       });
 
-      console.log("[runware-video] status -> response:", res.status, json);
+      // ✅ Log detalhado do status
+      const dataItem = Array.isArray(json.data) ? json.data[0] : null;
+      console.log("[runware-video] status -> response:", res.status, {
+        status: dataItem?.status,
+        hasVideoURL: !!(dataItem?.videoURL || dataItem?.url),
+        taskType: dataItem?.taskType,
+        fullData: JSON.stringify(json.data, null, 2)
+      });
 
       if (!res.ok || json.errors) {
         const message = json.errors?.[0]?.message || json.error || `Runware error (${res.status})`;
@@ -308,12 +315,25 @@ serve(async (req) => {
         });
       }
 
+      // ✅ Detectar status de falha explícita da Runware
+      if (dataItem?.status === "failed" || dataItem?.status === "error") {
+        console.error("[runware-video] status -> VIDEO GENERATION FAILED:", dataItem);
+        return new Response(JSON.stringify({ 
+          error: "Video generation failed", 
+          details: dataItem?.errorMessage || dataItem?.error || "A geração do vídeo falhou no servidor.",
+          failed: true 
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        });
+      }
+
       // Extract first successful video item if present
-      const dataItem = Array.isArray(json.data)
-        ? json.data.find((d: any) => d.status === "success" && (d.videoURL || d.url)) || json.data[0]
+      const successItem = Array.isArray(json.data)
+        ? json.data.find((d: any) => d.status === "success" && (d.videoURL || d.url)) || dataItem
         : null;
 
-      return new Response(JSON.stringify({ raw: json, result: dataItem || null }), {
+      return new Response(JSON.stringify({ raw: json, result: successItem || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
