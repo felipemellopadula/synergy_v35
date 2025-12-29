@@ -214,3 +214,9 @@
     opacity: 0.5;
   }
 }
+
+/* Fabric.js canvas wrapper styling */
+.canvas-container {
+  position: relative !important;
+  z-index: 10 !important;
+}

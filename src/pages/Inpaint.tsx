@@ -611,7 +611,7 @@ Generate the edited image now.`;
         <div className="flex-1 flex flex-col order-1 lg:order-2 min-h-0">
           <div 
             ref={canvasContainerRef}
-            className="flex-1 relative bg-[#0d0d0d] overflow-hidden min-h-0"
+            className="flex-1 relative bg-transparent overflow-hidden min-h-0"
           >
             {/* Fabric.js canvas is created dynamically inside this container */}
             
