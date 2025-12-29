@@ -9,6 +9,7 @@ interface Tool {
   path?: string;
   hasArrow?: boolean;
   animated?: boolean;
+  speed?: number;
 }
 
 interface AnimatedToolCardProps {
@@ -35,14 +36,16 @@ export const AnimatedToolCard = ({ tool }: AnimatedToolCardProps) => {
   useEffect(() => {
     if (!tool.animated || !tool.images || tool.images.length <= 1) return;
 
+    const intervalSpeed = tool.speed || 1500;
+    
     intervalRef.current = setInterval(() => {
       setIsTransitioning(true);
       
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + 1) % tool.images!.length);
         setIsTransitioning(false);
-      }, 300); // Half of transition duration
-    }, 1500); // Change every 1.5 seconds
+      }, 300);
+    }, intervalSpeed);
 
     return () => {
       if (intervalRef.current) {

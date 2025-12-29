@@ -73,12 +73,13 @@ const tools = [
     name: "CRIAR IMAGEM",
     images: [
       "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&h=400&fit=crop",
-      "https://images.unsplash.com/photo-1686191128892-3b37add4b5fd?w=300&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=300&h=400&fit=crop",
       "https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?w=300&h=400&fit=crop",
       "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?w=300&h=400&fit=crop",
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop",
     ],
     animated: true,
+    speed: 1000,
     path: "/image2",
   },
   {
@@ -96,6 +97,7 @@ const tools = [
       "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=300&h=400&fit=crop",
     ],
     animated: true,
+    speed: 1200,
     path: "/image-editor",
   },
   {
@@ -117,6 +119,7 @@ const tools = [
       "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&h=400&fit=crop",
     ],
     animated: true,
+    speed: 1500,
     path: "/ai-avatar",
   },
 ];
