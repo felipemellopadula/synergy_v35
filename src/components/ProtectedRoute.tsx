@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
@@ -55,7 +55,12 @@ const pricingPlans = [
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireSubscription = true }) => {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleCloseAuthModal = () => {
+    navigate('/', { replace: true });
+  };
 
   // Show loading spinner while checking auth
   if (loading) {
@@ -70,7 +75,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireSubscr
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-        <AuthModal isOpen={true} onClose={() => {}} />
+        <AuthModal isOpen={true} onClose={handleCloseAuthModal} />
         <div className="text-center mt-4">
           <p className="text-muted-foreground">
             Você precisa estar logado para acessar esta página.
