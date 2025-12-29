@@ -84,8 +84,8 @@ type Resolution = { id: string; label: string; w: number; h: number };
 
 const MODELS = [
   { id: "bytedance:seedance@1.5-pro", label: "Seedance 1.5 Pro", provider: "bytedance" as const },
-  { id: "google:3@3", label: "Veo 3.1 Fast", provider: "google" as const },
-  { id: "klingai:kling-video@2.6-pro", label: "Kling VIDEO 2.6 Pro", provider: "klingai" as const },
+  { id: "google:3@3", label: "Google Veo 3.1 Fast", provider: "google" as const },
+  { id: "klingai:kling-video@2.6-pro", label: "Kling Video 2.6 Pro", provider: "klingai" as const },
   { id: "openai:3@1", label: "Sora 2", provider: "openai" as const },
   { id: "openai:3@2", label: "Sora 2 Pro", provider: "openai" as const },
   { id: "minimax:4@1", label: "MiniMax Hailuo 2.3", provider: "minimax" as const },
@@ -1041,7 +1041,7 @@ const VideoPage: React.FC = () => {
                     {/* Somente ByteDance visível */}
                     {MODELS.map((m) => (
                       <SelectItem key={m.id} value={m.id}>
-                        {m.label} — <code className="text-xs">{m.id}</code>
+                        {m.label}
                       </SelectItem>
                     ))}
                     {/*
