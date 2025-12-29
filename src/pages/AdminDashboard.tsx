@@ -103,22 +103,30 @@ const DEEPSEEK_PRICING: Record<string, { input: number; output: number }> = {
 
 // Image models pricing per image (USD)
 const IMAGE_PRICING: Record<string, { cost: number }> = {
-  "gpt-image-1": { cost: 0.167 },
+  "gpt-image-1": { cost: 0.133 }, // GPT Image 1.5
+  "gpt-image-1.5": { cost: 0.133 }, // GPT Image 1.5 (alias)
   "gemini-flash-image": { cost: 0.039 },
   "qwen-image": { cost: 0.0058 },
   "ideogram-3.0": { cost: 0.06 },
   "flux.1-kontext-max": { cost: 0.08 },
+  "flux.2-pro": { cost: 0.03 }, // FLUX 2 PRO
   "seedream-4.0": { cost: 0.03 },
-  "nano-banana-2-pro": { cost: 0.134 }, // Google Nano Banana 2 Pro
-  "google:4@2": { cost: 0.134 }, // Google Nano Banana 2 Pro (alias)
+  "nano-banana-2-pro-2k": { cost: 0.16 }, // Nano Banana 2 Pro 2K
+  "nano-banana-2-pro-4k": { cost: 0.24 }, // Nano Banana 2 Pro 4K
+  "nano-banana-2-pro": { cost: 0.16 }, // Default 2K
+  "google:4@2": { cost: 0.16 }, // Nano Banana 2 Pro (alias)
 };
 
 // Video models pricing per video (USD)
 const VIDEO_PRICING: Record<string, { cost: number }> = {
-  "bytedance:1@1": { cost: 0.162 }, // ByteDance Seedance 1.0 Lite
-  "bytedance": { cost: 0.162 }, // Fallback genérico
+  "bytedance:seedance@1.5-pro-5s": { cost: 0.12153 }, // Seedance 1.5 Pro 5s
+  "bytedance:seedance@1.5-pro-12s": { cost: 0.29027 }, // Seedance 1.5 Pro 12s
+  "bytedance:seedance@1.5-pro": { cost: 0.12153 }, // Seedance 1.5 Pro (default 5s)
+  "bytedance:1@1": { cost: 0.12153 }, // ByteDance Seedance (fallback)
+  "bytedance": { cost: 0.12153 }, // Fallback genérico
   "google:3@3": { cost: 1.2 }, // Veo 3.1 Fast
-  "klingai:6@1": { cost: 0.35 }, // KlingAI 2.5 Turbo PRO
+  "klingai:kling-video@2.6-pro": { cost: 0.35 }, // KlingAI 2.6 Pro
+  "klingai:6@1": { cost: 0.35 }, // KlingAI (alias)
 };
 const CLAUDE_PRICING: Record<string, { input: number; output: number }> = {
   // Latest models
@@ -1201,15 +1209,10 @@ const AdminDashboard = () => {
                     }
                   >
                     <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue placeholder="Selecionar provedor" />
+                      <SelectValue placeholder="Selecionar tipo" />
                     </SelectTrigger>
                     <SelectContent className="z-50 bg-background">
                       <SelectItem value="todos">Todos</SelectItem>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="gemini">Google Gemini</SelectItem>
-                      <SelectItem value="claude">Anthropic Claude</SelectItem>
-                      <SelectItem value="grok">xAI Grok</SelectItem>
-                      <SelectItem value="deepseek">DeepSeek</SelectItem>
                       <SelectItem value="image">Imagem</SelectItem>
                       <SelectItem value="video">Vídeo</SelectItem>
                     </SelectContent>
