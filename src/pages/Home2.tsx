@@ -3,14 +3,12 @@ import { LazyVideo } from "@/components/LazyVideo";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Check, Zap, Crown, Star, ArrowRight, LogOut, User, Loader2, Instagram, Facebook, Linkedin } from "lucide-react";
+import { Check, Zap, Crown, Star, ArrowRight, LogOut, User, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
 import { supabase } from "@/integrations/supabase/client";
 import LogoLoop from "@/components/LogoLoop";
 import { AnimatedToolCard } from "@/components/AnimatedToolCard";
-import { ContactForm } from "@/components/ContactForm";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,15 +48,15 @@ const heroCards = [
     description: "Pincel para editar áreas específicas ou transformar imagens inteiras",
     badge: "NANO BANANA",
     badgeColor: "bg-primary",
-    path: "/inpaint",
+    path: "/image-editor",
   },
   {
     video: "https://videos.pexels.com/video-files/3141207/3141207-sd_640_360_25fps.mp4",
-    title: "MOTION TRANSFER",
-    description: "Transfira os movimentos de um vídeo diretamente para um personagem estático.",
-    badge: "KLING 2.6",
-    badgeColor: "bg-primary",
-    path: "/video?model=klingai:kling-video@2.6-pro",
+    title: "SHOTS",
+    description: "Uma imagem se torna 9 shots. Escolha e melhore seus favoritos",
+    badge: null,
+    badgeColor: "",
+    path: "/image2",
   },
   {
     video: "https://videos.pexels.com/video-files/3195394/3195394-sd_640_360_25fps.mp4",
@@ -74,19 +72,20 @@ const tools = [
   {
     name: "CRIAR IMAGEM",
     images: [
-      "/images/criar-imagem-1.png",
-      "/images/criar-imagem-2.png",
-      "/images/criar-imagem-3.png",
-      "/images/criar-imagem-4.png",
-      "/images/criar-imagem-5.jpeg",
+      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=300&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?w=300&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?w=300&h=400&fit=crop",
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop",
     ],
     animated: true,
-    speed: 400,
+    speed: 600,
     path: "/image2",
   },
   {
     name: "CRIAR VÍDEO",
-    video: "https://videos.pexels.com/video-files/857251/857251-hd_1920_1080_25fps.mp4",
+    image:
+      "https://br.freepik.com/video-gratuito/conducao-noite_3543634#fromView=search&page=1&position=21&uuid=a0aa562b-de65-42cd-b15c-2ecceb540ee4",
     hasArrow: true,
     path: "/video",
   },
@@ -270,12 +269,6 @@ const Home2 = () => {
               >
                 Preços
               </a>
-              <a
-                href="#contact"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                Contato
-              </a>
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -353,7 +346,6 @@ const Home2 = () => {
                   <h3 className="text-lg font-bold text-white mb-1">{card.title}</h3>
                   <p className="text-sm text-white/80">{card.description}</p>
                 </div>
-
               </div>
             );
           })}
@@ -516,50 +508,20 @@ const Home2 = () => {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="container mx-auto px-4 py-16 scroll-mt-20">
-        <div className="max-w-xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-4">Entre em Contato</h2>
-            <p className="text-muted-foreground">
-              Tem dúvidas ou quer saber mais? Envie uma mensagem!
-            </p>
-          </div>
-          <Card className="p-6">
-            <ContactForm />
-          </Card>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="border-t border-border bg-background">
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
-              <img src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png" alt="Synergy AI" className="h-8 w-auto mb-4" />
+              <img src="/images/logo-light-optimized.webp" alt="Synergy" className="h-8 w-auto mb-4" />
               <p className="text-sm text-muted-foreground">
                 A maior biblioteca do mundo de conteúdo gerado por IA. Descubra fotos, vídeos e vetores de alta
                 qualidade criados por nossos modelos de ponta, incluindo Gemini e Veo.
               </p>
               <div className="flex gap-3 mt-4">
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" 
-                   className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <Instagram className="w-4 h-4" />
-                </a>
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
-                   className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <Facebook className="w-4 h-4" />
-                </a>
-                <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" 
-                   className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                  </svg>
-                </a>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" 
-                   className="w-8 h-8 bg-muted/50 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
-                  <Linkedin className="w-4 h-4" />
-                </a>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="w-6 h-6 bg-muted rounded" />
+                ))}
               </div>
             </div>
 
