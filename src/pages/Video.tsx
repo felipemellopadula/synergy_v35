@@ -684,6 +684,8 @@ const VideoPage: React.FC = () => {
           setIsSubmitting(false);
           setTaskUUID(null);
           toast({ title: "Vídeo pronto", description: "Seu vídeo foi gerado com sucesso." });
+          // ✅ Salvar o vídeo automaticamente no banco
+          saveVideoToDatabase(videoURL);
           return;
         }
         
@@ -716,7 +718,7 @@ const VideoPage: React.FC = () => {
     // ✅ OTIMIZAÇÃO: Intervalo inicial aumentado de 1200ms para 3000ms
     // Vídeos levam tempo para processar, polling mais espaçado economiza requests
     pollRef.current = window.setTimeout(() => poll(0), 3000) as unknown as number;
-  }, [toast]);
+  }, [toast, saveVideoToDatabase]);
 
   useEffect(
     () => () => {
