@@ -42,7 +42,7 @@ export default function Upscale() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/home3");
+    navigate("/");
   };
 
   const handleFileSelect = useCallback((file: File) => {

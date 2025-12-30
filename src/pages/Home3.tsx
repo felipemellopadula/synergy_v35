@@ -323,7 +323,7 @@ const Home3: React.FC = () => {
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/home3");
+    navigate("/");
   };
 
   const openLogin = () => {
