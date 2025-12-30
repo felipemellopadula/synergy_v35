@@ -477,7 +477,7 @@ Generate the edited image now.`;
 
   const handleLogout = async () => {
     await signOut();
-    navigate("/home3");
+    navigate("/");
   };
 
   return (

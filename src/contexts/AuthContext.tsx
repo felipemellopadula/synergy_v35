@@ -240,9 +240,9 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         } else if (event === 'SIGNED_OUT') {
           setProfile(null);
-          if (window.location.pathname !== '/home3' && window.location.pathname !== '/') {
+          if (window.location.pathname !== '/') {
             if (navigate) {
-              navigate('/home3', { replace: true });
+              navigate('/', { replace: true });
             }
           }
         }
