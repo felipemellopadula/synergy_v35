@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
+import seedanceVideo from "@/assets/videos/seedance-hero.mp4";
 import { ContactForm } from "@/components/ContactForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -79,13 +80,13 @@ const navItems: NavItem[] = [
   { label: "Contato", href: "#contact" },
 ];
 
-// Hero slides
+// Hero slides - seedanceVideo is imported at top of file
 const heroSlides: HeroSlide[] = [
   {
     id: "1",
     title: "SEEDANCE 1.5 PRO",
     subtitle: "Narrativas Multi-shot com Áudio",
-    videoUrl: "/videos/seedance-hero.mp4",
+    videoUrl: seedanceVideo,
     ctaText: "Experimentar",
     path: "/video",
   },
@@ -329,6 +330,9 @@ const AnimatedHeroSlideContent: React.FC<{
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+        onError={(e) => {
+          console.error("Erro ao carregar vídeo:", slide.videoUrl, e);
+        }}
       />
     );
   }
