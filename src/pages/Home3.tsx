@@ -473,7 +473,7 @@ const Home3: React.FC = () => {
             <div className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2 group">
                 <img
-                  src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                  src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
                   alt="Synergy AI"
                   className="h-8 w-auto"
                 />
@@ -863,7 +863,7 @@ const Home3: React.FC = () => {
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
                 <img
-                  src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                  src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
                   alt="Synergy AI"
                   className="h-8 w-auto"
                 />

@@ -233,7 +233,7 @@ const Home2 = () => {
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2">
               <img
-                src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
                 alt="Synergy AI"
                 className="h-7 w-auto"
               />
