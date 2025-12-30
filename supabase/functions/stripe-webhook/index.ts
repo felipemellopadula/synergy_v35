@@ -100,6 +100,9 @@ serve(async (req) => {
         // Buscar detalhes da assinatura
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const priceId = subscription.items.data[0].price.id;
+        
+        // Log dos valores de período para debug
+        console.log(`[Webhook] Subscription periods - start: ${subscription.current_period_start}, end: ${subscription.current_period_end}`);
 
         // Buscar plano no banco - primeiro pelo price_id, depois pelo metadata
         let product = null;
@@ -128,6 +131,14 @@ serve(async (req) => {
 
         console.log(`[Webhook] Plano identificado: ${product.plan_id}`);
 
+        // Converter datas com segurança (validar se existem)
+        const periodStart = subscription.current_period_start 
+          ? new Date(subscription.current_period_start * 1000).toISOString() 
+          : null;
+        const periodEnd = subscription.current_period_end 
+          ? new Date(subscription.current_period_end * 1000).toISOString() 
+          : null;
+
         // Criar registro de assinatura
         const { data: subscriptionData, error: subError } = await supabase
           .from("stripe_subscriptions")
@@ -138,8 +149,8 @@ serve(async (req) => {
             status: subscription.status,
             plan_id: product.plan_id,
             price_id: priceId,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_start: periodStart,
+            current_period_end: periodEnd,
             cancel_at_period_end: subscription.cancel_at_period_end,
             tokens_per_period: product.tokens_included
           })
@@ -228,12 +239,20 @@ serve(async (req) => {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         
+        // Converter datas com segurança
+        const updPeriodStart = subscription.current_period_start 
+          ? new Date(subscription.current_period_start * 1000).toISOString() 
+          : null;
+        const updPeriodEnd = subscription.current_period_end 
+          ? new Date(subscription.current_period_end * 1000).toISOString() 
+          : null;
+        
         await supabase
           .from("stripe_subscriptions")
           .update({
             status: subscription.status,
-            current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_start: updPeriodStart,
+            current_period_end: updPeriodEnd,
             cancel_at_period_end: subscription.cancel_at_period_end,
             updated_at: new Date().toISOString()
           })
