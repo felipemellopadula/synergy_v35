@@ -116,7 +116,7 @@ const Index = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <a href="/" className="flex items-center gap-2" aria-label="Synergy AI">
             <img
-              src="/lovable-uploads/75b65017-8e97-493c-85a8-fe1b0f60ce9f.png"
+              src="/synergy-uploads/75b65017-8e97-493c-85a8-fe1b0f60ce9f.png"
               alt="Synergy AI logo"
               className="h-8 w-auto"
             />

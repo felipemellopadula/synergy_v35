@@ -127,7 +127,7 @@ const Dashboard = () => {
 
               {/* Logo para tema CLARO (mostra no light) */}
               <img
-                src="/lovable-uploads/5e06d662-7533-4ca8-a35e-3167dc0f31e6.png"
+                src="/synergy-uploads/5e06d662-7533-4ca8-a35e-3167dc0f31e6.png"
                 alt="Synergy AI logo escuro"
                 className="h-8 w-auto block dark:hidden"
                 width="32"
@@ -137,12 +137,12 @@ const Dashboard = () => {
               />
               {/* Logo para tema ESCURO (mostra no dark) */}
               <img
-                src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
                 alt="Synergy AI logo branco"
                 className="h-8 w-auto hidden dark:block"
                 width="32"
                 height="32"
-                loading="lazy" 
+                loading="lazy"
                 decoding="async"
               />
             </Link>

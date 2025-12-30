@@ -151,12 +151,12 @@ export const WelcomeModal = ({ isOpen, onClose, userName }: WelcomeModalProps) =
           <div className="flex justify-center mb-4">
             <div className="relative">
               <img
-                src="/lovable-uploads/5e06d662-7533-4ca8-a35e-3167dc0f31e6.png"
+                src="/synergy-uploads/5e06d662-7533-4ca8-a35e-3167dc0f31e6.png"
                 alt="Synergy AI"
                 className="h-16 w-auto block dark:hidden"
               />
               <img
-                src="/lovable-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
                 alt="Synergy AI"
                 className="h-16 w-auto hidden dark:block"
               />
