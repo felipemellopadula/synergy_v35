@@ -100,13 +100,18 @@ serve(async (req) => {
         }
 
         // Determinar subscription_type baseado no plan_id
-        let subscriptionType: 'free' | 'basic' | 'plus' | 'admin' = 'free';
+        // IMPORTANTE: Usuários com assinatura ativa NUNCA devem ficar como 'free'
+        let subscriptionType: 'paid' | 'basic' | 'plus' | 'pro' | 'admin' = 'paid';
         const planIdLower = product.plan_id.toLowerCase();
-        if (planIdLower.includes('plus') || planIdLower.includes('premium')) {
+        
+        if (planIdLower.includes('plus') || planIdLower.includes('premium') || planIdLower.includes('creator')) {
           subscriptionType = 'plus';
-        } else if (planIdLower.includes('basic') || planIdLower.includes('standard')) {
+        } else if (planIdLower.includes('pro')) {
+          subscriptionType = 'pro';
+        } else if (planIdLower.includes('basic') || planIdLower.includes('standard') || planIdLower.includes('start')) {
           subscriptionType = 'basic';
         }
+        // Se nenhum match específico, mantém 'paid' como default (nunca 'free')
 
         // Atualizar perfil com tokens, customer_id, subscription_type e current_subscription_id
         const { error: updateError } = await supabase
