@@ -86,8 +86,17 @@ serve(async (req) => {
             console.log(`[Webhook] Novo usuário criado: ${userId}`);
             
             // O trigger handle_new_user criará o profile automaticamente
-            // Mas vamos garantir que existe com os dados corretos
-            await new Promise(resolve => setTimeout(resolve, 500)); // Aguardar trigger
+            // Aguardar trigger criar o profile
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Garantir que is_password_set é false para novos usuários via Stripe
+            // (eles precisarão definir senha no primeiro acesso)
+            await supabase
+              .from("profiles")
+              .update({ is_password_set: false })
+              .eq("id", userId);
+            
+            console.log(`[Webhook] Profile marcado com is_password_set = false`);
           }
         }
 

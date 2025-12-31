@@ -532,6 +532,7 @@ export type Database = {
           has_seen_welcome_modal: boolean
           id: string
           is_legacy_user: boolean
+          is_password_set: boolean | null
           name: string
           phone: string | null
           stripe_customer_id: string | null
@@ -549,6 +550,7 @@ export type Database = {
           has_seen_welcome_modal?: boolean
           id: string
           is_legacy_user?: boolean
+          is_password_set?: boolean | null
           name: string
           phone?: string | null
           stripe_customer_id?: string | null
@@ -566,6 +568,7 @@ export type Database = {
           has_seen_welcome_modal?: boolean
           id?: string
           is_legacy_user?: boolean
+          is_password_set?: boolean | null
           name?: string
           phone?: string | null
           stripe_customer_id?: string | null

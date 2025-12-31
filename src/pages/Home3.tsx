@@ -361,7 +361,7 @@ const Home3: React.FC = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  // authMode removido - modal agora é apenas login
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
@@ -383,12 +383,6 @@ const Home3: React.FC = () => {
   };
 
   const openLogin = () => {
-    setAuthMode("login");
-    setShowAuthModal(true);
-  };
-
-  const openSignup = () => {
-    setAuthMode("signup");
     setShowAuthModal(true);
   };
 
@@ -532,10 +526,10 @@ const Home3: React.FC = () => {
                 </DropdownMenu>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={openLogin}>
+                <Button variant="ghost" onClick={openLogin}>
                     Entrar
                   </Button>
-                  <Button onClick={openSignup}>CRIAR CONTA</Button>
+                  <Button onClick={scrollToPricing}>Quero Fazer Parte</Button>
                 </>
               )}
             </div>
@@ -583,8 +577,8 @@ const Home3: React.FC = () => {
                 <button onClick={openLogin} className="w-full text-left py-2 text-muted-foreground">
                   Entrar
                 </button>
-                <button onClick={openSignup} className="w-full text-left py-2 text-primary font-semibold">
-                  Criar Conta
+                <button onClick={scrollToPricing} className="w-full text-left py-2 text-primary font-semibold">
+                  Quero Fazer Parte
                 </button>
               </>
             )}

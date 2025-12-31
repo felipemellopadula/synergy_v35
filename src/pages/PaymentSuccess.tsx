@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle, Mail, ArrowRight, Loader2, KeyRound } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const PaymentSuccess: React.FC = () => {
@@ -67,19 +67,33 @@ const PaymentSuccess: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                  <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                   <div className="text-left">
-                    <p className="font-medium text-amber-800 dark:text-amber-200">
+                    <p className="font-medium text-blue-800 dark:text-blue-200">
                       Verifique seu email
                     </p>
-                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
                       Enviamos um link de confirmação para ativar sua conta. 
-                      Após confirmar, você poderá fazer login.
+                      Clique no link para continuar.
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <KeyRound className="w-4 h-4 text-primary" />
+                  <span>Próximos passos:</span>
+                </div>
+                <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+                  <li>Clique no link de confirmação no seu email</li>
+                  <li>Ao entrar pela primeira vez, defina sua senha</li>
+                  <li>
+                    <strong>Dica:</strong> Se você usou um email Gmail, poderá fazer login com Google!
+                  </li>
+                </ol>
               </div>
 
               <div className="space-y-3">

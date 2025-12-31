@@ -13,6 +13,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsTabletOrMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+import { SetPasswordModal } from '@/components/SetPasswordModal';
+import { supabase } from '@/integrations/supabase/client';
 
 // Lazy load UserProfile
 const UserProfile = lazy(() => import("@/components/UserProfile"));
@@ -297,9 +299,50 @@ const VideoLoop: React.FC<VideoLoopProps> = ({ isActive, isTabletOrMobile }) => 
 
 const DashboardNovo: React.FC = () => {
   const [hoveredSide, setHoveredSide] = useState<Side>(null);
+  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const isTabletOrMobile = useIsTabletOrMobile();
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user, session, profile, refreshProfile } = useAuth();
+
+  // Check if user needs to set password
+  useEffect(() => {
+    const checkPasswordSetup = async () => {
+      if (!user || !session) return;
+
+      // If logged in via Google, no password needed
+      const provider = session.user?.app_metadata?.provider;
+      if (provider === 'google') {
+        setNeedsPasswordSetup(false);
+        return;
+      }
+
+      // Check profile for is_password_set
+      try {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('is_password_set')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData && profileData.is_password_set === false) {
+          setNeedsPasswordSetup(true);
+        } else {
+          setNeedsPasswordSetup(false);
+        }
+      } catch (error) {
+        console.error('Error checking password setup:', error);
+      }
+    };
+
+    checkPasswordSetup();
+  }, [user, session]);
+
+  const handlePasswordSet = async () => {
+    setNeedsPasswordSetup(false);
+    if (refreshProfile) {
+      await refreshProfile();
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -352,10 +395,18 @@ const DashboardNovo: React.FC = () => {
   };
 
   return (
-    <div className={cn(
-      "relative w-full h-screen bg-black flex overflow-hidden font-sans antialiased",
-      isTabletOrMobile && "flex-col"
-    )}>
+    <>
+      {/* Modal para definir senha - mostrar apenas se não logou com Google */}
+      <SetPasswordModal
+        isOpen={needsPasswordSetup}
+        onPasswordSet={handlePasswordSet}
+        userId={user?.id || ''}
+      />
+
+      <div className={cn(
+        "relative w-full h-screen bg-black flex overflow-hidden font-sans antialiased",
+        isTabletOrMobile && "flex-col"
+      )}>
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 z-50">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -417,7 +468,8 @@ const DashboardNovo: React.FC = () => {
       >
         <VideoLoop isActive={hoveredSide === 'right'} isTabletOrMobile={isTabletOrMobile} />
       </motion.div>
-    </div>
+      </div>
+    </>
   );
 };
 
