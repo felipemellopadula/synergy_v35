@@ -11,17 +11,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 // Lazy load internal pages (on-demand loading)
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Chat = lazy(() => import("./pages/Chat").then(m => ({ default: m.default })));
 const VideoPage = lazy(() => import("./pages/Video"));
-const ImagePage = lazy(() => import("./pages/Image"));
 const Image2Page = lazy(() => import("./pages/Image2"));
-const TranslatorPage = lazy(() => import("./pages/Translator"));
-const WritePage = lazy(() => import("./pages/Write"));
-const TranscribePage = lazy(() => import("./pages/Transcribe"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
-const Share = lazy(() => import("./pages/Share"));
-const Home2 = lazy(() => import("./pages/Home2"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const DashboardNovo = lazy(() => import("./pages/DashboardNovo"));
@@ -63,35 +55,15 @@ const App = () => (
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home3 />} />
-          <Route path="/home2" element={<Home2 />} />
-          <Route path="/share" element={<Share />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/admin" element={<AdminLogin />} />
           
           {/* Protected routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute><Dashboard /></ProtectedRoute>
-          } />
-          <Route path="/chat" element={
-            <ProtectedRoute><Chat /></ProtectedRoute>
-          } />
           <Route path="/video" element={
             <ProtectedRoute><VideoPage /></ProtectedRoute>
           } />
-          <Route path="/image" element={
-            <ProtectedRoute><ImagePage /></ProtectedRoute>
-          } />
           <Route path="/image2" element={
             <ProtectedRoute><Image2Page /></ProtectedRoute>
-          } />
-          <Route path="/translator" element={
-            <ProtectedRoute><TranslatorPage /></ProtectedRoute>
-          } />
-          <Route path="/write" element={
-            <ProtectedRoute><WritePage /></ProtectedRoute>
-          } />
-          <Route path="/transcribe" element={
-            <ProtectedRoute><TranscribePage /></ProtectedRoute>
           } />
           <Route path="/settings" element={
             <ProtectedRoute><SettingsPage /></ProtectedRoute>

@@ -3,33 +3,6 @@ project_id = "myqgnnqltemfpzdxwybj"
 [functions.create-anonymous-checkout]
 verify_jwt = false
 
-[functions.openai-chat]
-verify_jwt = true
-
-[functions.openai-reasoning]
-verify_jwt = true
-
-[functions.rag-logical-sections]
-verify_jwt = true
-
-[functions.rag-filter-relevant]
-verify_jwt = true
-
-[functions.process-files]
-verify_jwt = false
-
-[functions.upscale-image]
-verify_jwt = true
-
-[functions.edit-image-nano-banana]
-verify_jwt = true
-
-[functions.send-contact-email]
-verify_jwt = false
-
-[functions.send-welcome-email]
-verify_jwt = false
-
 [functions.create-checkout-session]
 verify_jwt = true
 
@@ -39,35 +12,14 @@ verify_jwt = false
 [functions.manage-subscription]
 verify_jwt = true
 
-[functions.hierarchical-rag-chat]
+[functions.upscale-image]
 verify_jwt = true
 
-[functions.rag-analyze-chunk]
+[functions.edit-image-nano-banana]
 verify_jwt = true
 
-[functions.rag-synthesize-section]
-verify_jwt = true
-
-[functions.rag-consolidate]
-verify_jwt = true
-
-[functions.rag-compress-section]
-verify_jwt = true
-
-[functions.deepdoc-layout]
-verify_jwt = true
-
-[functions.detect-doc-type]
-verify_jwt = true
-
-[functions.extract-tables]
-verify_jwt = true
-
-[functions.deepseek-chat]
-verify_jwt = true
-
-[functions.generate-followups]
-verify_jwt = true
+[functions.send-welcome-email]
+verify_jwt = false
 
 [functions.freepik-upscale]
 verify_jwt = true
