@@ -210,12 +210,12 @@ const ImageEditor = () => {
               Voltar
             </Button>
             <div className="h-6 w-px bg-border" />
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <ImageIcon className="h-5 w-5 text-primary" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center">
+                <ImageIcon className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-xl font-bold">Editar Imagem</h1>
-            </Link>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {displayImage && (

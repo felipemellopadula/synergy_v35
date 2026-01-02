@@ -1,7 +1,7 @@
 import { useState, useCallback, Suspense, lazy } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Upload, Download, Loader2, LogOut, Sparkles, RefreshCw, ChevronLeft, X } from "lucide-react";
+import { Upload, Download, Loader2, Sparkles, RefreshCw, ArrowLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
@@ -132,37 +132,30 @@ export default function SkinEnhancer() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="w-full px-4 sm:px-6 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/dashboard-novo")}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-primary" />
-              <span className="text-xl font-bold text-foreground">Skin Enhancer</span>
-            </div>
-          </div>
-          
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Suspense fallback={<div className="w-8 h-8 rounded-full bg-muted animate-pulse" />}>
-              <UserProfile />
-            </Suspense>
-            
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleSignOut}
-              className="text-muted-foreground hover:text-foreground"
+              onClick={() => navigate("/dashboard-novo")}
+              className="flex items-center gap-2 hover:bg-muted"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
             </Button>
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-pink-500 flex items-center justify-center">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold">Skin Enhancer</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
+              <UserProfile />
+            </Suspense>
           </div>
         </div>
       </header>

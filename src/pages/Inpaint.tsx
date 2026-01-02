@@ -19,7 +19,7 @@ import {
   Loader2,
   Upload,
   Trash2,
-  LogOut
+  ArrowLeft
 } from "lucide-react";
 import { Canvas as FabricCanvas, PencilBrush, FabricImage } from "fabric";
 
@@ -483,49 +483,53 @@ Generate the edited image now.`;
   return (
     <div className="h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <Link to="/dashboard-novo" className="text-muted-foreground hover:text-white transition-colors">
-            ←
-          </Link>
-          <div className="flex items-center gap-2">
-            <Paintbrush className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium text-white">Inpaint</span>
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/dashboard-novo")}
+              className="flex items-center gap-2 hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Voltar
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center">
+                <Paintbrush className="h-5 w-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold">Inpaint</h1>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {(uploadedImage || generatedImage) && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleDownload}
-                className="text-muted-foreground hover:text-white"
-              >
-                <Download className="w-5 h-5" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleDeleteImage}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </>
-          )}
-          <Suspense fallback={<div className="w-8 h-8 rounded-full bg-muted animate-pulse" />}>
-            <UserProfile />
-          </Suspense>
-          
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-destructive"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-3">
+            {(uploadedImage || generatedImage) && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Download</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDeleteImage}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  title="Remover imagem"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </>
+            )}
+            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
+              <UserProfile />
+            </Suspense>
+          </div>
         </div>
       </header>
 

@@ -1052,9 +1052,9 @@ const VideoPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="container mx-auto px-4 pt-1 pb-3 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
@@ -1065,13 +1065,15 @@ const VideoPage: React.FC = () => {
               Voltar
             </Button>
             <div className="h-6 w-px bg-border" />
-            <Link to="/" className="flex items-center gap-2">
-              <VideoIcon className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold text-foreground">Vídeo</h1>
-            </Link>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
+                <VideoIcon className="h-5 w-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold">Vídeo</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Suspense fallback={<div className="h-6 w-6 rounded-full bg-muted" />}>
+          <div className="flex items-center gap-3">
+            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfileLazy />
             </Suspense>
           </div>

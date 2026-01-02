@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useButtonDebounce } from "@/hooks/useButtonDebounce";
@@ -25,7 +25,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import UserProfile from "@/components/UserProfile";
+const UserProfile = lazy(() => import("@/components/UserProfile"));
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -497,23 +497,30 @@ const Image2Page = () => {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header Minimalista */}
-      <header className="border-b p-4 sticky top-0 bg-background/95 backdrop-blur z-20">
-        <div className="container mx-auto flex justify-between items-center">
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-20">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard-novo")}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/dashboard-novo")}
+              className="flex items-center gap-2 hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
               Voltar
             </Button>
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <ImageIcon className="h-5 w-5 text-purple-500" />
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
+                <ImageIcon className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-xl font-bold">Imagem</h1>
-            </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <UserProfile />
-            
+          <div className="flex items-center gap-3">
+            <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
+              <UserProfile />
+            </Suspense>
           </div>
         </div>
       </header>
