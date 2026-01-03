@@ -21,6 +21,8 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Play,
   Sparkles,
   Gift,
@@ -365,6 +367,7 @@ const Home3: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   // Usuários autenticados podem ver a Home3 normalmente
   // O header mostra opção de ir ao Dashboard quando logado
@@ -587,14 +590,19 @@ const Home3: React.FC = () => {
       </nav>
 
       {/* Hero Section */}
-      <div className="pt-24 pb-8 overflow-hidden">
-        <div className="w-full overflow-x-auto hide-scrollbar">
-          <div className="flex gap-4 pb-4 px-4 sm:px-6 lg:px-8 snap-x snap-mandatory" style={{ width: "max-content" }}>
+      <div className="pt-24 pb-8 overflow-hidden relative">
+        <div className="w-full overflow-hidden">
+          <div 
+            className="flex gap-4 pb-4 px-4 sm:px-6 lg:px-8 transition-transform duration-500 ease-out"
+            style={{ 
+              transform: `translateX(calc(-${heroIndex} * (min(80vw, 650px) + 16px)))`,
+            }}
+          >
             {heroSlides.map((slide) => (
               <div
                 key={slide.id}
                 onClick={(e) => handleToolClick(slide.path, e)}
-                className="snap-center shrink-0 w-[80vw] md:w-[550px] lg:w-[650px] h-[280px] md:h-[380px] relative rounded-2xl overflow-hidden group cursor-pointer border border-border hover:border-primary/50 transition-colors"
+                className="shrink-0 w-[80vw] md:w-[550px] lg:w-[650px] h-[280px] md:h-[380px] relative rounded-2xl overflow-hidden group cursor-pointer border border-border hover:border-primary/50 transition-colors"
               >
                 <AnimatedHeroSlideContent slide={slide} />
 
@@ -621,6 +629,22 @@ const Home3: React.FC = () => {
             ))}
           </div>
         </div>
+        
+        {/* Navigation Buttons */}
+        <button
+          onClick={() => setHeroIndex((prev) => Math.max(0, prev - 1))}
+          disabled={heroIndex === 0}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-foreground hover:bg-background hover:border-primary/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <button
+          onClick={() => setHeroIndex((prev) => Math.min(heroSlides.length - 1, prev + 1))}
+          disabled={heroIndex === heroSlides.length - 1}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-foreground hover:bg-background hover:border-primary/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <ChevronRight size={24} />
+        </button>
       </div>
 
       {/* Promo Banner */}
