@@ -412,7 +412,7 @@ const DashboardNovo: React.FC = () => {
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
             <img
-              src="/images/synergy-icon.webp"
+              src="/images/synergy-logo.webp"
               alt="Synergy AI"
               className="h-7 w-auto"
             />

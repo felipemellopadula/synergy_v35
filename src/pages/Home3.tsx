@@ -467,7 +467,7 @@ const Home3: React.FC = () => {
             <div className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2 group">
                 <img
-                  src="/synergy-uploads/76f92d5d-608b-47a5-a829-bdb436a60274.png"
+                  src="/images/synergy-logo.webp"
                   alt="Synergy AI"
                   className="h-8 w-auto"
                 />
