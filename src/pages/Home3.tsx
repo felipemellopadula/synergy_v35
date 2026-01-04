@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "@/components/AuthModal";
-import seedanceVideo from "@/assets/videos/seedance-hero.mp4";
 import { LazyVideo } from "@/components/LazyVideo";
 import { ContactForm } from "@/components/ContactForm";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,6 +66,8 @@ interface HeroSlide {
   subtitle: string;
   imageUrl?: string;
   videoUrl?: string;
+  poster?: string;
+  priority?: boolean;
   images?: string[];
   ctaText: string;
   path: string;
@@ -83,13 +84,18 @@ const navItems: NavItem[] = [
   { label: "Contato", href: "#contact" },
 ];
 
-// Hero slides - seedanceVideo is imported at top of file
+// Supabase CDN base URL
+const SUPABASE_CDN = "https://myqgnnqltemfpzdxwybj.supabase.co/storage/v1/object/public/assets";
+
+// Hero slides with CDN URLs and posters for fast loading
 const heroSlides: HeroSlide[] = [
   {
     id: "1",
     title: "SEEDANCE 1.5 PRO",
     subtitle: "Narrativas Multi-shot com Áudio",
-    videoUrl: seedanceVideo,
+    videoUrl: `${SUPABASE_CDN}/videos/seedance-720p.mp4`,
+    poster: `${SUPABASE_CDN}/posters/seedance-poster.webp`,
+    priority: true,
     ctaText: "Experimentar",
     path: "/video",
   },
@@ -97,8 +103,8 @@ const heroSlides: HeroSlide[] = [
     id: "2",
     title: "MOTION CONTROL 2.6",
     subtitle: "Controle preciso de movimento",
-    imageUrl: "",
-    videoUrl: "https://videos.pexels.com/video-files/2795730/2795730-uhd_2560_1440_25fps.mp4",
+    videoUrl: "https://videos.pexels.com/video-files/2795730/2795730-hd_1280_720_25fps.mp4",
+    poster: `${SUPABASE_CDN}/posters/motion-control-poster.webp`,
     ctaText: "Animar",
     path: "/video?model=klingai:kling-video@2.6-pro",
   },
@@ -106,8 +112,8 @@ const heroSlides: HeroSlide[] = [
     id: "3",
     title: "INPAINT",
     subtitle: "Pinte diretamente na imagem e edite suas imagens de forma intuitiva",
-    imageUrl:
-      "https://images.pexels.com/photos/29645160/pexels-photo-29645160/free-photo-of-caneta-para-tablet-grafico-ferramenta-de-design-tinta-escrita-nota-estudio-interior.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+    imageUrl: "https://images.pexels.com/photos/29645160/pexels-photo-29645160/free-photo-of-caneta-para-tablet-grafico-ferramenta-de-design-tinta-escrita-nota-estudio-interior.jpeg?auto=compress&cs=tinysrgb&w=800",
+    poster: `${SUPABASE_CDN}/posters/inpaint-poster.webp`,
     ctaText: "Editar",
     path: "/inpaint",
   },
@@ -142,7 +148,7 @@ const tools: ToolCard[] = [
     id: "2",
     title: "Criar Vídeo",
     description: "Texto/Imagem para vídeo",
-    video: "https://videos.pexels.com/video-files/4309834/4309834-uhd_2560_1440_24fps.mp4",
+    video: "https://videos.pexels.com/video-files/4309834/4309834-hd_1280_720_24fps.mp4",
     path: "/video",
   },
   {
@@ -328,6 +334,8 @@ const AnimatedHeroSlideContent: React.FC<{
     return (
       <LazyVideo
         src={slide.videoUrl}
+        poster={slide.poster}
+        priority={slide.priority}
         className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
       />
     );
