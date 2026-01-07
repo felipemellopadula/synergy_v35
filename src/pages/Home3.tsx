@@ -17,14 +17,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from "@/components/ui/carousel";
+import {
   Menu,
   X,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Play,
   Sparkles,
-  Gift,
   ArrowRight,
   User,
   LogOut,
@@ -374,7 +378,6 @@ const Home3: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAnnual, setIsAnnual] = useState(false);
-  const [heroIndex, setHeroIndex] = useState(0);
 
   // Usuários autenticados podem ver a Home3 normalmente
   // O header mostra opção de ir ao Dashboard quando logado
@@ -596,110 +599,71 @@ const Home3: React.FC = () => {
         )}
       </nav>
 
-      {/* Hero Section */}
-      <div className="pt-24 pb-8 overflow-hidden relative">
-        <div className="w-full overflow-hidden">
-          <div 
-            className="flex gap-4 pb-4 px-4 sm:px-6 lg:px-8 transition-transform duration-500 ease-out"
-            style={{ 
-              transform: `translateX(calc(-${heroIndex} * (min(80vw, 650px) + 16px)))`,
-            }}
+      {/* Promo Banner - Now below header */}
+      <div className="pt-24 pb-4">
+        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div
+            onClick={scrollToPricing}
+            className="w-full relative overflow-hidden rounded-2xl group cursor-pointer"
           >
-            {heroSlides.map((slide) => (
-              <div
-                key={slide.id}
-                onClick={(e) => handleToolClick(slide.path, e)}
-                className="shrink-0 w-[80vw] md:w-[550px] lg:w-[650px] h-[280px] md:h-[380px] relative rounded-2xl overflow-hidden group cursor-pointer border border-border hover:border-primary/50 transition-colors"
-              >
-                <AnimatedHeroSlideContent slide={slide} />
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
-
-                <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 flex flex-col items-start">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="text-primary w-4 h-4" />
-                    <span className="text-primary text-xs font-bold tracking-widest uppercase">Destaque</span>
-                  </div>
-
-                  <h2 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter mb-2">
-                    {slide.title}
-                  </h2>
-
-                  <p className="text-gray-300 text-sm md:text-base mb-6 max-w-md">{slide.subtitle}</p>
-
-                  <button className="bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition-all group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary">
-                    {slide.ctaText}
-                    <Play size={14} fill="currentColor" />
-                  </button>
-                </div>
-              </div>
-            ))}
+            <img 
+              src="/images/promo-banner.png" 
+              alt="Synergy AI - Impulsione sua criatividade" 
+              className="w-full h-auto object-cover"
+            />
           </div>
         </div>
-        
-        {/* Navigation Buttons */}
-        <button
-          onClick={() => setHeroIndex((prev) => Math.max(0, prev - 1))}
-          disabled={heroIndex === 0}
-          className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-foreground hover:bg-background hover:border-primary/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <button
-          onClick={() => setHeroIndex((prev) => Math.min(heroSlides.length - 1, prev + 1))}
-          disabled={heroIndex === heroSlides.length - 1}
-          className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-foreground hover:bg-background hover:border-primary/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-        >
-          <ChevronRight size={24} />
-        </button>
       </div>
 
-      {/* Promo Banner */}
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          onClick={scrollToPricing}
-          className="w-full relative overflow-hidden rounded-2xl my-8 group cursor-pointer"
+      {/* Hero Section with Swipeable Cards */}
+      <div className="py-8 overflow-hidden relative">
+        <Carousel
+          opts={{
+            align: "start",
+            loop: false,
+          }}
+          className="w-full"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-600 to-yellow-500">
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{
-                backgroundImage: "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                backgroundSize: "24px 24px",
-              }}
-            ></div>
-          </div>
+          <CarouselContent className="-ml-4 px-4 sm:px-6 lg:px-8">
+            {heroSlides.map((slide) => (
+              <CarouselItem 
+                key={slide.id}
+                className="pl-4 basis-[80vw] md:basis-[550px] lg:basis-[650px]"
+              >
+                <div
+                  onClick={(e) => handleToolClick(slide.path, e)}
+                  className="w-full h-[280px] md:h-[380px] relative rounded-2xl overflow-hidden group cursor-pointer border border-border hover:border-primary/50 transition-colors"
+                >
+                  <AnimatedHeroSlideContent slide={slide} />
 
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between px-8 py-6 md:py-10 gap-6">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="bg-amber-800 text-white text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">
-                  Oferta Limitada
-                </span>
-              </div>
-              <h2 className="text-2xl md:text-4xl font-black text-white uppercase italic tracking-tighter mb-2">
-                Desbloqueie o Synergy Pro
-              </h2>
-              <p className="text-yellow-100 text-sm md:text-base max-w-xl">
-                Tenha acesso a gerações ilimitadas, modelos exclusivos (Nano Banana Pro) e renderização 4K rápida.
-                Oferta termina em breve.
-              </p>
-            </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
 
-            <div className="flex items-center gap-4">
-              <div className="hidden md:block w-24 h-24 relative">
-                <Gift
-                  size={80}
-                  className="text-primary drop-shadow-lg transform -rotate-12 group-hover:rotate-0 transition-transform duration-300"
-                />
-              </div>
-              <button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-3 px-6 rounded-lg flex items-center gap-2 transition-transform hover:scale-105 shadow-xl shadow-black/20">
-                Assinar Agora
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
+                  <div className="absolute bottom-0 left-0 w-full p-6 md:p-8 flex flex-col items-start">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="text-primary w-4 h-4" />
+                      <span className="text-primary text-xs font-bold tracking-widest uppercase">Destaque</span>
+                    </div>
+
+                    <h2 className="text-2xl md:text-4xl font-black text-white italic uppercase tracking-tighter mb-2">
+                      {slide.title}
+                    </h2>
+
+                    <p className="text-gray-300 text-sm md:text-base mb-6 max-w-md">{slide.subtitle}</p>
+
+                    <button className="bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-semibold py-2 px-4 rounded-lg flex items-center gap-2 transition-all group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary">
+                      {slide.ctaText}
+                      <Play size={14} fill="currentColor" />
+                    </button>
+                  </div>
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+          
+          {/* Navigation Buttons - Hidden on mobile (swipe only) */}
+          <CarouselPrevious className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12" />
+          <CarouselNext className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12" />
+        </Carousel>
       </div>
 
       {/* Tools Grid */}
