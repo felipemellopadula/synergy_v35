@@ -604,13 +604,35 @@ const Home3: React.FC = () => {
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
           <div
             onClick={scrollToPricing}
-            className="w-full relative overflow-hidden rounded-2xl group cursor-pointer"
+            className="w-full relative overflow-hidden rounded-2xl cursor-pointer
+                       bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500
+                       p-6 sm:p-8 lg:p-10 hover:shadow-2xl hover:shadow-orange-500/30 
+                       transition-all duration-300 group"
           >
-            <img 
-              src="/images/promo-banner.png" 
-              alt="Synergy AI - Impulsione sua criatividade" 
-              className="w-full h-auto min-h-[80px] sm:min-h-[100px] object-contain"
-            />
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-8">
+              {/* Texto Principal */}
+              <div className="text-center lg:text-left flex-1">
+                <p className="text-sm sm:text-base font-bold text-black/70 uppercase tracking-widest mb-2">
+                  🚀 Oferta Especial
+                </p>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-black leading-tight">
+                  Impulsione sua criatividade com IA
+                </h2>
+                <p className="text-base sm:text-lg lg:text-xl text-black/70 mt-2 sm:mt-3">
+                  Crie imagens e vídeos incríveis em segundos
+                </p>
+              </div>
+              
+              {/* Botão CTA */}
+              <button className="bg-black text-yellow-400 font-bold 
+                                 px-8 py-4 sm:px-10 sm:py-5 
+                                 rounded-xl text-lg sm:text-xl lg:text-2xl
+                                 hover:bg-black/90 hover:scale-105
+                                 transition-all duration-300 shadow-xl
+                                 whitespace-nowrap group-hover:shadow-2xl">
+                Ver Planos →
+              </button>
+            </div>
           </div>
         </div>
       </div>
