@@ -1044,12 +1044,12 @@ const Home3: React.FC = () => {
           <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center text-xs text-muted-foreground">
             <p>© 2026 Synergy IA Hub. Todos os direitos reservados.</p>
             <div className="flex gap-4 mt-4 md:mt-0">
-              <a href="#" className="hover:text-foreground transition-colors">
+              <Link to="/privacidade" className="hover:text-foreground transition-colors">
                 Privacidade
-              </a>
-              <a href="#" className="hover:text-foreground transition-colors">
+              </Link>
+              <Link to="/termos" className="hover:text-foreground transition-colors">
                 Termos
-              </a>
+              </Link>
             </div>
           </div>
         </div>
