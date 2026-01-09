@@ -199,6 +199,50 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_purchases: {
+        Row: {
+          amount_paid: number | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          plan_id: string
+          plan_name: string | null
+          stripe_session_id: string
+          tokens_credited: number
+          user_id: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          plan_id: string
+          plan_name?: string | null
+          stripe_session_id: string
+          tokens_credited: number
+          user_id: string
+        }
+        Update: {
+          amount_paid?: number | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          plan_id?: string
+          plan_name?: string | null
+          stripe_session_id?: string
+          tokens_credited?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_job_logs: {
         Row: {
           details: Json | null
