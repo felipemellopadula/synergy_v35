@@ -445,7 +445,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
     });
   };
 
-  // Export all completed videos as a single file
+  // Export all completed videos as ZIP
   const exportFullStory = async () => {
     if (completedVideoScenes.length < 2) {
       toast({
@@ -460,63 +460,46 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
     setExportProgress(0);
 
     try {
-      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-      const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
-      
-      const ffmpeg = new FFmpeg();
-      
-      setExportProgress(5);
-      
-      await ffmpeg.load({
-        coreURL: await toBlobURL('https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js', 'text/javascript'),
-        wasmURL: await toBlobURL('https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm', 'application/wasm'),
-      });
-
-      setExportProgress(15);
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
 
       // Sort scenes by order_index
       const sortedScenes = [...completedVideoScenes].sort((a, b) => a.order_index - b.order_index);
-      
-      // Download and write each video
-      const fileList: string[] = [];
+
+      // Download each video and add to ZIP
       for (let i = 0; i < sortedScenes.length; i++) {
         const scene = sortedScenes[i];
-        const fileName = `video${i}.mp4`;
-        
-        const videoData = await fetchFile(scene.video_url!);
-        await ffmpeg.writeFile(fileName, videoData);
-        fileList.push(`file '${fileName}'`);
-        
-        setExportProgress(15 + ((i + 1) / sortedScenes.length) * 40);
+        const response = await fetch(scene.video_url!);
+        const blob = await response.blob();
+
+        // Sequential name (01, 02, 03...)
+        const paddedNumber = String(i + 1).padStart(2, '0');
+        const fileName = `${paddedNumber}_cena_${scene.id.slice(0, 8)}.mp4`;
+
+        zip.file(fileName, blob);
+        setExportProgress(((i + 1) / sortedScenes.length) * 80);
       }
 
-      // Create concat list file
-      await ffmpeg.writeFile('list.txt', fileList.join('\n'));
-
-      setExportProgress(60);
-
-      // Concatenate videos
-      await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4']);
-
-      // Read result
-      const data = await ffmpeg.readFile('output.mp4') as Uint8Array;
-      const blob = new Blob([new Uint8Array(data)], { type: 'video/mp4' });
-      const url = URL.createObjectURL(blob);
+      // Generate ZIP file
+      setExportProgress(85);
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
 
       // Trigger download
+      setExportProgress(95);
+      const url = URL.createObjectURL(zipBlob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project.name.replace(/\s+/g, '_')}_story.mp4`;
+      a.download = `${project.name.replace(/\s+/g, '_')}_historia.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
 
       setExportProgress(100);
-      
+
       toast({
         title: 'História exportada!',
-        description: `${sortedScenes.length} cenas combinadas em um vídeo.`,
+        description: `${sortedScenes.length} vídeos baixados em ordem. Combine-os em qualquer editor de vídeo.`,
       });
 
     } catch (error: any) {
