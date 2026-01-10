@@ -303,7 +303,7 @@ Ex: The man (IMG1) is holding a bottle (IMG2), extreme close up with cinematic l
           onFocus={() => setPromptFocused(true)}
           onBlur={handlePromptBlur}
           className={cn(
-            "text-xs min-h-[80px] resize-none transition-all",
+            "text-xs min-h-[60px] sm:min-h-[80px] resize-none transition-all",
             promptFocused && "ring-2 ring-primary"
           )}
         />

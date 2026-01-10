@@ -516,13 +516,14 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
   };
 
   return (
-    <div className="flex h-[calc(100vh-80px)]">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBack}>
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {/* Row 1: Back + Name + Badges (desktop) */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
 
@@ -532,35 +533,43 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
                 onChange={(e) => setEditedName(e.target.value)}
                 onBlur={handleNameSave}
                 onKeyDown={(e) => e.key === 'Enter' && handleNameSave()}
-                className="text-xl font-bold w-64"
+                className="text-lg sm:text-xl font-bold w-full max-w-[200px] sm:max-w-[300px]"
                 autoFocus
               />
             ) : (
               <h2
-                className="text-xl font-bold cursor-pointer hover:text-primary transition-colors"
+                className="text-lg sm:text-xl font-bold cursor-pointer hover:text-primary transition-colors truncate max-w-[180px] sm:max-w-none"
                 onClick={() => setIsEditingName(true)}
               >
                 {project.name}
               </h2>
             )}
 
+            <Badge variant="outline" className="hidden sm:flex shrink-0">{project.aspect_ratio}</Badge>
+            <Badge variant="secondary" className="hidden sm:flex shrink-0">{scenes.length} cenas</Badge>
+          </div>
+
+          {/* Row 2 (mobile only): Badges */}
+          <div className="flex items-center gap-2 sm:hidden">
             <Badge variant="outline">{project.aspect_ratio}</Badge>
             <Badge variant="secondary">{scenes.length} cenas</Badge>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Row 3: Action buttons */}
+          <div className="flex flex-wrap items-center gap-2">
             {/* Credits Display */}
             {!isLegacyUser && pendingVideoScenes.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mr-2">
-                <Coins className="h-4 w-4" />
-                <span>Vídeos: {totalVideoCost} créditos</span>
+              <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+                <Coins className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Vídeos:</span>
+                <span>{totalVideoCost} créditos</span>
               </div>
             )}
 
             {/* Settings Sheet */}
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-8 w-8 sm:h-9 sm:w-9">
                   <Settings className="h-4 w-4" />
                 </Button>
               </SheetTrigger>
@@ -610,9 +619,9 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
             </Sheet>
 
             {/* Add Scene Button */}
-            <Button onClick={handleAddEmptyScene} variant="outline" className="gap-2">
+            <Button onClick={handleAddEmptyScene} variant="outline" size="sm" className="gap-1 h-8 sm:h-9">
               <Plus className="h-4 w-4" />
-              Nova Cena
+              <span className="hidden sm:inline">Nova Cena</span>
             </Button>
 
             {/* Export Story Button */}
@@ -620,18 +629,19 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
               <Button
                 onClick={exportFullStory}
                 variant="outline"
-                className="gap-2"
+                size="sm"
+                className="gap-1 h-8 sm:h-9"
                 disabled={isExporting}
               >
                 {isExporting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Exportando {exportProgress.toFixed(0)}%
+                    <span className="hidden sm:inline">Exportando</span> {exportProgress.toFixed(0)}%
                   </>
                 ) : (
                   <>
                     <FileVideo className="h-4 w-4" />
-                    Exportar História
+                    <span className="hidden sm:inline">Exportar</span>
                   </>
                 )}
               </Button>
@@ -641,18 +651,20 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
             {pendingVideoScenes.length > 0 && (
               <Button
                 onClick={generateAllVideos}
-                className="gap-2"
+                size="sm"
+                className="gap-1 h-8 sm:h-9"
                 disabled={generatingVideoSceneId !== null || isGeneratingAll}
               >
                 {isGeneratingAll || generatingVideoSceneId ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Gerando ({scenes.filter(s => s.video_status === 'completed').length}/{scenes.length})...
+                    <span className="hidden sm:inline">Gerando</span> ({scenes.filter(s => s.video_status === 'completed').length}/{scenes.length})
                   </>
                 ) : (
                   <>
                     <Video className="h-4 w-4" />
-                    Gerar Vídeos ({pendingVideoScenes.length})
+                    <span className="hidden sm:inline">Gerar Vídeos</span>
+                    <span className="sm:hidden">Gerar</span> ({pendingVideoScenes.length})
                   </>
                 )}
               </Button>
@@ -681,7 +693,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
             axis="x"
             values={scenes}
             onReorder={handleReorder}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4"
           >
             <AnimatePresence>
               {scenes.map((scene, index) => (

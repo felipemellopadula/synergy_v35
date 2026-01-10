@@ -55,7 +55,7 @@ const StoryboardPage: React.FC = () => {
             </Link>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <CreditsCounter variant="compact" />
             <ThemeToggle />
             <Suspense fallback={<div className="w-8 h-8 rounded-full bg-muted animate-pulse" />}>
@@ -66,7 +66,7 @@ const StoryboardPage: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-2 py-4 sm:px-4 sm:py-8">
         {currentProject ? (
           <ProjectEditor
             project={currentProject}
