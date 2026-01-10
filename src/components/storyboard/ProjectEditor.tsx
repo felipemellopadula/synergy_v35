@@ -69,6 +69,21 @@ const VIDEO_MODELS = [
 
 const IMAGE_GENERATION_COST = 0.1;
 
+// Helper: Get valid Runware API dimensions for aspect ratio
+const getDimensionsForAspectRatio = (aspectRatio: string): { width: number; height: number } => {
+  switch (aspectRatio) {
+    case '9:16':
+      return { width: 768, height: 1376 };
+    case '1:1':
+      return { width: 1024, height: 1024 };
+    case '4:3':
+      return { width: 1152, height: 896 };
+    case '16:9':
+    default:
+      return { width: 1376, height: 768 };
+  }
+};
+
 // Helper: sleep function
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -219,6 +234,10 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
       console.log('[Storyboard] Generating image with prompt:', enhancedPrompt);
       console.log('[Storyboard] Using', references.length, 'reference images');
 
+      // Get valid dimensions for Runware API
+      const dimensions = getDimensionsForAspectRatio(project.aspect_ratio || '16:9');
+      console.log('[Storyboard] Using dimensions:', dimensions);
+
       // Call edit-image edge function with references
       const { data, error } = await supabase.functions.invoke('edit-image', {
         body: {
@@ -226,8 +245,8 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
           positivePrompt: enhancedPrompt,
           inputImage: referenceImagesBase64[0],
           inputImages: referenceImagesBase64,
-          width: project.aspect_ratio === '9:16' ? 720 : 1280,
-          height: project.aspect_ratio === '9:16' ? 1280 : 720,
+          width: dimensions.width,
+          height: dimensions.height,
         },
       });
 
