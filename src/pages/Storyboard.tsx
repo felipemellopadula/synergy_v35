@@ -17,6 +17,7 @@ const StoryboardPage: React.FC = () => {
   const {
     projects,
     scenes,
+    references,
     loading,
     currentProject,
     createProject,
@@ -27,6 +28,9 @@ const StoryboardPage: React.FC = () => {
     deleteScene,
     reorderScenes,
     selectProject,
+    addReference,
+    updateReference,
+    deleteReference,
   } = useStoryboard();
 
   const { showPurchaseModal, setShowPurchaseModal } = useCredits();
@@ -67,12 +71,16 @@ const StoryboardPage: React.FC = () => {
           <ProjectEditor
             project={currentProject}
             scenes={scenes}
+            references={references}
             onBack={() => selectProject(null)}
             onUpdateProject={updateProject}
             onAddScene={addScene}
             onUpdateScene={updateScene}
             onDeleteScene={deleteScene}
             onReorderScenes={reorderScenes}
+            onAddReference={(projectId, imageUrl, name) => addReference(projectId, imageUrl, name)}
+            onUpdateReference={updateReference}
+            onDeleteReference={deleteReference}
           />
         ) : (
           <ProjectList

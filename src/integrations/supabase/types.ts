@@ -739,11 +739,45 @@ export type Database = {
         }
         Relationships: []
       }
+      storyboard_references: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url: string
+          name?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storyboard_references_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "storyboard_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storyboard_scenes: {
         Row: {
           created_at: string | null
           duration: number | null
+          generated_image_url: string | null
           id: string
+          image_status: string | null
           image_url: string
           order_index: number
           project_id: string
@@ -755,7 +789,9 @@ export type Database = {
         Insert: {
           created_at?: string | null
           duration?: number | null
+          generated_image_url?: string | null
           id?: string
+          image_status?: string | null
           image_url: string
           order_index?: number
           project_id: string
@@ -767,7 +803,9 @@ export type Database = {
         Update: {
           created_at?: string | null
           duration?: number | null
+          generated_image_url?: string | null
           id?: string
+          image_status?: string | null
           image_url?: string
           order_index?: number
           project_id?: string

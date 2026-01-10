@@ -20,10 +20,20 @@ export interface StoryboardScene {
   order_index: number;
   source_image_id: string | null;
   image_url: string;
+  generated_image_url: string | null;
+  image_status: 'pending' | 'generating' | 'completed' | 'failed';
   prompt: string | null;
   duration: number;
   video_url: string | null;
   video_status: 'pending' | 'generating' | 'completed' | 'failed';
+  created_at: string;
+}
+
+export interface StoryboardReference {
+  id: string;
+  project_id: string;
+  name: string;
+  image_url: string;
   created_at: string;
 }
 
@@ -32,6 +42,7 @@ export function useStoryboard() {
   const { toast } = useToast();
   const [projects, setProjects] = useState<StoryboardProject[]>([]);
   const [scenes, setScenes] = useState<StoryboardScene[]>([]);
+  const [references, setReferences] = useState<StoryboardReference[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentProject, setCurrentProject] = useState<StoryboardProject | null>(null);
 
@@ -172,8 +183,117 @@ export function useStoryboard() {
     }
   }, [toast]);
 
-  // Add scene
-  const addScene = useCallback(async (projectId: string, imageUrl: string, prompt?: string, sourceImageId?: string) => {
+  // Fetch references for a project
+  const fetchReferences = useCallback(async (projectId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('storyboard_references')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setReferences((data || []) as StoryboardReference[]);
+      return data as StoryboardReference[];
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao carregar referências',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return [];
+    }
+  }, [toast]);
+
+  // Add reference
+  const addReference = useCallback(async (projectId: string, imageUrl: string, name?: string) => {
+    try {
+      // Auto-generate name based on current count
+      const autoName = name || `IMG${references.length + 1}`;
+      
+      const { data, error } = await supabase
+        .from('storyboard_references')
+        .insert({
+          project_id: projectId,
+          image_url: imageUrl,
+          name: autoName,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      const newReference = data as StoryboardReference;
+      setReferences(prev => [...prev, newReference]);
+      
+      toast({
+        title: 'Referência adicionada',
+        description: `${autoName} foi adicionada ao projeto.`,
+      });
+      return newReference;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao adicionar referência',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  }, [references.length, toast]);
+
+  // Update reference
+  const updateReference = useCallback(async (referenceId: string, updates: Partial<StoryboardReference>) => {
+    try {
+      const { data, error } = await supabase
+        .from('storyboard_references')
+        .update(updates)
+        .eq('id', referenceId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      const updatedReference = data as StoryboardReference;
+      setReferences(prev => prev.map(r => r.id === referenceId ? updatedReference : r));
+      return updatedReference;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar referência',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return null;
+    }
+  }, [toast]);
+
+  // Delete reference
+  const deleteReference = useCallback(async (referenceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('storyboard_references')
+        .delete()
+        .eq('id', referenceId);
+
+      if (error) throw error;
+      
+      setReferences(prev => prev.filter(r => r.id !== referenceId));
+      toast({
+        title: 'Referência removida',
+        description: 'A referência foi removida do projeto.',
+      });
+      return true;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao remover referência',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [toast]);
+
+  // Add scene (now without requiring image - will be AI-generated)
+  const addScene = useCallback(async (projectId: string, imageUrl?: string, prompt?: string, sourceImageId?: string) => {
     try {
       // Get current max order_index
       const maxOrder = scenes.reduce((max, s) => Math.max(max, s.order_index), -1);
@@ -182,12 +302,14 @@ export function useStoryboard() {
         .from('storyboard_scenes')
         .insert({
           project_id: projectId,
-          image_url: imageUrl,
+          image_url: imageUrl || '', // Can be empty - will be generated
           prompt: prompt || null,
           source_image_id: sourceImageId || null,
           order_index: maxOrder + 1,
           duration: 5,
           video_status: 'pending',
+          image_status: imageUrl ? 'completed' : 'pending',
+          generated_image_url: imageUrl || null,
         })
         .select()
         .single();
@@ -297,15 +419,19 @@ export function useStoryboard() {
     }
   }, [toast]);
 
-  // Select project and load its scenes
+  // Select project and load its scenes and references
   const selectProject = useCallback(async (project: StoryboardProject | null) => {
     setCurrentProject(project);
     if (project) {
-      await fetchScenes(project.id);
+      await Promise.all([
+        fetchScenes(project.id),
+        fetchReferences(project.id),
+      ]);
     } else {
       setScenes([]);
+      setReferences([]);
     }
-  }, [fetchScenes]);
+  }, [fetchScenes, fetchReferences]);
 
   // Load projects on mount
   useEffect(() => {
@@ -317,6 +443,7 @@ export function useStoryboard() {
   return {
     projects,
     scenes,
+    references,
     loading,
     currentProject,
     fetchProjects,
@@ -324,6 +451,10 @@ export function useStoryboard() {
     updateProject,
     deleteProject,
     fetchScenes,
+    fetchReferences,
+    addReference,
+    updateReference,
+    deleteReference,
     addScene,
     updateScene,
     deleteScene,
