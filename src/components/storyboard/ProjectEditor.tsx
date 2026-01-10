@@ -124,13 +124,22 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
       // Update scene status to generating
       await onUpdateScene(scene.id, { video_status: 'generating' });
 
+      // Ensure we have a full public URL for the image
+      const getPublicUrl = (url: string) => {
+        if (url.startsWith('http')) return url;
+        const { data } = supabase.storage.from('images').getPublicUrl(url);
+        return data.publicUrl;
+      };
+
+      const imageUrl = getPublicUrl(scene.image_url);
+
       // Call edge function
       const { data, error } = await supabase.functions.invoke('runware-video', {
         body: {
           action: 'start',
           modelId: project.video_model,
           positivePrompt: scene.prompt || 'Animate this image with smooth motion',
-          frameStartUrl: scene.image_url,
+          frameStartUrl: imageUrl,
           durationSeconds: scene.duration,
           aspectRatio: project.aspect_ratio,
         },
