@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -61,6 +61,9 @@ const VIDEO_MODELS = [
   { id: 'minimax:4@1', label: 'MiniMax Hailuo 2.3', cost: 1 },
 ];
 
+// Helper: sleep function
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const ProjectEditor: React.FC<ProjectEditorProps> = ({
   project,
   scenes,
@@ -79,7 +82,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
   const [generatingSceneId, setGeneratingSceneId] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(project.name);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
 
   // Get current model cost
   const modelCost = VIDEO_MODELS.find(m => m.id === project.video_model)?.cost || 0.5;
@@ -105,8 +108,11 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
     await onAddScene(project.id, imageUrl, prompt, imageId);
   };
 
-  // Generate video for a scene
-  const generateVideoForScene = useCallback(async (scene: StoryboardScene) => {
+  // Generate video for a scene - returns 'completed' | 'failed'
+  const generateVideoForScene = useCallback(async (scene: StoryboardScene): Promise<'completed' | 'failed'> => {
+    const MAX_ATTEMPTS = 60; // 60 * 5s = 5 minutes timeout
+    const POLL_INTERVAL = 5000;
+
     // Check credits
     if (!isLegacyUser && creditsRemaining < modelCost) {
       toast({
@@ -115,7 +121,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
         variant: 'destructive',
       });
       setShowPurchaseModal(true);
-      return;
+      return 'failed';
     }
 
     setGeneratingSceneId(scene.id);
@@ -133,7 +139,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
 
       const imageUrl = getPublicUrl(scene.image_url);
 
-      // Call edge function
+      // Call edge function to start video generation
       const { data, error } = await supabase.functions.invoke('runware-video', {
         body: {
           action: 'start',
@@ -149,64 +155,61 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
       if (!data?.taskUUID) throw new Error('No task ID returned');
 
       const taskUUID = data.taskUUID;
+      console.log(`[Storyboard] Scene ${scene.id}: Started video generation, taskUUID=${taskUUID}`);
 
-      // Poll for completion
-      const poll = async () => {
-        try {
-          const { data: statusData, error: statusError } = await supabase.functions.invoke('runware-video', {
-            body: { action: 'status', taskUUID },
-          });
+      // Polling loop - wait until completed or failed
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        await sleep(POLL_INTERVAL);
+        
+        console.log(`[Storyboard] Scene ${scene.id}: Polling attempt ${attempt}/${MAX_ATTEMPTS}`);
 
-          if (statusError) throw statusError;
+        const { data: statusData, error: statusError } = await supabase.functions.invoke('runware-video', {
+          body: { action: 'status', taskUUID },
+        });
 
-          // Detectar falha explícita
-          if (statusData?.failed) {
-            throw new Error(statusData?.details || 'Video generation failed');
-          }
+        if (statusError) throw statusError;
 
-          // Extrair resultado (igual a Video.tsx)
-          const statusItem = statusData?.result;
-          const videoURL = statusItem?.videoURL || statusItem?.url;
-
-          if (videoURL) {
-            // Success!
-            await onUpdateScene(scene.id, { 
-              video_status: 'completed', 
-              video_url: videoURL 
-            });
-            
-            // Consume credits
-            if (!isLegacyUser) {
-              await consumeCredits('video' as any, `Storyboard: ${scene.prompt?.substring(0, 50) || 'Video generation'}`);
-            }
-
-            toast({
-              title: 'Vídeo gerado!',
-              description: `A cena ${scenes.findIndex(s => s.id === scene.id) + 1} foi gerada com sucesso.`,
-            });
-            
-            setGeneratingSceneId(null);
-            if (pollRef.current) clearTimeout(pollRef.current);
-          } else {
-            // Still processing, poll again
-            pollRef.current = setTimeout(poll, 5000);
-          }
-        } catch (pollError: any) {
-          await onUpdateScene(scene.id, { video_status: 'failed' });
-          toast({
-            title: 'Erro na geração',
-            description: pollError.message,
-            variant: 'destructive',
-          });
-          setGeneratingSceneId(null);
-          if (pollRef.current) clearTimeout(pollRef.current);
+        // Check for explicit failure
+        if (statusData?.failed) {
+          throw new Error(statusData?.details || 'Video generation failed');
         }
-      };
 
-      // Start polling
-      pollRef.current = setTimeout(poll, 5000);
+        // Extract result (same logic as Video.tsx)
+        const statusItem = statusData?.result;
+        const videoURL = statusItem?.videoURL || statusItem?.url;
+
+        if (videoURL) {
+          console.log(`[Storyboard] Scene ${scene.id}: Video completed! URL=${videoURL}`);
+          
+          // Success!
+          await onUpdateScene(scene.id, { 
+            video_status: 'completed', 
+            video_url: videoURL 
+          });
+          
+          // Consume credits (only frontend for legacy check, server already deducted)
+          if (!isLegacyUser) {
+            await consumeCredits('video' as any, `Storyboard: ${scene.prompt?.substring(0, 50) || 'Video generation'}`);
+          }
+
+          toast({
+            title: 'Vídeo gerado!',
+            description: `A cena ${scenes.findIndex(s => s.id === scene.id) + 1} foi gerada com sucesso.`,
+          });
+          
+          setGeneratingSceneId(null);
+          return 'completed';
+        }
+        
+        // Still processing, continue loop
+        console.log(`[Storyboard] Scene ${scene.id}: Still processing...`);
+      }
+
+      // Timeout reached
+      throw new Error('Tempo limite excedido (5 minutos). Tente novamente.');
 
     } catch (error: any) {
+      console.error(`[Storyboard] Scene ${scene.id}: Error -`, error.message);
       await onUpdateScene(scene.id, { video_status: 'failed' });
       toast({
         title: 'Erro ao gerar vídeo',
@@ -214,10 +217,11 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
         variant: 'destructive',
       });
       setGeneratingSceneId(null);
+      return 'failed';
     }
   }, [project, scenes, isLegacyUser, creditsRemaining, modelCost, onUpdateScene, consumeCredits, toast, setShowPurchaseModal]);
 
-  // Generate all pending videos
+  // Generate all pending videos - truly sequential
   const generateAllVideos = async () => {
     if (pendingScenes.length === 0) {
       toast({
@@ -238,11 +242,42 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
       return;
     }
 
-    // Generate one at a time
-    for (const scene of pendingScenes) {
-      await generateVideoForScene(scene);
-      // Wait a bit between each to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    setIsGeneratingAll(true);
+
+    // Sort by order_index and generate one at a time (truly sequential)
+    const sortedScenes = [...pendingScenes].sort((a, b) => a.order_index - b.order_index);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const scene of sortedScenes) {
+      console.log(`[Storyboard] Generating scene ${scene.order_index + 1}/${sortedScenes.length}`);
+      const result = await generateVideoForScene(scene);
+      
+      if (result === 'completed') {
+        successCount++;
+      } else {
+        failCount++;
+      }
+      
+      // Small delay between scenes to avoid rate limits
+      await sleep(1000);
+    }
+
+    setIsGeneratingAll(false);
+
+    // Final summary toast
+    if (failCount === 0) {
+      toast({
+        title: 'Todos os vídeos gerados!',
+        description: `${successCount} cenas processadas com sucesso.`,
+      });
+    } else {
+      toast({
+        title: 'Geração parcial',
+        description: `${successCount} sucesso, ${failCount} falhas. Tente novamente as cenas com erro.`,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -349,12 +384,12 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
             <Button 
               onClick={generateAllVideos} 
               className="gap-2"
-              disabled={generatingSceneId !== null}
+              disabled={generatingSceneId !== null || isGeneratingAll}
             >
-              {generatingSceneId ? (
+              {isGeneratingAll || generatingSceneId ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Gerando...
+                  Gerando ({scenes.filter(s => s.video_status === 'completed').length}/{scenes.length})...
                 </>
               ) : (
                 <>
