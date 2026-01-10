@@ -13,7 +13,8 @@ import {
   Download,
   Sparkles,
   Wand2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Maximize
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -141,7 +142,8 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
     setIsPlaying(!isPlaying);
   };
 
-  const handleDownload = () => {
+  const handleDownload = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!scene.video_url) return;
     const a = document.createElement('a');
     a.href = scene.video_url;
@@ -149,6 +151,14 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
     document.body.appendChild(a);
     a.click();
     a.remove();
+  };
+
+  const handleFullscreen = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!videoRef.current) return;
+    if (videoRef.current.requestFullscreen) {
+      videoRef.current.requestFullscreen();
+    }
   };
 
   const handlePromptBlur = () => {
@@ -209,14 +219,42 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
               poster={getSceneImageUrl(displayImageUrl)}
               onEnded={() => setIsPlaying(false)}
             />
-            {/* Play/Pause Overlay */}
-            <div 
-              className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              onClick={handlePlayPause}
-            >
-              <Button variant="ghost" size="icon" className="h-12 w-12 bg-background/50 hover:bg-background/70">
-                {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-              </Button>
+            {/* Video Controls Overlay */}
+            <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/50 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Top: Download + Fullscreen buttons */}
+              <div className="flex justify-end gap-1 p-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 bg-black/40 hover:bg-black/60 text-white"
+                  onClick={handleDownload}
+                  title="Baixar vídeo"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 bg-black/40 hover:bg-black/60 text-white"
+                  onClick={handleFullscreen}
+                  title="Ampliar"
+                >
+                  <Maximize className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Center: Play/Pause */}
+              <div 
+                className="flex-1 flex items-center justify-center cursor-pointer"
+                onClick={handlePlayPause}
+              >
+                <Button variant="ghost" size="icon" className="h-12 w-12 bg-background/50 hover:bg-background/70">
+                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                </Button>
+              </div>
+
+              {/* Bottom spacer */}
+              <div className="h-6" />
             </div>
           </>
         ) : hasImage ? (
