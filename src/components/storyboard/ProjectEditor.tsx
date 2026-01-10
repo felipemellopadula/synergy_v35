@@ -108,6 +108,15 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
     await onAddScene(project.id, imageUrl, prompt, imageId);
   };
 
+  // Handle prompt update
+  const handleUpdatePrompt = async (sceneId: string, prompt: string) => {
+    await onUpdateScene(sceneId, { prompt });
+    toast({
+      title: 'Instruções salvas',
+      description: 'A descrição da cena foi atualizada.',
+    });
+  };
+
   // Generate video for a scene - returns 'completed' | 'failed'
   const generateVideoForScene = useCallback(async (scene: StoryboardScene): Promise<'completed' | 'failed'> => {
     const MAX_ATTEMPTS = 60; // 60 * 5s = 5 minutes timeout
@@ -433,6 +442,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
                   scene={scene}
                   index={index}
                   onUpdateDuration={(id, duration) => onUpdateScene(id, { duration })}
+                  onUpdatePrompt={handleUpdatePrompt}
                   onDelete={onDeleteScene}
                   onGenerateVideo={generateVideoForScene}
                   onPreviewVideo={setPreviewVideo}

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Image as ImageIcon, Upload, Search, Check, Loader2 } from 'lucide-react';
+import { X, Image as ImageIcon, Upload, Search, Check, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [uploading, setUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState('');
 
   // Fetch user images
   const fetchImages = useCallback(async () => {
@@ -168,9 +170,12 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     if (selectedImage) {
       // Sempre passa a URL pública completa
       const publicUrl = getImageUrl(selectedImage.image_path);
-      onSelectImage(publicUrl, selectedImage.prompt || undefined, selectedImage.id);
+      // Usa o prompt customizado se existir, senão o original da imagem
+      const finalPrompt = customPrompt.trim() || selectedImage.prompt || undefined;
+      onSelectImage(publicUrl, finalPrompt, selectedImage.id);
       onOpenChange(false);
       setSelectedImage(null);
+      setCustomPrompt('');
     }
   };
 
@@ -298,14 +303,35 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
           </TabsContent>
         </Tabs>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={handleConfirm} disabled={!selectedImage}>
-            Adicionar Cena
-          </Button>
+        {/* Footer with Instructions */}
+        <div className="pt-4 border-t space-y-4">
+          {/* Custom prompt input - only shown when image is selected */}
+          {selectedImage && (
+            <div className="space-y-2">
+              <Label className="text-sm flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Instruções de movimento (opcional)
+              </Label>
+              <Textarea
+                placeholder="Ex: Zoom in suave no rosto, pan da esquerda para direita, movimento dramático de câmera..."
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                className="text-sm min-h-[60px] resize-none"
+              />
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => {
+              onOpenChange(false);
+              setCustomPrompt('');
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirm} disabled={!selectedImage}>
+              Adicionar Cena
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

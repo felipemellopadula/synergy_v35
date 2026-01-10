@@ -10,10 +10,13 @@ import {
   AlertCircle,
   Loader2,
   GripVertical,
-  Download
+  Download,
+  Sparkles,
+  Edit2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -38,6 +41,7 @@ interface SceneCardProps {
   scene: StoryboardScene;
   index: number;
   onUpdateDuration: (sceneId: string, duration: number) => void;
+  onUpdatePrompt: (sceneId: string, prompt: string) => void;
   onDelete: (sceneId: string) => void;
   onGenerateVideo: (scene: StoryboardScene) => void;
   onPreviewVideo: (videoUrl: string) => void;
@@ -74,6 +78,7 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
   scene,
   index,
   onUpdateDuration,
+  onUpdatePrompt,
   onDelete,
   onGenerateVideo,
   onPreviewVideo,
@@ -82,6 +87,8 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+  const [promptValue, setPromptValue] = useState(scene.prompt || '');
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const status = statusConfig[scene.video_status];
@@ -187,11 +194,59 @@ export const SceneCard: React.FC<SceneCardProps> = memo(({
 
       {/* Controls */}
       <div className="p-3 space-y-3">
-        {/* Prompt Preview */}
-        {scene.prompt && (
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {scene.prompt}
-          </p>
+        {/* Editable Prompt/Instructions Field */}
+        {isEditingPrompt ? (
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Descreva o movimento/efeito desejado...
+Ex: Zoom in suave, pan para direita, movimento dramático..."
+              value={promptValue}
+              onChange={(e) => setPromptValue(e.target.value)}
+              className="text-xs min-h-[70px] resize-none"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 text-xs flex-1"
+                onClick={() => {
+                  setIsEditingPrompt(false);
+                  setPromptValue(scene.prompt || '');
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                size="sm" 
+                className="h-7 text-xs flex-1"
+                onClick={() => {
+                  onUpdatePrompt(scene.id, promptValue);
+                  setIsEditingPrompt(false);
+                }}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div 
+            className="text-xs cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors group border border-dashed border-muted-foreground/30"
+            onClick={() => setIsEditingPrompt(true)}
+          >
+            {scene.prompt ? (
+              <div className="flex items-start gap-2">
+                <Sparkles className="h-3 w-3 mt-0.5 text-primary shrink-0" />
+                <span className="line-clamp-2 text-muted-foreground flex-1">{scene.prompt}</span>
+                <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground/60 italic">
+                <Sparkles className="h-3 w-3" />
+                <span>Clique para adicionar instruções...</span>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Duration & Actions */}
