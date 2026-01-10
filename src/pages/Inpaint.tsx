@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCredits } from "@/hooks/useCredits";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 import { 
   Paintbrush, 
   Eraser, 
@@ -35,6 +38,7 @@ interface ReferenceImage {
 const Inpaint = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { isLegacyUser, checkCredits, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -392,6 +396,11 @@ const Inpaint = () => {
       return;
     }
 
+    // Verificar créditos para usuários não-legados
+    if (!isLegacyUser && !checkCredits('inpaint')) {
+      return;
+    }
+
     setIsGenerating(true);
 
     try {
@@ -453,11 +462,21 @@ Generate the edited image now.`;
       if (data.image) {
         setGeneratedImage(`data:image/png;base64,${data.image}`);
         toast.success("Imagem gerada com sucesso!");
+        // Atualizar saldo de créditos
+        if (!isLegacyUser) {
+          await refreshProfile();
+        }
       } else {
         throw new Error("Nenhuma imagem retornada");
       }
     } catch (error: any) {
       console.error("Erro ao gerar:", error);
+      // Tratar erro de créditos insuficientes
+      if (error?.message?.includes('insufficient_credits') || error?.status === 402) {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        return;
+      }
       toast.error(error.message || "Erro ao gerar imagem");
     } finally {
       setIsGenerating(false);
@@ -526,12 +545,16 @@ Generate the edited image now.`;
                 </Button>
               </>
             )}
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
           </div>
         </div>
       </header>
+
+      {/* Modal de compra de créditos */}
+      <PurchaseCreditsModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">

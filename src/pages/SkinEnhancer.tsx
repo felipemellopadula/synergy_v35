@@ -8,8 +8,11 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCredits } from "@/hooks/useCredits";
 import { supabase } from "@/integrations/supabase/client";
 import { ImageCompareSlider } from "@/components/ImageCompareSlider";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 import { cn } from "@/lib/utils";
 
 const UserProfile = lazy(() => import("@/components/UserProfile"));
@@ -17,6 +20,7 @@ const UserProfile = lazy(() => import("@/components/UserProfile"));
 export default function SkinEnhancer() {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const { isLegacyUser, checkCredits, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
   
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
@@ -70,6 +74,11 @@ export default function SkinEnhancer() {
       return;
     }
 
+    // Verificar créditos para usuários não-legados
+    if (!isLegacyUser && !checkCredits('skin_enhancer')) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -93,11 +102,21 @@ export default function SkinEnhancer() {
       if (response.data?.imageUrl) {
         setEnhancedImage(response.data.imageUrl);
         toast.success("Imagem melhorada com sucesso!");
+        // Atualizar saldo de créditos
+        if (!isLegacyUser) {
+          await refreshProfile();
+        }
       } else {
         throw new Error("Nenhuma imagem retornada");
       }
     } catch (error: any) {
       console.error("Skin enhancer error:", error);
+      // Tratar erro de créditos insuficientes
+      if (error?.message?.includes('insufficient_credits') || error?.status === 402) {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        return;
+      }
       toast.error(error.message || "Erro ao melhorar imagem");
     } finally {
       setIsLoading(false);
@@ -153,12 +172,16 @@ export default function SkinEnhancer() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
           </div>
         </div>
       </header>
+
+      {/* Modal de compra de créditos */}
+      <PurchaseCreditsModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Title */}

@@ -7,9 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCredits } from "@/hooks/useCredits";
 import UserProfile from "@/components/UserProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 
 interface SavedAvatar {
   id: string;
@@ -33,6 +36,7 @@ const AVATAR_STYLES = [
 const AIAvatar = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isLegacyUser, checkCredits, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
   const { debounce, isDebouncing } = useButtonDebounce(1500);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedAvatar, setGeneratedAvatar] = useState<string | null>(null);
@@ -157,6 +161,11 @@ const AIAvatar = () => {
       return;
     }
 
+    // Verificar créditos para usuários não-legados
+    if (!isLegacyUser && !checkCredits('avatar')) {
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -184,6 +193,11 @@ const AIAvatar = () => {
         setGeneratedAvatar(avatarUrl);
         toast.success("Avatar gerado com sucesso!");
 
+        // Atualizar saldo de créditos
+        if (!isLegacyUser) {
+          await refreshProfile();
+        }
+
         // Auto-save if user is logged in
         if (user) {
           setIsSaving(true);
@@ -210,6 +224,12 @@ const AIAvatar = () => {
       }
     } catch (error: any) {
       console.error("Erro ao gerar avatar:", error);
+      // Tratar erro de créditos insuficientes
+      if (error?.message?.includes('insufficient_credits') || error?.status === 402) {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        return;
+      }
       toast.error(error.message || "Erro ao gerar avatar");
     } finally {
       setIsProcessing(false);
@@ -298,13 +318,16 @@ const AIAvatar = () => {
                 </Button>
               </>
             )}
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
-            
           </div>
         </div>
       </header>
+
+      {/* Modal de compra de créditos */}
+      <PurchaseCreditsModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row">

@@ -10,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCredits, getUpscaleCost } from "@/hooks/useCredits";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ImageCompareSlider } from "@/components/ImageCompareSlider";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 import { cn } from "@/lib/utils";
 
 const UserProfile = lazy(() => import("@/components/UserProfile"));
@@ -22,6 +25,7 @@ type Provider = "magnific" | "runware";
 export default function Upscale() {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const { isLegacyUser, checkCredits, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
   
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
@@ -143,6 +147,18 @@ export default function Upscale() {
       return;
     }
 
+    // Verificar créditos para usuários não-legados (com base nas dimensões)
+    if (!isLegacyUser) {
+      const cost = getUpscaleCost(imageDimensions?.width || 1024, imageDimensions?.height || 1024);
+      if (cost < 0) {
+        toast.error("Imagem muito grande. Máximo permitido: 4K");
+        return;
+      }
+      if (!checkCredits('upscale', imageDimensions || undefined)) {
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       let imageUrl: string | null = null;
@@ -156,11 +172,21 @@ export default function Upscale() {
       if (imageUrl) {
         setUpscaledImage(imageUrl);
         toast.success("Imagem ampliada com sucesso!");
+        // Atualizar saldo de créditos
+        if (!isLegacyUser) {
+          await refreshProfile();
+        }
       } else {
         throw new Error("Nenhuma imagem retornada");
       }
     } catch (error: any) {
       console.error("Upscale error:", error);
+      // Tratar erro de créditos insuficientes
+      if (error?.message?.includes('insufficient_credits') || error?.status === 402) {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        return;
+      }
       toast.error(error.message || "Erro ao ampliar imagem");
     } finally {
       setIsLoading(false);
@@ -241,12 +267,16 @@ export default function Upscale() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
           </div>
         </div>
       </header>
+
+      {/* Modal de compra de créditos */}
+      <PurchaseCreditsModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Title */}

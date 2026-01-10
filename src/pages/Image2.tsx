@@ -29,6 +29,7 @@ const UserProfile = lazy(() => import("@/components/UserProfile"));
 import { useAuth } from "@/contexts/AuthContext";
 import { useCredits } from "@/hooks/useCredits";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -53,7 +54,7 @@ import type { DatabaseImage } from "@/modules/image";
 const Image2Page = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isLegacyUser, checkCredits, consumeCredits, showPurchaseModal, setShowPurchaseModal } = useCredits();
+  const { isLegacyUser, checkCredits, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
   const { debounce, isDebouncing } = useButtonDebounce(1500);
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
@@ -339,9 +340,9 @@ const Image2Page = () => {
 
         if (insertData) {
           setImages((prev) => [insertData, ...prev].slice(0, MAX_IMAGES_TO_FETCH));
-          // Consumir crédito para usuários não-legados
+          // Atualizar saldo de créditos (backend já deduziu)
           if (!isLegacyUser) {
-            await consumeCredits('image', finalPrompt);
+            await refreshProfile();
           }
           toast.success("Imagem gerada com sucesso!");
         }
@@ -372,11 +373,9 @@ const Image2Page = () => {
         const totalCount = apiData.count || apiData.images.length;
         const backgroundCount = apiData.backgroundProcessing || 0;
         
-        // Consumir créditos para usuários não-legados (1 por imagem gerada)
+        // Atualizar saldo de créditos (backend já deduziu)
         if (!isLegacyUser) {
-          for (let i = 0; i < totalCount; i++) {
-            await consumeCredits('image', finalPrompt);
-          }
+          await refreshProfile();
         }
         
         if (backgroundCount > 0) {
@@ -407,6 +406,12 @@ const Image2Page = () => {
       }
     } catch (e: any) {
       console.error("Erro no processo de geração de imagem:", e);
+      // Tratar erro de créditos insuficientes
+      if (e?.message?.includes('insufficient_credits') || e?.status === 402) {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        return;
+      }
       // Toast já foi mostrado nos handlers específicos acima
     } finally {
       setIsGenerating(false);
@@ -543,6 +548,7 @@ const Image2Page = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
