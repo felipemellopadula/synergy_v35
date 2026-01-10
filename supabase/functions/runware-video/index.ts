@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
-import { validateAndDeductCredits, createInsufficientCreditsResponse } from "../_shared/credit-validation.ts";
+import { validateAndDeductCredits, createInsufficientCreditsResponse, calculateVideoCost } from "../_shared/credit-validation.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +64,11 @@ serve(async (req) => {
         const { data: { user } } = await supabaseAdmin.auth.getUser(token);
 
         if (user) {
-          const creditCost = 1; // 1 crédito por vídeo
+          // ✅ Custo dinâmico baseado no modelo
+          const resolvedModel = (modelId || model) as string;
+          const creditCost = calculateVideoCost(resolvedModel);
+          console.log(`[runware-video] Modelo: ${resolvedModel}, Custo: ${creditCost} créditos`);
+          
           const creditResult = await validateAndDeductCredits(
             supabaseAdmin,
             user.id,
@@ -258,15 +262,16 @@ serve(async (req) => {
             const { data: { user } } = await supabase.auth.getUser(token);
             
             if (user) {
-              // Registrar uso de vídeo no token_usage
+              // Registrar uso de vídeo no token_usage com custo dinâmico
+              const videoCost = calculateVideoCost(resolvedModel);
               await supabase.from("token_usage").insert({
                 user_id: user.id,
                 model_name: resolvedModel,
                 message_content: positivePrompt || "Video generation",
-                ai_response_content: "Video generation started successfully",
-                tokens_used: 1, // 1 token = 1 vídeo
-                input_tokens: 1,
-                output_tokens: 1,
+                ai_response_content: `Video generation started - ${videoCost} credits`,
+                tokens_used: videoCost,
+                input_tokens: videoCost,
+                output_tokens: 0,
               });
               
               console.log("[runware-video] ✅ Uso registrado no banco de dados para user:", user.id);

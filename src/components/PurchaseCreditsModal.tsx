@@ -214,7 +214,7 @@ export const PurchaseCreditsModal = ({ open, onOpenChange }: PurchaseCreditsModa
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          1 crédito = 1 imagem ou 1 vídeo. Pagamento seguro via Stripe.
+          1 crédito = 1 imagem. Vídeos: de 2/crédito (MiniMax) até 4 créditos (Sora 2 Pro). Pagamento seguro via Stripe.
         </p>
       </DialogContent>
     </Dialog>

@@ -138,6 +138,36 @@ export function calculateUpscaleCost(width: number, height: number): number {
 }
 
 /**
+ * Calcula o custo de vídeo baseado no modelo
+ * Custos arredondados de 0.5 em 0.5:
+ * - MiniMax: 0.5 créditos (2 vídeos por crédito)
+ * - Seedance: 1.0 crédito
+ * - Kling 2.6 Pro: 1.5 créditos
+ * - Sora 2: 1.5 créditos
+ * - Veo 3.1: 3.0 créditos
+ * - Sora 2 Pro: 4.0 créditos
+ */
+export function calculateVideoCost(modelId: string): number {
+  // Sora 2 Pro = 4.0 créditos
+  if (modelId === 'openai:3@2') return 4.0;
+  
+  // Veo 3.1 = 3.0 créditos
+  if (modelId.includes('google:3@')) return 3.0;
+  
+  // Sora 2 = 1.5 créditos
+  if (modelId === 'openai:3@1') return 1.5;
+  
+  // Kling 2.6 Pro = 1.5 créditos
+  if (modelId.includes('klingai:')) return 1.5;
+  
+  // Seedance (ByteDance) = 1.0 crédito
+  if (modelId.includes('bytedance:') || modelId.includes('seedance')) return 1.0;
+  
+  // MiniMax = 0.5 créditos (2 vídeos por crédito)
+  return 0.5;
+}
+
+/**
  * Cria resposta de erro 402 para créditos insuficientes
  */
 export function createInsufficientCreditsResponse(

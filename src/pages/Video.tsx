@@ -34,6 +34,9 @@ import { VideoIcon, ArrowLeft } from "lucide-react"; // ícones do topo (acima d
 import imageCompression from "browser-image-compression";
 import { useAuth } from "@/contexts/AuthContext";
 import { useButtonDebounce } from "@/hooks/useButtonDebounce";
+import { useCredits, getVideoCreditCost } from "@/hooks/useCredits";
+import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { CreditsCounter } from "@/components/CreditsCounter";
 
 // Lazy (reduz bundle inicial)
 const ThemeToggleLazy = lazy(() => import("@/components/ThemeToggle").then(m => ({ default: m.ThemeToggle })));
@@ -377,6 +380,7 @@ const VideoPage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { debounce, isDebouncing } = useButtonDebounce(2000);
+  const { isLegacyUser, creditsRemaining, showPurchaseModal, setShowPurchaseModal, refreshProfile } = useCredits();
 
   // Estado principal
   const [modelId, setModelId] = useState<string>("bytedance:seedance@1.5-pro");
@@ -889,6 +893,18 @@ const VideoPage: React.FC = () => {
   );
 
   const startGeneration = useCallback(async () => {
+    // ✅ VERIFICAÇÃO DE CRÉDITOS antes de gerar
+    const creditCost = getVideoCreditCost(modelId);
+    if (!isLegacyUser && creditsRemaining < creditCost) {
+      setShowPurchaseModal(true);
+      toast({
+        title: "Créditos insuficientes",
+        description: `Este modelo custa ${creditCost} crédito${creditCost !== 1 ? 's' : ''}. Você tem ${creditsRemaining} crédito${creditsRemaining !== 1 ? 's' : ''}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // ✅ VERIFICAÇÃO DE DUPLICATAS antes de gerar
     const isDuplicate = savedVideos.some(v => 
       v.prompt === prompt && 
@@ -947,6 +963,19 @@ const VideoPage: React.FC = () => {
 
       const { data, error } = await supabase.functions.invoke("runware-video", { body: payload });
       
+      // ✅ Tratar erro 402 (créditos insuficientes)
+      if (data?.error === 'insufficient_credits') {
+        setShowPurchaseModal(true);
+        await refreshProfile();
+        toast({
+          title: "Créditos insuficientes",
+          description: data.message || "Você não tem créditos suficientes para esta operação.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
       if (error) {
         console.error("Edge function error:", error);
         throw new Error(error.message || "Erro ao chamar função de vídeo");
@@ -987,6 +1016,10 @@ const VideoPage: React.FC = () => {
     referenceVideoUrl,
     characterOrientation,
     keepOriginalSound,
+    isLegacyUser,
+    creditsRemaining,
+    setShowPurchaseModal,
+    refreshProfile,
   ]);
 
   const handleDownload = useCallback(
@@ -1073,6 +1106,7 @@ const VideoPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfileLazy />
             </Suspense>
@@ -1093,12 +1127,18 @@ const VideoPage: React.FC = () => {
                     <SelectValue placeholder="Selecione o modelo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Somente ByteDance visível */}
-                    {MODELS.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
+                    {/* Modelos com custo */}
+                    {MODELS.map((m) => {
+                      const cost = getVideoCreditCost(m.id);
+                      const costLabel = cost < 1 
+                        ? `${Math.round(1/cost)} vídeos/crédito` 
+                        : `${cost} crédito${cost !== 1 ? 's' : ''}`;
+                      return (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.label} <span className="text-muted-foreground text-xs ml-1">({costLabel})</span>
+                        </SelectItem>
+                      );
+                    })}
                     {/*
                     // Mantidos apenas em comentário por enquanto:
                     <SelectItem value="google:3@1">Google Veo 3 Fast — <code className="text-xs">google:3@1</code></SelectItem>
@@ -1637,6 +1677,9 @@ const VideoPage: React.FC = () => {
           </DialogLazy>
         </Suspense>
       </main>
+
+      {/* Modal de compra de créditos */}
+      <PurchaseCreditsModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} />
     </div>
   );
 };
