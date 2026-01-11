@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ImageCompareSlider } from "@/components/ImageCompareSlider";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { CreditsCounter } from "@/components/CreditsCounter";
 import { cn } from "@/lib/utils";
 
 const UserProfile = lazy(() => import("@/components/UserProfile"));
@@ -267,7 +266,6 @@ export default function Upscale() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>

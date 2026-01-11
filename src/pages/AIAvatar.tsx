@@ -12,7 +12,6 @@ import UserProfile from "@/components/UserProfile";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { CreditsCounter } from "@/components/CreditsCounter";
 
 interface SavedAvatar {
   id: string;
@@ -318,7 +317,6 @@ const AIAvatar = () => {
                 </Button>
               </>
             )}
-            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>

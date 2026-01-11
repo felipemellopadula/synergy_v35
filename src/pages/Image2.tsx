@@ -29,7 +29,6 @@ const UserProfile = lazy(() => import("@/components/UserProfile"));
 import { useAuth } from "@/contexts/AuthContext";
 import { useCredits } from "@/hooks/useCredits";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { CreditsCounter } from "@/components/CreditsCounter";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -548,7 +547,6 @@ const Image2Page = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>

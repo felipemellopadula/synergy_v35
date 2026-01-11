@@ -8,7 +8,6 @@ import { useCredits } from "@/hooks/useCredits";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { CreditsCounter } from "@/components/CreditsCounter";
 import { 
   Paintbrush, 
   Eraser, 
@@ -545,7 +544,6 @@ Generate the edited image now.`;
                 </Button>
               </>
             )}
-            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
