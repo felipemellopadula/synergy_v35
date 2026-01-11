@@ -36,7 +36,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useButtonDebounce } from "@/hooks/useButtonDebounce";
 import { useCredits, getVideoCreditCost } from "@/hooks/useCredits";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
-import { CreditsCounter } from "@/components/CreditsCounter";
 
 // Lazy (reduz bundle inicial)
 const ThemeToggleLazy = lazy(() => import("@/components/ThemeToggle").then(m => ({ default: m.ThemeToggle })));
@@ -1158,7 +1157,6 @@ const VideoPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <CreditsCounter variant="compact" />
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfileLazy />
             </Suspense>

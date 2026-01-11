@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Film } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { CreditsCounter } from '@/components/CreditsCounter';
 import { PurchaseCreditsModal } from '@/components/PurchaseCreditsModal';
 import { useStoryboard } from '@/hooks/useStoryboard';
 import { useCredits } from '@/hooks/useCredits';
@@ -61,7 +60,6 @@ const StoryboardPage: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3">
-            <CreditsCounter variant="compact" />
             <ThemeToggle />
             <Suspense fallback={<div className="w-8 h-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
