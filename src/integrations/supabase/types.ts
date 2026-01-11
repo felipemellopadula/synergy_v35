@@ -571,6 +571,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          current_plan: string | null
           current_subscription_id: string | null
           email: string
           has_seen_welcome_modal: boolean
@@ -589,6 +590,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          current_plan?: string | null
           current_subscription_id?: string | null
           email: string
           has_seen_welcome_modal?: boolean
@@ -607,6 +609,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          current_plan?: string | null
           current_subscription_id?: string | null
           email?: string
           has_seen_welcome_modal?: boolean

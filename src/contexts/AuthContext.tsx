@@ -21,6 +21,7 @@ interface Profile {
   subscription_type: 'free' | 'paid' | 'admin' | 'basic' | 'plus' | 'pro';
   tokens_remaining: number;
   is_legacy_user: boolean;
+  current_plan?: string | null;
   created_at: string;
   updated_at: string;
 }

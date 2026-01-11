@@ -90,12 +90,23 @@ serve(async (req) => {
                 subscriptionType = 'pro';
               }
               
+              // Determinar current_plan baseado no plan_id
+              let currentPlan: string | null = null;
+              if (planIdLower.includes('creator')) {
+                currentPlan = 'Creator';
+              } else if (planIdLower.includes('pro')) {
+                currentPlan = 'Pro';
+              } else if (planIdLower.includes('start')) {
+                currentPlan = 'Starter';
+              }
+
               const { error: updateError } = await supabase
                 .from("profiles")
                 .update({
                   tokens_remaining: newTokens,
                   stripe_customer_id: customerId,
                   subscription_type: subscriptionType,
+                  current_plan: currentPlan,
                   updated_at: new Date().toISOString(),
                 })
                 .eq("id", userId);
@@ -172,6 +183,16 @@ serve(async (req) => {
                 subscriptionType = 'pro';
               }
               
+              // Determinar current_plan baseado no plan_id
+              let currentPlan: string | null = null;
+              if (planIdLower.includes('creator')) {
+                currentPlan = 'Creator';
+              } else if (planIdLower.includes('pro')) {
+                currentPlan = 'Pro';
+              } else if (planIdLower.includes('start')) {
+                currentPlan = 'Starter';
+              }
+
               // Atualizar perfil com tokens e stripe_customer_id
               const { error: profileError } = await supabase
                 .from("profiles")
@@ -179,6 +200,7 @@ serve(async (req) => {
                   tokens_remaining: product.tokens_included,
                   stripe_customer_id: customerId,
                   subscription_type: subscriptionType,
+                  current_plan: currentPlan,
                   is_password_set: false,
                   name: customerName,
                   updated_at: new Date().toISOString(),

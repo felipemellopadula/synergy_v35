@@ -1,4 +1,4 @@
-import { User, LogOut, Settings, Coins } from "lucide-react";
+import { User, LogOut, Settings, Coins, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +54,21 @@ const UserProfile = ({ tokens }: UserProfileProps) => {
     return "text-emerald-400";
   };
 
+  // Plan badge styling
+  const currentPlan = profile.current_plan;
+  const getPlanBadgeClasses = () => {
+    switch (currentPlan) {
+      case 'Creator':
+        return "bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-amber-400 border border-amber-500/30";
+      case 'Pro':
+        return "bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-purple-400 border border-purple-500/30";
+      case 'Starter':
+        return "bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-400 border border-blue-500/30";
+      default:
+        return "bg-secondary/50 text-muted-foreground border border-border";
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -103,6 +118,15 @@ const UserProfile = ({ tokens }: UserProfileProps) => {
               </span>
               {isEmpty && <span className="text-red-400 ml-1">(vazio)</span>}
             </div>
+            {currentPlan && (
+              <div className={cn(
+                "flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-xs font-semibold w-fit",
+                getPlanBadgeClasses()
+              )}>
+                <Crown className="h-3 w-3" />
+                <span>{currentPlan}</span>
+              </div>
+            )}
           </div>
         </div>
         <DropdownMenuSeparator />
