@@ -1,4 +1,4 @@
-import { User, LogOut, Settings, Coins, Crown } from "lucide-react";
+import { User, LogOut, Settings, Coins, Crown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,6 +133,10 @@ const UserProfile = ({ tokens }: UserProfileProps) => {
         <DropdownMenuItem onClick={() => navigate('/settings')}>
           <Settings className="mr-2 h-4 w-4" />
           Configurações
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/#pricing')}>
+          <Plus className="mr-2 h-4 w-4" />
+          Comprar mais créditos
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
