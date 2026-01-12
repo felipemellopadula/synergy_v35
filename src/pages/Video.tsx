@@ -1089,14 +1089,13 @@ const VideoPage: React.FC = () => {
         
         console.log("[Video] Tab voltou visível. taskUUID:", currentTaskUUID, "processingRef:", isCurrentlyProcessing);
         
-        // Se ainda tem taskUUID (processamento em andamento), garantir que UI reflete isso
-        if (currentTaskUUID && isCurrentlyProcessing) {
-          console.log("[Video] Processamento ainda em andamento, forçando UI e reiniciando polling...");
+        // ✅ CORRIGIDO: Usar apenas taskUUIDRef e videoUrlRef (processingRef pode ter race condition)
+        // Se tem taskUUID E ainda não recebeu vídeo = processamento ativo
+        if (currentTaskUUID && !videoUrlRef.current) {
+          console.log("[Video] Processamento em andamento (taskUUID existe, video não chegou), restaurando UI...");
           // ✅ ORDEM CRÍTICA: isSubmitting PRIMEIRO para garantir render imediato do spinner
           setIsSubmitting(true);
-          // ✅ Limpar refs imediatamente (sincrono)
-          videoUrlRef.current = null;
-          // ✅ Limpar estados
+          processingRef.current = true; // ✅ Restaurar ref também
           setVideoUrl(null);
           setTaskUUID(currentTaskUUID);
           // Reiniciar o polling para verificar status atual
