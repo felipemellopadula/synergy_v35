@@ -18,20 +18,74 @@ Deno.serve(async (req) => {
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
   const triggeredBy = body.triggered_by || 'cron'
   const isManualCleanup = triggeredBy === 'admin_manual'
+
+  // Get environment variables
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+
+  if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+    return new Response(JSON.stringify({ error: 'Missing environment variables' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  // SECURITY: Verify authentication for manual cleanup requests
+  // Cron-triggered cleanups are allowed without user auth, but manual ones require admin
+  if (isManualCleanup) {
+    const authHeader = req.headers.get('Authorization')
+    
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.error('Manual cleanup attempted without authorization')
+      return new Response(JSON.stringify({ error: 'Unauthorized - Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Create client with user's token to verify identity
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    })
+
+    // Verify the JWT token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token)
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('Invalid JWT token:', claimsError?.message)
+      return new Response(JSON.stringify({ error: 'Unauthorized - Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const userId = claimsData.claims.sub as string
+
+    // Use service role to check admin status
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey)
+    const { data: isAdmin, error: adminError } = await adminClient.rpc('has_admin_role', {
+      _user_id: userId
+    })
+
+    if (adminError || !isAdmin) {
+      console.error('Non-admin user attempted manual cleanup:', userId)
+      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log(`Admin user ${userId} authorized for manual cleanup`)
+  }
   
   console.log(`=== AGGRESSIVE STORAGE CLEANUP STARTED ===`)
   console.log(`Triggered by: ${triggeredBy}`)
   console.log(`Manual cleanup (DELETE EVERYTHING): ${isManualCleanup}`)
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase environment variables')
-    }
-
-    const supabaseClient = createClient(supabaseUrl, supabaseKey)
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey)
 
     // Get ALL buckets
     const { data: allBuckets } = await supabaseClient.storage.listBuckets()
