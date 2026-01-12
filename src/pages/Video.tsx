@@ -351,17 +351,20 @@ const SavedVideo = memo(function SavedVideo({
         className="w-full h-full"
       />
 
-      {/* Badge "Novo" para vídeos recém-adicionados */}
+      {/* Badge "Novo" para vídeos recém-adicionados - MUITO VISÍVEL */}
       {(isNew || isTemporary) && (
-        <div className="absolute top-2 left-2 z-10">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${isTemporary ? "bg-amber-500 text-white animate-pulse" : "bg-primary text-primary-foreground"}`}>
+        <div className="absolute top-2 left-2 z-20">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold rounded-full shadow-lg ${isTemporary ? "bg-amber-500 text-white animate-pulse" : "bg-green-500 text-white animate-bounce"}`}>
             {isTemporary ? (
               <>
-                <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+                <div className="h-2.5 w-2.5 rounded-full bg-white animate-pulse" />
                 Salvando...
               </>
             ) : (
-              "Novo"
+              <>
+                <span className="text-base">✨</span>
+                Novo!
+              </>
             )}
           </span>
         </div>
@@ -967,7 +970,19 @@ const VideoPage: React.FC = () => {
           setIsSubmitting(false);
           setTaskUUID(null);
           setElapsedTime(0);
-          toast({ title: "Vídeo pronto", description: "Seu vídeo foi gerado com sucesso." });
+          toast({ 
+            title: "✅ Vídeo pronto!", 
+            description: "Seu vídeo foi gerado e adicionado ao histórico.",
+            action: (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Ver
+              </Button>
+            ),
+          });
           
           // ✅ Salvar o vídeo automaticamente no banco (em background, não bloqueia exibição)
           try {
@@ -1778,7 +1793,7 @@ const VideoPage: React.FC = () => {
           </Card>
 
           {/* Histórico (com mini-virtualização via content-visibility + lazy thumbs) */}
-          <div ref={historyRef} className="order-3 lg:col-span-2" style={{ contentVisibility: "auto" as any, containIntrinsicSize: "500px" }}>
+          <div ref={historyRef} className="order-3 lg:col-span-2">
             <h2 className="text-xl font-bold mb-4">Vídeos Salvos</h2>
             {loadingVideos ? (
               <div className="flex items-center gap-2">
