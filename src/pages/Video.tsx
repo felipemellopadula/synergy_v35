@@ -1002,16 +1002,17 @@ const VideoPage: React.FC = () => {
           if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           if (pollRef.current) window.clearTimeout(pollRef.current);
           
-          // ✅ Limpar estados de processamento PRIMEIRO para desbloquear UI
-          processingRef.current = false; // ✅ Marcar que processamento terminou
-          setIsSubmitting(false);
-          setTaskUUID(null);
-          setElapsedTime(0);
-          
-          // ✅ DEPOIS setar o videoUrl para garantir re-render correto
-          console.log("[Video] Chamando setVideoUrl...");
-          setVideoUrl(videoURL);
-          console.log("[Video] setVideoUrl chamado com sucesso");
+          // ✅ CORRIGIDO: flushSync garante que TODAS as mudanças são aplicadas ATOMICAMENTE
+          // Seta videoUrl PRIMEIRO para evitar fallback para savedVideos[0]
+          console.log("[Video] Aplicando estados atomicamente com flushSync...");
+          flushSync(() => {
+            setVideoUrl(videoURL);     // ✅ PRIMEIRO: setar video novo
+            setIsSubmitting(false);    // ✅ DEPOIS: limpar estados
+            setTaskUUID(null);
+            setElapsedTime(0);
+          });
+          processingRef.current = false;
+          console.log("[Video] Estados aplicados com sucesso");
           toast({ 
             title: "✅ Vídeo pronto!", 
             description: "Seu vídeo foi gerado e está no histórico abaixo.",
@@ -1105,8 +1106,12 @@ const VideoPage: React.FC = () => {
           
           processingRef.current = true;
           setTaskUUID(currentTaskUUID);
-          // Reiniciar o polling para verificar status atual
-          beginPolling(currentTaskUUID);
+          
+          // ✅ NOVO: Delay para garantir que o spinner seja renderizado ANTES do polling
+          // Se o video ja terminou, o usuario pelo menos vera o spinner brevemente
+          setTimeout(() => {
+            beginPolling(currentTaskUUID);
+          }, 150);
         }
       }
     };
