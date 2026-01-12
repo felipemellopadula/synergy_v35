@@ -490,6 +490,24 @@ const VideoPage: React.FC = () => {
     }
   }, [searchParams]);
 
+  // ✅ Listener para visibilitychange: quando usuário volta para a aba, sincroniza estado
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Se temos videoUrl mas ainda mostra como processing, força reset
+        if (videoUrl && (isSubmitting || taskUUID)) {
+          console.log("[Video] Tab voltou visível, forçando reset de estados de processing");
+          setIsSubmitting(false);
+          setTaskUUID(null);
+          setElapsedTime(0);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [videoUrl, isSubmitting, taskUUID]);
+
   // Restrições por modelo (com memo para evitar recalcular)
   const allowedResolutions = useMemo<Resolution[]>(() => RESOLUTIONS_BY_MODEL[modelId] || [], [modelId]);
   const allowedDurations = useMemo<number[]>(() => DURATIONS_BY_MODEL[modelId] || [5], [modelId]);
@@ -981,15 +999,17 @@ const VideoPage: React.FC = () => {
         if (videoURL) {
           console.log("[Video] ✅ Vídeo pronto! URL:", videoURL);
           if (elapsedRef.current) window.clearInterval(elapsedRef.current);
+          if (pollRef.current) window.clearTimeout(pollRef.current);
           
-          // ✅ Atualizar estado IMEDIATAMENTE
-          console.log("[Video] Chamando setVideoUrl...");
-          setVideoUrl(videoURL);
-          console.log("[Video] setVideoUrl chamado com sucesso");
-          
+          // ✅ Limpar estados de processamento PRIMEIRO para desbloquear UI
           setIsSubmitting(false);
           setTaskUUID(null);
           setElapsedTime(0);
+          
+          // ✅ DEPOIS setar o videoUrl para garantir re-render correto
+          console.log("[Video] Chamando setVideoUrl...");
+          setVideoUrl(videoURL);
+          console.log("[Video] setVideoUrl chamado com sucesso");
           toast({ 
             title: "✅ Vídeo pronto!", 
             description: "Seu vídeo foi gerado e está no histórico abaixo.",
@@ -1806,6 +1826,28 @@ const VideoPage: React.FC = () => {
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
                     <p>Processando seu vídeo...</p>
                     <p className="text-sm mt-1">Isso pode levar alguns minutos</p>
+                  </div>
+                </div>
+              ) : savedVideos.length > 0 && savedVideos[0]?.video_url ? (
+                /* Mostra o último vídeo gerado quando não há processamento ativo */
+                <div className="space-y-4">
+                  <video
+                    controls
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="w-full rounded-md border border-border aspect-video bg-black"
+                    src={savedVideos[0].video_url}
+                    key={`last-${savedVideos[0].id}`}
+                  />
+                  <div className="flex gap-3 flex-wrap items-center">
+                    <span className="text-sm text-muted-foreground">Último vídeo gerado</span>
+                    <Button variant="outline" size="sm" onClick={() => handleDownload(savedVideos[0].video_url)}>
+                      <Suspense fallback={<div className="h-4 w-4 rounded bg-muted mr-2" />}>
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                      </Suspense>
+                      Baixar
+                    </Button>
                   </div>
                 </div>
               ) : (
