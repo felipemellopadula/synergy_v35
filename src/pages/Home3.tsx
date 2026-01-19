@@ -636,7 +636,7 @@ const Home3: React.FC = () => {
             <div className="relative flex flex-col lg:flex-row items-center justify-between gap-4 lg:gap-8">
               {/* Texto Principal */}
               <div className="text-center lg:text-left flex-1">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-black text-black leading-tight">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-black text-black leading-tight uppercase">
                   Cansado da IA que "desaprende" no segundo prompt?
                 </h2>
                 <p className="text-sm sm:text-base lg:text-lg text-black/80 mt-3 sm:mt-4 max-w-2xl">
