@@ -72,6 +72,8 @@ const Image2Page = () => {
   const isLoadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isGeneratingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Sincronizar ref com estado para evitar stale closures
   useEffect(() => {
@@ -91,6 +93,15 @@ const Image2Page = () => {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Função para cancelar geração
+  const cancelGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      setIsCancelling(true);
+      abortControllerRef.current.abort();
+      toast.info("Cancelando geração...");
+    }
   }, []);
 
   const currentModel = useMemo(
@@ -243,6 +254,8 @@ const Image2Page = () => {
     }
 
     setIsGenerating(true);
+    setIsCancelling(false);
+    abortControllerRef.current = new AbortController();
     try {
       let finalPrompt = prompt;
       if (magicPromptEnabled) {
@@ -449,6 +462,13 @@ const Image2Page = () => {
         }
       }
     } catch (e: any) {
+      // Verificar se foi cancelamento
+      if (e?.name === 'AbortError' || isCancelling) {
+        console.log("[Image2] Geração cancelada pelo usuário");
+        toast.success("Geração cancelada");
+        return;
+      }
+      
       console.error("Erro no processo de geração de imagem:", e);
       // Tratar erro de créditos insuficientes
       if (e?.message?.includes('insufficient_credits') || e?.status === 402) {
@@ -459,6 +479,8 @@ const Image2Page = () => {
       // Toast já foi mostrado nos handlers específicos acima
     } finally {
       setIsGenerating(false);
+      setIsCancelling(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -860,21 +882,35 @@ const Image2Page = () => {
                 <Sparkles className="h-4 w-4 text-yellow-400" />
               </div>
 
-              {/* Botão Gerar - Estilo Neon */}
-              <Button
-                onClick={() => debounce(generate)}
-                disabled={isGenerating || isDebouncing || !prompt.trim()}
-                className="bg-[#8C00FF] hover:bg-[#6A42C2] text-white font-bold px-8 h-11 shadow-lg shadow-[#FFD700]/20 hover:shadow-[#FFD700]/40 transition-all disabled:opacity-50 disabled:shadow-none min-w-[140px]"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Gerando...
-                  </>
-                ) : (
-                  `Generate +${numberOfImages}`
-                )}
-              </Button>
+              {/* Botão Gerar / Cancelar */}
+              {isGenerating ? (
+                <Button
+                  onClick={cancelGeneration}
+                  disabled={isCancelling}
+                  variant="destructive"
+                  className="font-bold px-8 h-11 min-w-[140px] transition-all"
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    <>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancelar
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => debounce(generate)}
+                  disabled={isDebouncing || !prompt.trim()}
+                  className="bg-[#8C00FF] hover:bg-[#6A42C2] text-white font-bold px-8 h-11 shadow-lg shadow-[#FFD700]/20 hover:shadow-[#FFD700]/40 transition-all disabled:opacity-50 disabled:shadow-none min-w-[140px]"
+                >
+                  {`Generate +${numberOfImages}`}
+                </Button>
+              )}
             </div>
           </div>
         </div>
