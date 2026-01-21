@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef, Suspense, lazy } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -70,6 +71,27 @@ const Image2Page = () => {
   const [isDragging, setIsDragging] = useState(false);
   const isLoadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isGeneratingRef = useRef(false);
+
+  // Sincronizar ref com estado para evitar stale closures
+  useEffect(() => {
+    isGeneratingRef.current = isGenerating;
+  }, [isGenerating]);
+
+  // Restaurar estado visual ao voltar para a aba
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isGeneratingRef.current) {
+        console.log("[Image2] Tab voltou visível, restaurando estado de geração...");
+        flushSync(() => {
+          setIsGenerating(true);
+        });
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const currentModel = useMemo(
     () => MODELS.find(m => m.id === model) || MODELS[0],
