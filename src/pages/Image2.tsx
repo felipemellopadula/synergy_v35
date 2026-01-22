@@ -54,6 +54,21 @@ import {
 } from "@/modules/image";
 import type { DatabaseImage } from "@/modules/image";
 
+// Persistência de estado de geração via sessionStorage
+const GENERATION_STATE_KEY = 'image2_generation_active';
+
+const setGenerationActive = (active: boolean) => {
+  if (active) {
+    sessionStorage.setItem(GENERATION_STATE_KEY, 'true');
+  } else {
+    sessionStorage.removeItem(GENERATION_STATE_KEY);
+  }
+};
+
+const isGenerationActive = (): boolean => {
+  return sessionStorage.getItem(GENERATION_STATE_KEY) === 'true';
+};
+
 const Image2Page = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -64,7 +79,8 @@ const Image2Page = () => {
   const [quality, setQuality] = useState(QUALITY_SETTINGS[0].id);
   const [numberOfImages, setNumberOfImages] = useState(1);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  // Inicializar com valor do sessionStorage para sobreviver a remontagem
+  const [isGenerating, setIsGenerating] = useState(() => isGenerationActive());
   const [magicPromptEnabled, setMagicPromptEnabled] = useState(false);
   const [images, setImages] = useState<DatabaseImage[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -78,38 +94,51 @@ const Image2Page = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Sincronizar ref com estado para evitar stale closures
+  // Sincronizar ref E sessionStorage com estado
   useEffect(() => {
     console.log("[Image2] Estado isGenerating mudou para:", isGenerating);
     isGeneratingRef.current = isGenerating;
     generationInProgressRef.current = isGenerating;
+    setGenerationActive(isGenerating); // Persistir no sessionStorage
   }, [isGenerating]);
+
+  // Verificar se há geração ativa ao montar o componente (após remontagem)
+  useEffect(() => {
+    const isActive = isGenerationActive();
+    console.log("[Image2] Componente montado. sessionStorage generation active:", isActive);
+    
+    if (isActive && !isGenerating) {
+      console.log("[Image2] Restaurando estado de geração do sessionStorage...");
+      flushSync(() => {
+        setIsGenerating(true);
+      });
+      isGeneratingRef.current = true;
+      generationInProgressRef.current = true;
+    }
+  }, []); // Executar apenas na montagem
 
   // Restaurar estado visual ao voltar para a aba
   useEffect(() => {
     const handleVisibilityChange = () => {
       console.log("[Image2] visibilitychange disparou. visibilityState:", document.visibilityState);
-      console.log("[Image2] isGeneratingRef.current:", isGeneratingRef.current);
-      console.log("[Image2] generationInProgressRef.current:", generationInProgressRef.current);
       
       if (document.visibilityState === 'visible') {
-        // Usar OR entre as duas refs para maior segurança
-        const isStillGenerating = isGeneratingRef.current || generationInProgressRef.current;
+        // Verificar sessionStorage como fonte de verdade
+        const isActive = isGenerationActive();
+        console.log("[Image2] sessionStorage generation active:", isActive);
         
-        if (isStillGenerating) {
-          console.log("[Image2] Tab voltou visível com geração ativa, forçando UI...");
+        if (isActive && !isGenerating) {
+          console.log("[Image2] Restaurando estado de geração via sessionStorage...");
           flushSync(() => {
             setIsGenerating(true);
           });
-        } else {
-          console.log("[Image2] Tab voltou visível mas sem geração ativa");
         }
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  }, [isGenerating]);
 
   // Função para cancelar geração
   const cancelGeneration = useCallback(() => {
@@ -500,10 +529,11 @@ const Image2Page = () => {
     } finally {
       setIsGenerating(false);
       setIsCancelling(false);
-      // Limpar AMBAS as refs explicitamente
+      // Limpar refs e sessionStorage
       isGeneratingRef.current = false;
       generationInProgressRef.current = false;
-      console.log("[Image2] Geração finalizada - refs setadas para FALSE");
+      setGenerationActive(false); // Limpar sessionStorage explicitamente
+      console.log("[Image2] Geração finalizada - refs e sessionStorage limpos");
       abortControllerRef.current = null;
     }
   };
