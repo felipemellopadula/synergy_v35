@@ -74,22 +74,36 @@ const Image2Page = () => {
   const isLoadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isGeneratingRef = useRef(false);
+  const generationInProgressRef = useRef(false); // Backup redundante
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
   // Sincronizar ref com estado para evitar stale closures
   useEffect(() => {
+    console.log("[Image2] Estado isGenerating mudou para:", isGenerating);
     isGeneratingRef.current = isGenerating;
+    generationInProgressRef.current = isGenerating;
   }, [isGenerating]);
 
   // Restaurar estado visual ao voltar para a aba
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isGeneratingRef.current) {
-        console.log("[Image2] Tab voltou visível, restaurando estado de geração...");
-        flushSync(() => {
-          setIsGenerating(true);
-        });
+      console.log("[Image2] visibilitychange disparou. visibilityState:", document.visibilityState);
+      console.log("[Image2] isGeneratingRef.current:", isGeneratingRef.current);
+      console.log("[Image2] generationInProgressRef.current:", generationInProgressRef.current);
+      
+      if (document.visibilityState === 'visible') {
+        // Usar OR entre as duas refs para maior segurança
+        const isStillGenerating = isGeneratingRef.current || generationInProgressRef.current;
+        
+        if (isStillGenerating) {
+          console.log("[Image2] Tab voltou visível com geração ativa, forçando UI...");
+          flushSync(() => {
+            setIsGenerating(true);
+          });
+        } else {
+          console.log("[Image2] Tab voltou visível mas sem geração ativa");
+        }
       }
     };
     
@@ -257,6 +271,10 @@ const Image2Page = () => {
 
     setIsGenerating(true);
     setIsCancelling(false);
+    // Setar refs IMEDIATAMENTE, não esperar o useEffect
+    isGeneratingRef.current = true;
+    generationInProgressRef.current = true;
+    console.log("[Image2] Geração iniciada - refs setadas para TRUE");
     abortControllerRef.current = new AbortController();
     try {
       let finalPrompt = prompt;
@@ -482,6 +500,10 @@ const Image2Page = () => {
     } finally {
       setIsGenerating(false);
       setIsCancelling(false);
+      // Limpar AMBAS as refs explicitamente
+      isGeneratingRef.current = false;
+      generationInProgressRef.current = false;
+      console.log("[Image2] Geração finalizada - refs setadas para FALSE");
       abortControllerRef.current = null;
     }
   };
