@@ -10,11 +10,17 @@ import {
   Loader2,
   Check,
   PencilLine,
+  Sparkles,
+  Wand2,
+  Crown,
+  Info,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Sheet, 
   SheetContent, 
@@ -42,12 +48,15 @@ interface CharacterPanelProps {
   characterImages: CharacterImage[];
   isLoading: boolean;
   isUploadingImages: boolean;
+  useMasterAvatar: boolean;
+  onUseMasterAvatarChange: (value: boolean) => void;
   onSelectCharacter: (character: Character | null) => void;
   onCreateCharacter: (name: string, description?: string) => Promise<Character | null>;
   onUpdateCharacter: (id: string, updates: Partial<Pick<Character, 'name' | 'description'>>) => Promise<boolean>;
   onDeleteCharacter: (id: string) => Promise<boolean>;
   onAddImages: (characterId: string, files: File[]) => Promise<number>;
   onRemoveImage: (imageId: string) => Promise<boolean>;
+  onGenerateMasterAvatar: (characterId: string) => Promise<string | null>;
 }
 
 // Componente de card do personagem
@@ -79,7 +88,14 @@ const CharacterCard = ({
         "ring-2 ring-offset-2 ring-offset-background transition-all",
         isSelected ? "ring-primary" : "ring-transparent"
       )}>
-        {character.avatar_url ? (
+        {/* Priorizar master_avatar_url se existir */}
+        {character.master_avatar_url ? (
+          <img 
+            src={character.master_avatar_url} 
+            alt={character.name}
+            className="w-full h-full object-cover"
+          />
+        ) : character.avatar_url ? (
           <img 
             src={character.avatar_url} 
             alt={character.name}
@@ -88,6 +104,12 @@ const CharacterCard = ({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <User className="h-6 w-6 text-muted-foreground" />
+          </div>
+        )}
+        {/* Badge de Master Avatar */}
+        {character.master_avatar_url && (
+          <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5">
+            <Crown className="h-2.5 w-2.5 text-white" />
           </div>
         )}
         {isSelected && (
@@ -151,20 +173,28 @@ const CharacterCard = ({
   );
 };
 
-// Componente de detalhe do personagem (galeria de imagens)
+// Componente de detalhe do personagem (galeria de imagens + Master Avatar)
 const CharacterDetail = ({
   character,
   images,
   isUploading,
+  isGeneratingMaster,
+  useMasterAvatar,
+  onUseMasterAvatarChange,
   onAddImages,
   onRemoveImage,
+  onGenerateMasterAvatar,
   onBack,
 }: {
   character: Character;
   images: CharacterImage[];
   isUploading: boolean;
+  isGeneratingMaster: boolean;
+  useMasterAvatar: boolean;
+  onUseMasterAvatarChange: (value: boolean) => void;
   onAddImages: (files: File[]) => void;
   onRemoveImage: (imageId: string) => void;
+  onGenerateMasterAvatar: () => void;
   onBack: () => void;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -202,6 +232,98 @@ const CharacterDetail = ({
             {images.length}/70 imagens
           </p>
         </div>
+      </div>
+
+      {/* Master Avatar Section */}
+      <div className="p-4 border-b space-y-3">
+        {/* Preview do Master Avatar */}
+        <div className="flex items-start gap-3">
+          <div className={cn(
+            "shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-muted",
+            "ring-2 ring-offset-2 ring-offset-background",
+            character.master_avatar_url ? "ring-violet-500" : "ring-transparent"
+          )}>
+            {character.master_avatar_url ? (
+              <img 
+                src={character.master_avatar_url} 
+                className="w-full h-full object-cover"
+                alt="Master Avatar"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <User className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Crown className="h-4 w-4 text-violet-500" />
+              <span className="text-sm font-medium">Avatar Master</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {character.master_avatar_url 
+                ? 'Referência consolidada para consistência' 
+                : 'Gere um retrato único do personagem'}
+            </p>
+          </div>
+        </div>
+
+        {/* Botão gerar/regenerar */}
+        <Button 
+          onClick={onGenerateMasterAvatar}
+          disabled={isGeneratingMaster || images.length === 0}
+          variant={character.master_avatar_url ? "outline" : "default"}
+          className="w-full"
+          size="sm"
+        >
+          {isGeneratingMaster ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Gerando Avatar...
+            </>
+          ) : character.master_avatar_url ? (
+            <>
+              <Wand2 className="mr-2 h-4 w-4" />
+              Regenerar Avatar
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Gerar Avatar Master
+            </>
+          )}
+        </Button>
+
+        {/* Toggle usar Master Avatar */}
+        {character.master_avatar_url && (
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2">
+              <Switch 
+                id="use-master"
+                checked={useMasterAvatar}
+                onCheckedChange={onUseMasterAvatarChange}
+              />
+              <Label htmlFor="use-master" className="text-xs cursor-pointer">
+                Usar Avatar Master
+              </Label>
+            </div>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-[200px]">
+                  <p className="text-xs">
+                    <strong>Ligado:</strong> Usa apenas o Avatar Master (melhor para modelos com poucas referências)
+                  </p>
+                  <p className="text-xs mt-1">
+                    <strong>Desligado:</strong> Usa múltiplas imagens de referência
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
 
       {/* Upload zone */}
@@ -316,17 +438,21 @@ const CharacterPanelContent = ({
   characterImages,
   isLoading,
   isUploadingImages,
+  useMasterAvatar,
+  onUseMasterAvatarChange,
   onSelectCharacter,
   onCreateCharacter,
   onUpdateCharacter,
   onDeleteCharacter,
   onAddImages,
   onRemoveImage,
+  onGenerateMasterAvatar,
 }: CharacterPanelProps) => {
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [newCharacterName, setNewCharacterName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [isGeneratingMaster, setIsGeneratingMaster] = useState(false);
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
   const [editName, setEditName] = useState('');
 
@@ -358,6 +484,13 @@ const CharacterPanelContent = ({
     setCharacterToDelete(null);
   };
 
+  const handleGenerateMasterAvatar = async () => {
+    if (!selectedCharacter) return;
+    setIsGeneratingMaster(true);
+    await onGenerateMasterAvatar(selectedCharacter.id);
+    setIsGeneratingMaster(false);
+  };
+
   // View de detalhes do personagem
   if (view === 'detail' && selectedCharacter) {
     return (
@@ -365,8 +498,12 @@ const CharacterPanelContent = ({
         character={selectedCharacter}
         images={characterImages}
         isUploading={isUploadingImages}
+        isGeneratingMaster={isGeneratingMaster}
+        useMasterAvatar={useMasterAvatar}
+        onUseMasterAvatarChange={onUseMasterAvatarChange}
         onAddImages={(files) => onAddImages(selectedCharacter.id, files)}
         onRemoveImage={onRemoveImage}
+        onGenerateMasterAvatar={handleGenerateMasterAvatar}
         onBack={() => setView('list')}
       />
     );

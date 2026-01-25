@@ -1094,6 +1094,7 @@ export type Database = {
           description: string | null
           id: string
           image_count: number | null
+          master_avatar_url: string | null
           name: string
           updated_at: string | null
           user_id: string
@@ -1104,6 +1105,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_count?: number | null
+          master_avatar_url?: string | null
           name: string
           updated_at?: string | null
           user_id: string
@@ -1114,6 +1116,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_count?: number | null
+          master_avatar_url?: string | null
           name?: string
           updated_at?: string | null
           user_id?: string

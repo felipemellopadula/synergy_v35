@@ -10,6 +10,7 @@ export interface Character {
   name: string;
   description: string | null;
   avatar_url: string | null;
+  master_avatar_url: string | null;
   image_count: number;
   created_at: string;
   updated_at: string;
@@ -377,7 +378,20 @@ export const useCharacters = () => {
   const getImageAsBase64 = useCallback(async (imageUrl: string): Promise<string | null> => {
     try {
       const response = await fetch(imageUrl);
+      
+      // ✅ Validar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        console.error(`[Character] Falha ao buscar imagem: ${response.status} ${response.statusText}`);
+        return null;
+      }
+      
       const blob = await response.blob();
+      
+      // Verificar se o blob é válido
+      if (!blob || blob.size === 0) {
+        console.error('[Character] Blob vazio ou inválido');
+        return null;
+      }
       
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -387,11 +401,14 @@ export const useCharacters = () => {
           const base64 = result.split(',')[1];
           resolve(base64);
         };
-        reader.onerror = reject;
+        reader.onerror = () => {
+          console.error('[Character] Erro no FileReader:', reader.error);
+          reject(reader.error);
+        };
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error('Erro ao converter imagem para base64:', error);
+      console.error('[Character] Erro ao converter imagem para base64:', error);
       return null;
     }
   }, []);
@@ -413,6 +430,136 @@ export const useCharacters = () => {
     return base64Images;
   }, [selectedCharacter, characterImages, getImageAsBase64]);
 
+  // Gerar Avatar Master consolidado
+  const generateMasterAvatar = useCallback(async (characterId: string): Promise<string | null> => {
+    if (!user) {
+      toast.error('Você precisa estar logado');
+      return null;
+    }
+
+    const character = characters.find(c => c.id === characterId);
+    if (!character) {
+      toast.error('Personagem não encontrado');
+      return null;
+    }
+
+    try {
+      // Buscar imagens do personagem
+      const { data: images } = await supabase
+        .from('user_character_images')
+        .select('image_url')
+        .eq('character_id', characterId)
+        .order('order_index', { ascending: true })
+        .limit(14); // Máximo do Google Nano Banana 2 Pro
+
+      if (!images || images.length === 0) {
+        toast.error('Adicione pelo menos uma imagem ao personagem');
+        return null;
+      }
+
+      console.log(`[Character] Gerando Master Avatar com ${images.length} imagens...`);
+
+      // Converter para base64
+      const base64Images: string[] = [];
+      for (const img of images) {
+        const b64 = await getImageAsBase64(img.image_url);
+        if (b64) base64Images.push(b64);
+      }
+
+      if (base64Images.length === 0) {
+        toast.error('Erro ao processar imagens do personagem');
+        return null;
+      }
+
+      // Gerar avatar master usando o modelo com mais capacidade de referência
+      const { data, error } = await supabase.functions.invoke('edit-image', {
+        body: {
+          model: 'google:4@2', // Nano Banana 2 Pro (até 14 refs)
+          positivePrompt: `Create a high-quality portrait reference image of this person. 
+            Maintain exact facial features, face shape, skin tone, hair color and style. 
+            Professional lighting, neutral expression, front-facing view.
+            This will be used as a master reference for consistent character generation.`,
+          inputImages: base64Images,
+          width: 1024,
+          height: 1024,
+        }
+      });
+
+      if (error) {
+        console.error('[Character] Erro ao gerar Master Avatar:', error);
+        toast.error('Erro ao gerar Avatar Master');
+        return null;
+      }
+
+      if (!data?.image) {
+        toast.error('Erro ao gerar Avatar Master');
+        return null;
+      }
+
+      // Converter base64 para Blob
+      const base64Data = data.image.startsWith('data:') 
+        ? data.image.split(',')[1] 
+        : data.image;
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'image/png' });
+
+      // Salvar no storage
+      const fileName = `characters/${user.id}/${characterId}/master-avatar.png`;
+      
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('images')
+        .upload(fileName, blob, { 
+          upsert: true,
+          contentType: 'image/png',
+          cacheControl: '31536000'
+        });
+
+      if (storageError) {
+        console.error('[Character] Erro ao salvar Master Avatar:', storageError);
+        toast.error('Erro ao salvar Avatar Master');
+        return null;
+      }
+
+      // Obter URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(storageData.path);
+
+      // Atualizar no banco
+      const { error: updateError } = await supabase
+        .from('user_characters')
+        .update({ master_avatar_url: publicUrl })
+        .eq('id', characterId);
+
+      if (updateError) {
+        console.error('[Character] Erro ao atualizar personagem:', updateError);
+        toast.error('Erro ao atualizar personagem');
+        return null;
+      }
+
+      // Atualizar estado local
+      setCharacters(prev => 
+        prev.map(c => c.id === characterId ? { ...c, master_avatar_url: publicUrl } as Character : c)
+      );
+      
+      if (selectedCharacter?.id === characterId) {
+        setSelectedCharacterState(prev => prev ? { ...prev, master_avatar_url: publicUrl } as Character : null);
+      }
+
+      console.log('[Character] ✅ Master Avatar gerado com sucesso:', publicUrl);
+      toast.success('Avatar Master gerado com sucesso!');
+      return publicUrl;
+    } catch (error) {
+      console.error('[Character] Erro inesperado ao gerar Master Avatar:', error);
+      toast.error('Erro ao gerar Avatar Master');
+      return null;
+    }
+  }, [user, characters, selectedCharacter?.id, getImageAsBase64]);
+
   return {
     // Estado
     characters,
@@ -429,9 +576,11 @@ export const useCharacters = () => {
     addImages,
     removeImage,
     reorderImages,
+    generateMasterAvatar,
     
     // Helpers
     getCharacterImagesAsBase64,
+    getImageAsBase64,
     loadCharacters,
   };
 };

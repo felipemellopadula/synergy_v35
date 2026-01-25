@@ -93,7 +93,12 @@ const Image2Page = () => {
     addImages: addCharacterImages,
     removeImage: removeCharacterImage,
     getCharacterImagesAsBase64,
+    getImageAsBase64,
+    generateMasterAvatar,
   } = useCharacters();
+  
+  // Estado para controlar uso do Master Avatar
+  const [useMasterAvatar, setUseMasterAvatar] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
   const [quality, setQuality] = useState(QUALITY_SETTINGS[0].id);
@@ -392,16 +397,27 @@ const Image2Page = () => {
 
       // Se há personagem selecionado, adicionar imagens como referência
       if (selectedCharacter && characterImages.length > 0) {
-        // Calcular slots disponíveis (limite do modelo menos imagens anexadas manualmente)
-        const availableSlots = Math.max(0, maxImages - inputImagesBase64.length);
-        
-        if (availableSlots > 0) {
-          console.log(`🎭 Personagem "${selectedCharacter.name}" selecionado. Adicionando até ${availableSlots} referências...`);
-          const characterBase64 = await getCharacterImagesAsBase64(availableSlots);
-          console.log(`✅ ${characterBase64.length} imagens do personagem adicionadas como referência`);
-          inputImagesBase64.push(...characterBase64);
-        } else {
-          console.log(`⚠️ Sem slots disponíveis para imagens do personagem (${inputImagesBase64.length}/${maxImages} usados)`);
+        // Prioridade 1: Usar Master Avatar se existir e estiver habilitado
+        if (useMasterAvatar && selectedCharacter.master_avatar_url) {
+          console.log(`🎭 Usando Master Avatar do personagem "${selectedCharacter.name}"`);
+          const masterBase64 = await getImageAsBase64(selectedCharacter.master_avatar_url);
+          if (masterBase64) {
+            inputImagesBase64.unshift(masterBase64); // Adicionar como primeira referência
+          }
+        } 
+        // Fallback: Usar múltiplas imagens do personagem
+        else {
+          // Calcular slots disponíveis (limite do modelo menos imagens anexadas manualmente)
+          const availableSlots = Math.max(0, maxImages - inputImagesBase64.length);
+          
+          if (availableSlots > 0) {
+            console.log(`🎭 Personagem "${selectedCharacter.name}" selecionado. Adicionando até ${availableSlots} referências...`);
+            const characterBase64 = await getCharacterImagesAsBase64(availableSlots);
+            console.log(`✅ ${characterBase64.length} imagens do personagem adicionadas como referência`);
+            inputImagesBase64.push(...characterBase64);
+          } else {
+            console.log(`⚠️ Sem slots disponíveis para imagens do personagem (${inputImagesBase64.length}/${maxImages} usados)`);
+          }
         }
       }
 
@@ -739,12 +755,15 @@ const Image2Page = () => {
                 characterImages={characterImages}
                 isLoading={isLoadingCharacters}
                 isUploadingImages={isUploadingImages}
+                useMasterAvatar={useMasterAvatar}
+                onUseMasterAvatarChange={setUseMasterAvatar}
                 onSelectCharacter={selectCharacter}
                 onCreateCharacter={createCharacter}
                 onUpdateCharacter={updateCharacter}
                 onDeleteCharacter={deleteCharacter}
                 onAddImages={addCharacterImages}
                 onRemoveImage={removeCharacterImage}
+                onGenerateMasterAvatar={generateMasterAvatar}
               />
             </div>
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
@@ -763,12 +782,15 @@ const Image2Page = () => {
           characterImages={characterImages}
           isLoading={isLoadingCharacters}
           isUploadingImages={isUploadingImages}
+          useMasterAvatar={useMasterAvatar}
+          onUseMasterAvatarChange={setUseMasterAvatar}
           onSelectCharacter={selectCharacter}
           onCreateCharacter={createCharacter}
           onUpdateCharacter={updateCharacter}
           onDeleteCharacter={deleteCharacter}
           onAddImages={addCharacterImages}
           onRemoveImage={removeCharacterImage}
+          onGenerateMasterAvatar={generateMasterAvatar}
         />
 
         {/* Grid de Imagens */}
