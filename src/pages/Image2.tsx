@@ -441,6 +441,26 @@ const Image2Page = () => {
         });
         if (editError) {
           console.error("Erro detalhado ao editar imagem:", editError);
+          
+          // Verificar se é erro de moderação de conteúdo
+          const errorMessage = editError.message || JSON.stringify(editError);
+          if (errorMessage.includes('invalidProviderContent') || 
+              errorMessage.includes('content moderation') || 
+              errorMessage.includes('Explicit content blocked')) {
+            toast.error("Conteúdo bloqueado", {
+              description: "Seu prompt foi bloqueado pelo sistema de moderação. Por favor, reformule sua descrição.",
+            });
+            throw editError;
+          }
+          
+          // Verificar se é erro de créditos
+          if (errorMessage.includes('402') || errorMessage.includes('insufficient_credits')) {
+            toast.error("Créditos insuficientes", {
+              description: "Você não tem créditos suficientes. Por favor, adquira mais créditos.",
+            });
+            throw editError;
+          }
+          
           toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw editError;
         }
