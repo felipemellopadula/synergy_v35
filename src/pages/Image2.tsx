@@ -697,20 +697,33 @@ const Image2Page = () => {
 
   const shareImage = async (image: DatabaseImage) => {
     const { data: publicData } = supabase.storage.from("images").getPublicUrl(image.image_path);
+    const url = publicData.publicUrl;
 
+    // Tentar usar Web Share API, mas fazer fallback para clipboard se falhar
     if (navigator.share) {
       try {
         await navigator.share({
           title: "Imagem gerada por IA",
           text: image.prompt || "Confira esta imagem gerada por IA",
-          url: publicData.publicUrl,
+          url: url,
         });
-      } catch (error) {
-        console.log("Erro ao compartilhar:", error);
+        return; // Sucesso - não precisa do fallback
+      } catch (error: any) {
+        // Se o usuário cancelou, não mostrar nada
+        if (error.name === 'AbortError') {
+          return;
+        }
+        // Para outros erros (como Permission denied no iframe), usar fallback
+        console.log("Share API indisponível, usando fallback:", error.name);
       }
-    } else {
-      await navigator.clipboard.writeText(publicData.publicUrl);
+    }
+    
+    // Fallback: copiar link para clipboard
+    try {
+      await navigator.clipboard.writeText(url);
       toast.success("Link copiado para a área de transferência");
+    } catch (clipboardError) {
+      toast.error("Não foi possível compartilhar ou copiar o link");
     }
   };
 
