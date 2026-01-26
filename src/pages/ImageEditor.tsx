@@ -180,10 +180,13 @@ const ImageEditor = () => {
       // Extract base64 from data URL
       const base64Image = uploadedImage.split(",")[1] || uploadedImage;
 
-      const { data, error } = await supabase.functions.invoke("edit-image-nano-banana", {
+      const { data, error } = await supabase.functions.invoke("edit-image", {
         body: {
-          prompt: fullPrompt,
-          imageBase64: base64Image,
+          model: "google:4@2", // Nano Banana 2 Pro via Runware
+          positivePrompt: fullPrompt,
+          inputImages: [base64Image],
+          width: 1024,
+          height: 1024,
         },
       });
 
@@ -198,6 +201,13 @@ const ImageEditor = () => {
       }
     } catch (error: any) {
       console.error("Erro ao editar imagem:", error);
+      
+      // Tratamento específico para erro de créditos
+      if (error.message?.includes('402') || error.message?.includes('insufficient') || error.message?.includes('payment')) {
+        toast.error("Créditos insuficientes. Por favor, adquira mais créditos.");
+        return;
+      }
+      
       toast.error(error.message || "Erro ao processar imagem");
     } finally {
       setIsProcessing(false);
