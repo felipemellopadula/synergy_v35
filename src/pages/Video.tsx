@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptInput } from "@/components/PromptInput";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -1454,12 +1454,14 @@ const VideoPage: React.FC = () => {
 
               <div>
                 <Label htmlFor="prompt">Descrição (prompt)</Label>
-                <Textarea
-                  id="prompt"
-                  placeholder="Descreva a cena, movimentos de câmera, estilo..."
+                <PromptInput
                   value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  disabled={isProcessing}
+                  onChange={setPrompt}
+                  onSubmit={() => debounce(startGeneration)}
+                  disabled={isDebouncing}
+                  isGenerating={isProcessing}
+                  placeholder="Descreva a cena, movimentos de câmera, estilo..."
+                  lang="pt-BR"
                 />
               </div>
 

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useButtonDebounce } from "@/hooks/useButtonDebounce";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptInput } from "@/components/PromptInput";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -951,38 +951,19 @@ const Image2Page = () => {
           )}
 
           <div className="flex flex-col lg:flex-row items-end gap-3">
-            {/* Textarea com Tooltip durante geração */}
+            {/* PromptInput com microfone e ENTER para enviar */}
             <div className="flex-1 w-full">
-              <TooltipProvider>
-                <Tooltip open={isGenerating ? undefined : false}>
-                  <TooltipTrigger asChild>
-                    <div className="relative">
-                      <Textarea
-                        placeholder="Describe the scene you imagine"
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        rows={1}
-                        className={cn(
-                          "resize-none bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:bg-white/10 focus:border-white/20 min-h-[44px] pr-10",
-                          isGenerating && "cursor-not-allowed opacity-70 border-[#8C00FF]/50 animate-pulse"
-                        )}
-                        disabled={isGenerating}
-                      />
-                      {isGenerating && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <Loader2 className="h-4 w-4 animate-spin text-[#8C00FF]" />
-                        </div>
-                      )}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent 
-                    side="top" 
-                    className="bg-[#8C00FF] text-white border-none"
-                  >
-                    <p>Imagem sendo gerada. Aguarde...</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <PromptInput
+                value={prompt}
+                onChange={setPrompt}
+                onSubmit={() => debounce(generate)}
+                disabled={isDebouncing}
+                isGenerating={isGenerating}
+                placeholder="Describe the scene you imagine"
+                lang="en-US"
+                rows={1}
+                textareaClassName="bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:bg-white/10 focus:border-white/20"
+              />
             </div>
 
             {/* Controles Inline - Estilo Higgsfield */}

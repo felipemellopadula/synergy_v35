@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Sparkles, FileText, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { PromptInput } from '@/components/PromptInput';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -131,12 +131,15 @@ export const StoryBuilderInput: React.FC<StoryBuilderInputProps> = ({
           Descreva sua história ou cole um roteiro. A IA dividirá automaticamente em cenas.
         </p>
         
-        <Textarea
-          placeholder="Ex: Um homem caminha sozinho por uma floresta nebulosa ao amanhecer. Ele para e observa um cervo distante. O cervo foge e o homem continua sua jornada até encontrar uma cabana antiga..."
+        <PromptInput
           value={storyText}
-          onChange={(e) => setStoryText(e.target.value)}
-          className="min-h-[150px] resize-none"
+          onChange={setStoryText}
+          onSubmit={handleGenerate}
           disabled={isGenerating}
+          isGenerating={isGenerating}
+          placeholder="Ex: Um homem caminha sozinho por uma floresta nebulosa ao amanhecer. Ele para e observa um cervo distante. O cervo foge e o homem continua sua jornada até encontrar uma cabana antiga..."
+          rows={5}
+          lang="pt-BR"
         />
       </div>
 
