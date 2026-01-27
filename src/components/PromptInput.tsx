@@ -17,7 +17,7 @@ interface PromptInputProps {
   className?: string;
   textareaClassName?: string;
   rows?: number;
-  lang?: string; // Idioma para speech recognition (default: pt-BR)
+  lang?: string;
 }
 
 export const PromptInput: React.FC<PromptInputProps> = ({
@@ -34,6 +34,24 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastTranscriptRef = useRef('');
+  const pendingSubmitRef = useRef(false);
+  const baseValueRef = useRef(''); // Valor base antes de começar a gravar
+  
+  // Callback quando a fala termina - dispara geração automaticamente
+  const handleSpeechEnd = useCallback((finalText: string) => {
+    if (finalText && !disabled && !isGenerating) {
+      // Atualizar o valor com o texto final (usando valor base)
+      const newValue = baseValueRef.current.trim() 
+        ? `${baseValueRef.current} ${finalText}` 
+        : finalText;
+      onChange(newValue);
+      
+      // Marcar para submeter no próximo ciclo
+      pendingSubmitRef.current = true;
+      
+      toast.success('🎤 Voz capturada! Gerando...', { duration: 1500 });
+    }
+  }, [onChange, disabled, isGenerating]);
   
   const { 
     isListening, 
@@ -43,17 +61,34 @@ export const PromptInput: React.FC<PromptInputProps> = ({
     transcript,
     resetTranscript,
     error 
-  } = useSpeechToText({ lang });
+  } = useSpeechToText({ 
+    lang,
+    autoStopOnSilence: true,
+    silenceTimeout: 1500,
+    onSpeechEnd: handleSpeechEnd,
+  });
 
-  // Quando a transcrição muda, adiciona ao prompt
+  // Efeito para submeter após o valor ser atualizado pela voz
   useEffect(() => {
-    if (transcript && transcript !== lastTranscriptRef.current) {
+    if (pendingSubmitRef.current && value.trim() && !disabled && !isGenerating) {
+      pendingSubmitRef.current = false;
+      setTimeout(() => {
+        onSubmit();
+      }, 100);
+    }
+  }, [value, onSubmit, disabled, isGenerating]);
+
+  // Quando a transcrição muda durante a fala, atualiza o preview em tempo real
+  useEffect(() => {
+    if (transcript && transcript !== lastTranscriptRef.current && isListening) {
       lastTranscriptRef.current = transcript;
-      // Adiciona o texto transcrito ao valor atual
-      const newValue = value.trim() ? `${value} ${transcript}` : transcript;
+      // Atualiza preview em tempo real usando valor base
+      const newValue = baseValueRef.current.trim() 
+        ? `${baseValueRef.current} ${transcript}` 
+        : transcript;
       onChange(newValue);
     }
-  }, [transcript, value, onChange]);
+  }, [transcript, onChange, isListening]);
 
   // Mostrar erro de microfone
   useEffect(() => {
@@ -70,19 +105,21 @@ export const PromptInput: React.FC<PromptInputProps> = ({
         onSubmit();
       }
     }
-    // SHIFT+ENTER permite quebra de linha naturalmente (comportamento padrão)
   }, [disabled, isGenerating, value, onSubmit]);
 
   const toggleMicrophone = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
+      // Salvar valor atual como base
+      baseValueRef.current = value;
       lastTranscriptRef.current = '';
+      pendingSubmitRef.current = false;
       resetTranscript();
       startListening();
-      toast.info('🎤 Gravando... Fale agora', { duration: 2000 });
+      toast.info('🎤 Gravando... Pare de falar para gerar', { duration: 2500 });
     }
-  }, [isListening, startListening, stopListening, resetTranscript]);
+  }, [isListening, startListening, stopListening, resetTranscript, value]);
 
   const isDisabled = disabled || isGenerating;
 
@@ -127,7 +164,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                     )}
                     onClick={toggleMicrophone}
                     disabled={isDisabled}
-                    title={isListening ? "Parar gravação" : "Gravar voz (ENTER para enviar)"}
+                    title={isListening ? "Parar gravação" : "Gravar voz (para de falar para gerar)"}
                   >
                     {isListening ? (
                       <MicOff className="h-4 w-4" />
@@ -149,7 +186,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
       {isListening && (
         <div className="absolute -bottom-6 left-0 text-xs text-red-500 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          Gravando... Fale agora
+          Gravando... Pare de falar para gerar
         </div>
       )}
     </div>

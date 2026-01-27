@@ -56,7 +56,10 @@ declare global {
 interface UseSpeechToTextOptions {
   lang?: string;
   continuous?: boolean;
+  autoStopOnSilence?: boolean; // Para automaticamente quando detecta silêncio
+  silenceTimeout?: number; // Tempo em ms para considerar silêncio (default: 1500ms)
   onTranscript?: (text: string) => void;
+  onSpeechEnd?: (finalText: string) => void; // Callback quando a fala termina
   onError?: (error: string) => void;
 }
 
@@ -71,16 +74,54 @@ interface UseSpeechToTextReturn {
 }
 
 export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeechToTextReturn {
-  const { lang = 'pt-BR', continuous = true, onTranscript, onError } = options;
+  const { 
+    lang = 'pt-BR', 
+    continuous = false, // Mudei para false por padrão (para auto-stop)
+    autoStopOnSilence = true,
+    silenceTimeout = 1500,
+    onTranscript, 
+    onSpeechEnd,
+    onError 
+  } = options;
   
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const transcriptRef = useRef('');
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasSpokenRef = useRef(false);
 
   const isSupported = typeof window !== 'undefined' && 
     (typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined');
+  
+  // Limpar timer de silêncio
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  // Parar reconhecimento e disparar callback
+  const handleSpeechEnd = useCallback(() => {
+    clearSilenceTimer();
+    
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignorar erro se já estiver parado
+      }
+    }
+    
+    setIsListening(false);
+    
+    // Só dispara callback se tiver texto transcrito
+    if (transcriptRef.current.trim()) {
+      onSpeechEnd?.(transcriptRef.current.trim());
+    }
+  }, [clearSilenceTimer, onSpeechEnd]);
 
   useEffect(() => {
     if (!isSupported) return;
@@ -96,18 +137,38 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
 
     recognition.onresult = (event: SpeechRecognitionEventCustom) => {
       let finalTranscript = '';
+      let hasInterim = false;
       
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
           finalTranscript += result[0].transcript;
+        } else {
+          hasInterim = true;
         }
       }
       
       if (finalTranscript) {
+        hasSpokenRef.current = true;
         transcriptRef.current += (transcriptRef.current ? ' ' : '') + finalTranscript.trim();
         setTranscript(transcriptRef.current);
         onTranscript?.(transcriptRef.current);
+        
+        // Resetar timer de silêncio quando há resultado final
+        if (autoStopOnSilence) {
+          clearSilenceTimer();
+          silenceTimerRef.current = setTimeout(() => {
+            handleSpeechEnd();
+          }, silenceTimeout);
+        }
+      }
+      
+      // Se está processando áudio (interim) mas ainda sem resultado final, resetar timer
+      if (hasInterim && autoStopOnSilence) {
+        clearSilenceTimer();
+        silenceTimerRef.current = setTimeout(() => {
+          handleSpeechEnd();
+        }, silenceTimeout);
       }
     };
 
@@ -120,8 +181,10 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
           errorMessage = 'Permissão de microfone negada';
           break;
         case 'no-speech':
-          errorMessage = 'Nenhuma fala detectada';
-          break;
+          // Se não detectou fala, não mostrar erro - apenas parar silenciosamente
+          clearSilenceTimer();
+          setIsListening(false);
+          return;
         case 'audio-capture':
           errorMessage = 'Microfone não encontrado';
           break;
@@ -133,23 +196,31 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
           return;
       }
       
+      clearSilenceTimer();
       setError(errorMessage);
       setIsListening(false);
       onError?.(errorMessage);
     };
 
     recognition.onend = () => {
+      clearSilenceTimer();
       setIsListening(false);
+      
+      // Se tinha texto e parou naturalmente, dispara callback
+      if (hasSpokenRef.current && transcriptRef.current.trim()) {
+        onSpeechEnd?.(transcriptRef.current.trim());
+      }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
+      clearSilenceTimer();
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
     };
-  }, [isSupported, lang, continuous, onTranscript, onError]);
+  }, [isSupported, lang, continuous, autoStopOnSilence, silenceTimeout, onTranscript, onSpeechEnd, onError, clearSilenceTimer, handleSpeechEnd]);
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current || isListening) return;
@@ -157,6 +228,8 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
     setError(null);
     transcriptRef.current = '';
     setTranscript('');
+    hasSpokenRef.current = false;
+    clearSilenceTimer();
     
     try {
       recognitionRef.current.start();
@@ -165,10 +238,12 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
       // Pode falhar se já estiver escutando
       console.error('Erro ao iniciar reconhecimento:', e);
     }
-  }, [isListening]);
+  }, [isListening, clearSilenceTimer]);
 
   const stopListening = useCallback(() => {
     if (!recognitionRef.current) return;
+    
+    clearSilenceTimer();
     
     try {
       recognitionRef.current.stop();
@@ -177,7 +252,7 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
       console.error('Erro ao parar reconhecimento:', e);
     }
     setIsListening(false);
-  }, []);
+  }, [clearSilenceTimer]);
 
   const resetTranscript = useCallback(() => {
     transcriptRef.current = '';
