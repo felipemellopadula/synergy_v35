@@ -959,8 +959,8 @@ const Image2Page = () => {
                 onSubmit={() => debounce(generate)}
                 disabled={isDebouncing}
                 isGenerating={isGenerating}
-                placeholder="Describe the scene you imagine"
-                lang="en-US"
+                placeholder="Descreva a cena que você imagina"
+                lang="pt-BR"
                 rows={1}
                 textareaClassName="bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:bg-white/10 focus:border-white/20"
               />
