@@ -100,6 +100,8 @@ const Image2Page = () => {
   
   // Estado para controlar uso do Master Avatar
   const [useMasterAvatar, setUseMasterAvatar] = useState(true);
+  // Estado para controlar visibilidade do painel de personagens (desktop)
+  const [showCharacterPanel, setShowCharacterPanel] = useState(true);
   const [prompt, setPrompt] = useState("");
   const [model, setModel] = useState(MODELS[0].id);
   const [quality, setQuality] = useState(QUALITY_SETTINGS[0].id);
@@ -803,6 +805,9 @@ const Image2Page = () => {
           onAddImages={addCharacterImages}
           onRemoveImage={removeCharacterImage}
           onGenerateMasterAvatar={generateMasterAvatar}
+          isOpen={showCharacterPanel}
+          onClose={() => setShowCharacterPanel(false)}
+          onOpen={() => setShowCharacterPanel(true)}
         />
 
         {/* Grid de Imagens */}

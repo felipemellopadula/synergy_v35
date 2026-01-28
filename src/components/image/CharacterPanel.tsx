@@ -57,6 +57,10 @@ interface CharacterPanelProps {
   onAddImages: (characterId: string, files: File[]) => Promise<number>;
   onRemoveImage: (imageId: string) => Promise<boolean>;
   onGenerateMasterAvatar: (characterId: string) => Promise<string | null>;
+  // Controle de visibilidade do painel (desktop)
+  isOpen?: boolean;
+  onClose?: () => void;
+  onOpen?: () => void;
 }
 
 // Componente de card do personagem
@@ -447,6 +451,7 @@ const CharacterPanelContent = ({
   onAddImages,
   onRemoveImage,
   onGenerateMasterAvatar,
+  onClose,
 }: CharacterPanelProps) => {
   const [view, setView] = useState<'list' | 'detail'>('list');
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
@@ -514,10 +519,23 @@ const CharacterPanelContent = ({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b">
-        <h2 className="font-semibold text-lg flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Personagens
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-lg flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Personagens
+          </h2>
+          {/* Botão fechar - apenas desktop */}
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 -mr-2"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground mt-1">
           Mantenha consistência visual nas gerações
         </p>
@@ -669,10 +687,32 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
     );
   }
 
-  // Desktop: Sidebar colapsável
+  // Desktop: Sidebar colapsável com controle de visibilidade
+  const isPanelOpen = props.isOpen ?? true;
+
   return (
-    <div className="hidden lg:flex flex-col w-[280px] border-r bg-card/50 shrink-0">
-      <CharacterPanelContent {...props} />
-    </div>
+    <>
+      {/* Botão para reabrir quando fechado */}
+      {!isPanelOpen && props.onOpen && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="hidden lg:flex fixed left-0 top-1/2 -translate-y-1/2 z-40 
+                     bg-card border shadow-lg rounded-l-none rounded-r-lg h-auto py-3 px-2 flex-col gap-1"
+          onClick={props.onOpen}
+        >
+          <User className="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+      
+      {/* Sidebar com animação */}
+      <div className={cn(
+        "hidden lg:flex flex-col border-r bg-card/50 shrink-0 transition-all duration-300 overflow-hidden",
+        isPanelOpen ? "w-[280px]" : "w-0"
+      )}>
+        <CharacterPanelContent {...props} />
+      </div>
+    </>
   );
 };
