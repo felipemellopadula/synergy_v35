@@ -796,37 +796,6 @@ const Image2Page = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Botão de personagem no mobile */}
-            <div className="lg:hidden">
-              <CharacterPanel
-                characters={characters}
-                selectedCharacter={selectedCharacter}
-                characterImages={characterImages}
-                isLoading={isLoadingCharacters}
-                isUploadingImages={isUploadingImages}
-                useMasterAvatar={useMasterAvatar}
-                onUseMasterAvatarChange={setUseMasterAvatar}
-                onSelectCharacter={selectCharacter}
-                onCreateCharacter={createCharacter}
-                onUpdateCharacter={updateCharacter}
-                onDeleteCharacter={deleteCharacter}
-                onAddImages={addCharacterImages}
-                onRemoveImage={removeCharacterImage}
-                onGenerateMasterAvatar={generateMasterAvatar}
-                // Moodboard props
-                moodboards={moodboards}
-                selectedMoodboard={selectedMoodboard}
-                moodboardImages={moodboardImages}
-                isLoadingMoodboards={isLoadingMoodboards}
-                isUploadingMoodboardImages={isUploadingMoodboardImages}
-                onSelectMoodboard={selectMoodboard}
-                onCreateMoodboard={createMoodboard}
-                onUpdateMoodboard={updateMoodboardData}
-                onDeleteMoodboard={deleteMoodboard}
-                onAddMoodboardImages={addMoodboardImages}
-                onRemoveMoodboardImage={removeMoodboardImage}
-              />
-            </div>
             <Suspense fallback={<div className="h-8 w-8 rounded-full bg-muted animate-pulse" />}>
               <UserProfile />
             </Suspense>
