@@ -1,58 +1,73 @@
 
-# Plano: Remover Botão de Moodboard da Barra Inferior
+# Plano: Remover Botão Duplicado de Personagem no Mobile
 
-## Problema
+## Problema Identificado
 
-O botão "Moodboard" na barra inferior está ocupando espaço excessivo e "espremendo" os outros controles (seletores de modelo, qualidade, quantidade, etc.).
+Na versão mobile existem dois botões "Personagem" porque:
 
-## Solução
+1. **Linha 800-828**: Um `CharacterPanel` está dentro de um `div` com `lg:hidden` (aparece só no mobile)
+2. **Linha 840-870**: Outro `CharacterPanel` é renderizado como sidebar, mas sem restrição de visibilidade
 
-Remover o componente `MoodboardPanel` da barra de controles inferior.
-
-**Nota:** O sistema de moodboards continuará funcionando - o usuário ainda terá acesso:
-- Via `SelectedMoodboardBadge` que aparece quando um moodboard está selecionado
-- O moodboard selecionado é persistido no localStorage e recarregado automaticamente
+O segundo `CharacterPanel` detecta que está no mobile (via `useIsMobile()`) e renderiza seu próprio botão `SheetTrigger`, causando a duplicação.
 
 ---
 
-## Arquivo a Modificar
+## Análise do Fluxo
 
-### `src/pages/Image2.tsx`
-
-**Remover linhas 1104-1119:**
-
-```tsx
-// REMOVER este bloco:
-{/* Moodboard - apenas para modelos suportados */}
-{currentModel?.supportsMoodboard && (
-  <MoodboardPanel
-    moodboards={moodboards}
-    selectedMoodboard={selectedMoodboard}
-    moodboardImages={moodboardImages}
-    isLoading={isLoadingMoodboards}
-    isUploadingImages={isUploadingMoodboardImages}
-    onSelectMoodboard={selectMoodboard}
-    onCreateMoodboard={createMoodboard}
-    onUpdateMoodboard={updateMoodboardData}
-    onDeleteMoodboard={deleteMoodboard}
-    onAddImages={addMoodboardImages}
-    onRemoveImage={removeMoodboardImage}
-  />
-)}
+```text
+Mobile View:
+├─ Header
+│   └─ div.lg:hidden
+│       └─ CharacterPanel → detecta mobile → renderiza botão "Personagem"  ← BOTÃO 1
+│
+└─ Layout Principal
+    └─ CharacterPanel → detecta mobile → renderiza botão "Personagem"  ← BOTÃO 2 (DUPLICADO)
 ```
 
 ---
 
-## Também Remover (Limpeza)
+## Solução
 
-1. **Import do MoodboardPanel** (linha ~40):
-   ```tsx
-   import { MoodboardPanel } from '@/components/image/MoodboardPanel';
-   ```
+Remover o `CharacterPanel` duplicado do header mobile. O `CharacterPanel` da sidebar (linha 840) já lida corretamente com ambos os casos (desktop=sidebar, mobile=botão sheet).
 
-2. **Variáveis não utilizadas do useMoodboards hook** - manter apenas o necessário para o `SelectedMoodboardBadge`:
-   - Manter: `selectedMoodboard`, `selectMoodboard`, `moodboardImages`, `getMoodboardImagesAsBase64`
-   - Remover da desestruturação: `moodboards`, `isLoading: isLoadingMoodboards`, `isUploadingImages: isUploadingMoodboardImages`, `createMoodboard`, `updateMoodboard`, `deleteMoodboard`, `addImages`, `removeImage`
+### Arquivo: `src/pages/Image2.tsx`
+
+**Remover linhas 799-829** (o bloco completo do CharacterPanel no header mobile):
+
+```tsx
+// REMOVER este bloco inteiro:
+{/* Botão de personagem no mobile */}
+<div className="lg:hidden">
+  <CharacterPanel
+    characters={characters}
+    selectedCharacter={selectedCharacter}
+    characterImages={characterImages}
+    isLoading={isLoadingCharacters}
+    isUploadingImages={isUploadingImages}
+    useMasterAvatar={useMasterAvatar}
+    onUseMasterAvatarChange={setUseMasterAvatar}
+    onSelectCharacter={selectCharacter}
+    onCreateCharacter={createCharacter}
+    onUpdateCharacter={updateCharacter}
+    onDeleteCharacter={deleteCharacter}
+    onAddImages={addCharacterImages}
+    onRemoveImage={removeCharacterImage}
+    onGenerateMasterAvatar={generateMasterAvatar}
+    // Moodboard props
+    moodboards={moodboards}
+    selectedMoodboard={selectedMoodboard}
+    moodboardImages={moodboardImages}
+    isLoadingMoodboards={isLoadingMoodboards}
+    isUploadingMoodboardImages={isUploadingMoodboardImages}
+    onSelectMoodboard={selectMoodboard}
+    onCreateMoodboard={createMoodboard}
+    onUpdateMoodboard={updateMoodboardData}
+    onDeleteMoodboard={deleteMoodboard}
+    onAddMoodboardImages={addMoodboardImages}
+    onRemoveMoodboardImage={removeMoodboardImage}
+  />
+</div>
+```
 
 ---
 
@@ -60,15 +75,16 @@ Remover o componente `MoodboardPanel` da barra de controles inferior.
 
 | Antes | Depois |
 |-------|--------|
-| 7 elementos na barra (modelo, qualidade, qtd, anexo, **moodboard**, magic, gerar) | 6 elementos (modelo, qualidade, qtd, anexo, magic, gerar) |
-| Barra apertada/espremida | Barra com espaço adequado |
-| Acesso ao moodboard pela barra | Acesso apenas pelo badge superior (quando selecionado) |
+| 2 botões "Personagem" no mobile | 1 botão "Personagem" no mobile |
+| CharacterPanel duplicado no header | CharacterPanel apenas na sidebar |
+| Confuso para o usuário | Interface limpa e consistente |
+
+O `CharacterPanel` da sidebar continuará funcionando corretamente:
+- **Desktop**: Mostra como sidebar colapsável
+- **Mobile**: Mostra como botão que abre um Sheet
 
 ---
 
-## Consideração Futura
+## Arquivo Modificado
 
-Se o usuário quiser uma forma de gerenciar moodboards sem usar a barra inferior, podemos:
-- Adicionar um botão no painel lateral de personagens
-- Criar uma página separada de configurações de moodboards
-- Adicionar ao menu do header
+- `src/pages/Image2.tsx` - Remover o CharacterPanel duplicado do header
