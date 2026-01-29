@@ -806,37 +806,39 @@ const Image2Page = () => {
       {/* Layout com Sidebar (Desktop) */}
       <div className="flex flex-1 overflow-hidden">
         {/* Character Panel - Desktop Sidebar */}
-        <CharacterPanel
-          characters={characters}
-          selectedCharacter={selectedCharacter}
-          characterImages={characterImages}
-          isLoading={isLoadingCharacters}
-          isUploadingImages={isUploadingImages}
-          useMasterAvatar={useMasterAvatar}
-          onUseMasterAvatarChange={setUseMasterAvatar}
-          onSelectCharacter={selectCharacter}
-          onCreateCharacter={createCharacter}
-          onUpdateCharacter={updateCharacter}
-          onDeleteCharacter={deleteCharacter}
-          onAddImages={addCharacterImages}
-          onRemoveImage={removeCharacterImage}
-          onGenerateMasterAvatar={generateMasterAvatar}
-          isOpen={showCharacterPanel}
-          onClose={() => setShowCharacterPanel(false)}
-          onOpen={() => setShowCharacterPanel(true)}
-          // Moodboard props
-          moodboards={moodboards}
-          selectedMoodboard={selectedMoodboard}
-          moodboardImages={moodboardImages}
-          isLoadingMoodboards={isLoadingMoodboards}
-          isUploadingMoodboardImages={isUploadingMoodboardImages}
-          onSelectMoodboard={selectMoodboard}
-          onCreateMoodboard={createMoodboard}
-          onUpdateMoodboard={updateMoodboardData}
-          onDeleteMoodboard={deleteMoodboard}
-          onAddMoodboardImages={addMoodboardImages}
-          onRemoveMoodboardImage={removeMoodboardImage}
-        />
+        <div className="hidden lg:block">
+          <CharacterPanel
+            characters={characters}
+            selectedCharacter={selectedCharacter}
+            characterImages={characterImages}
+            isLoading={isLoadingCharacters}
+            isUploadingImages={isUploadingImages}
+            useMasterAvatar={useMasterAvatar}
+            onUseMasterAvatarChange={setUseMasterAvatar}
+            onSelectCharacter={selectCharacter}
+            onCreateCharacter={createCharacter}
+            onUpdateCharacter={updateCharacter}
+            onDeleteCharacter={deleteCharacter}
+            onAddImages={addCharacterImages}
+            onRemoveImage={removeCharacterImage}
+            onGenerateMasterAvatar={generateMasterAvatar}
+            isOpen={showCharacterPanel}
+            onClose={() => setShowCharacterPanel(false)}
+            onOpen={() => setShowCharacterPanel(true)}
+            // Moodboard props
+            moodboards={moodboards}
+            selectedMoodboard={selectedMoodboard}
+            moodboardImages={moodboardImages}
+            isLoadingMoodboards={isLoadingMoodboards}
+            isUploadingMoodboardImages={isUploadingMoodboardImages}
+            onSelectMoodboard={selectMoodboard}
+            onCreateMoodboard={createMoodboard}
+            onUpdateMoodboard={updateMoodboardData}
+            onDeleteMoodboard={deleteMoodboard}
+            onAddMoodboardImages={addMoodboardImages}
+            onRemoveMoodboardImage={removeMoodboardImage}
+          />
+        </div>
 
         {/* Grid de Imagens */}
         <main className="flex-1 overflow-auto p-4 pb-48">
