@@ -1,42 +1,17 @@
 
-# Plano: Adicionar Botão de Personagem Acima do Input no Mobile
+# Plano: Remover Botão de Personagem do Lado das Fotos no Mobile
 
-## Objetivo
+## Problema
 
-Colocar o botão de acesso ao painel de personagens no espaço acima do campo de prompt, visível apenas no mobile.
+Há dois botões "Personagem" no mobile:
+1. Um ao lado das fotos (vindo do CharacterPanel da sidebar - linha 809)
+2. Um acima do input (adicionado recentemente - linha 965)
 
-## Estrutura Atual (Mobile)
+O `CharacterPanel` da sidebar (linha 809) detecta que está no mobile via `useIsMobile()` e renderiza automaticamente um botão + Sheet, causando a duplicação.
 
-```text
-┌─────────────────────────────────────────┐
-│ Chat Bar (bottom)                       │
-│ ┌─────────────────────────────────────┐ │
-│ │ [Badges de personagem/moodboard]    │ │
-│ └─────────────────────────────────────┘ │
-│ ┌─────────────────────────────────────┐ │
-│ │ [Input: Descreva a cena...]         │ │
-│ └─────────────────────────────────────┘ │
-│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
-└─────────────────────────────────────────┘
-```
+## Solução
 
-## Estrutura Proposta (Mobile)
-
-```text
-┌─────────────────────────────────────────┐
-│ Chat Bar (bottom)                       │
-│ ┌─────────────────────────────────────┐ │
-│ │ [Badges de personagem/moodboard]    │ │
-│ └─────────────────────────────────────┘ │
-│ ┌─────────────────────────────────────┐ │
-│ │ 👤 Personagem     (NOVO - mobile)   │ │  ← Botão adicionado
-│ └─────────────────────────────────────┘ │
-│ ┌─────────────────────────────────────┐ │
-│ │ [Input: Descreva a cena...]         │ │
-│ └─────────────────────────────────────┘ │
-│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
-└─────────────────────────────────────────┘
-```
+Envolver o `CharacterPanel` da sidebar (linha 809) em um `div` com `hidden lg:block` para que ele seja completamente oculto no mobile.
 
 ---
 
@@ -44,63 +19,57 @@ Colocar o botão de acesso ao painel de personagens no espaço acima do campo de
 
 ### `src/pages/Image2.tsx`
 
-**Adicionar após o bloco de badges (linha ~963) e antes do preview de arquivos:**
+**Alterar linhas 808-839:**
 
+De:
 ```tsx
-{/* Botão de personagem para mobile - acima do input */}
-<div className="lg:hidden mb-3">
+{/* Character Panel - Desktop Sidebar */}
+<CharacterPanel
+  characters={characters}
+  ...
+/>
+```
+
+Para:
+```tsx
+{/* Character Panel - Desktop Sidebar */}
+<div className="hidden lg:block">
   <CharacterPanel
     characters={characters}
-    selectedCharacter={selectedCharacter}
-    characterImages={characterImages}
-    isLoading={isLoadingCharacters}
-    isUploadingImages={isUploadingImages}
-    useMasterAvatar={useMasterAvatar}
-    onUseMasterAvatarChange={setUseMasterAvatar}
-    onSelectCharacter={selectCharacter}
-    onCreateCharacter={createCharacter}
-    onUpdateCharacter={updateCharacter}
-    onDeleteCharacter={deleteCharacter}
-    onAddImages={addCharacterImages}
-    onRemoveImage={removeCharacterImage}
-    onGenerateMasterAvatar={generateMasterAvatar}
-    // Moodboard props
-    moodboards={moodboards}
-    selectedMoodboard={selectedMoodboard}
-    moodboardImages={moodboardImages}
-    isLoadingMoodboards={isLoadingMoodboards}
-    isUploadingMoodboardImages={isUploadingMoodboardImages}
-    onSelectMoodboard={selectMoodboard}
-    onCreateMoodboard={createMoodboard}
-    onUpdateMoodboard={updateMoodboardData}
-    onDeleteMoodboard={deleteMoodboard}
-    onAddMoodboardImages={addMoodboardImages}
-    onRemoveMoodboardImage={removeMoodboardImage}
+    ...
   />
 </div>
 ```
 
 ---
 
-## Posição Exata
-
-O botão será inserido:
-- **Após**: Badges de personagem/moodboard selecionados (linha 963)
-- **Antes**: Preview de arquivos anexados (linha 965)
-
-Isso coloca o botão exatamente acima do input de prompt, como mostrado na imagem de referência.
-
----
-
-## Resultado Esperado
+## Resultado
 
 | Dispositivo | Comportamento |
 |-------------|---------------|
-| Desktop (lg+) | Botão oculto (`lg:hidden`), usa sidebar lateral |
-| Mobile/Tablet | Botão visível acima do input, abre Sheet lateral |
+| Desktop | Sidebar visível normalmente (lg:block) |
+| Mobile | Sidebar oculta (hidden), apenas o botão acima do input é visível |
 
 ---
 
-## Observação
+## Visual
 
-O `CharacterPanel` já detecta internamente se está no mobile e renderiza automaticamente como botão + Sheet. Apenas precisamos colocá-lo no lugar certo dentro da barra inferior.
+```text
+ANTES (Mobile):
+┌─────────────────────────────────────────┐
+│ [Personagem]  [Foto1] [Foto2] [Foto3]   │  ← REMOVER este botão
+│                                         │
+│ [Personagem]                            │  ← Manter apenas este
+│ [Input: Descreva a cena...]             │
+│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
+└─────────────────────────────────────────┘
+
+DEPOIS (Mobile):
+┌─────────────────────────────────────────┐
+│ [Foto1] [Foto2] [Foto3] [Foto4]         │
+│                                         │
+│ [Personagem]                            │  ← Único botão
+│ [Input: Descreva a cena...]             │
+│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
+└─────────────────────────────────────────┘
+```
