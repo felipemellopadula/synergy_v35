@@ -1159,6 +1159,74 @@ export type Database = {
         }
         Relationships: []
       }
+      user_moodboard_images: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string
+          moodboard_id: string
+          order_index: number | null
+          storage_path: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url: string
+          moodboard_id: string
+          order_index?: number | null
+          storage_path?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string
+          moodboard_id?: string
+          order_index?: number | null
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_moodboard_images_moodboard_id_fkey"
+            columns: ["moodboard_id"]
+            isOneToOne: false
+            referencedRelation: "user_moodboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_moodboards: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_count: number | null
+          name: string
+          preview_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_count?: number | null
+          name: string
+          preview_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_count?: number | null
+          name?: string
+          preview_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_videos: {
         Row: {
           aspect_ratio: string | null
