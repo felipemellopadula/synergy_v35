@@ -1,105 +1,64 @@
 
-
-# Plano: Corrigir Botão de Moodboard Não Abrindo
+# Plano: Corrigir Largura do Input de Prompt Quando Painel de Personagens é Colapsado
 
 ## Problema Identificado
 
-O botão de Moodboard não responde ao clique porque há uma **cadeia de componentes Radix com `asChild` aninhados** que bloqueia a propagação do evento:
+Quando o CharacterPanel é colapsado (fechado), a barra inferior com o prompt permanece com uma margem esquerda fixa de 280px, causando o efeito "espremido" que você observou.
 
-```text
-SheetTrigger (asChild) 
-  └─> TooltipProvider 
-        └─> Tooltip 
-              └─> TooltipTrigger (asChild) 
-                    └─> Button  ← Clique interceptado, nunca chega ao SheetTrigger
+**Causa raiz:**
+
+```tsx
+// Linha 949 de Image2.tsx
+<div className="fixed bottom-0 left-0 right-0 ... lg:ml-[280px]">
 ```
 
-Comparando com o `CharacterPanel` (que funciona), a estrutura correta é:
-```text
-SheetTrigger (asChild) 
-  └─> Button  ← Clique funciona diretamente
-```
+Esta margem é **estática** e não considera o estado do painel (`showCharacterPanel`).
 
 ---
 
 ## Solução
 
-Remover o aninhamento problemático movendo o Tooltip para **fora** do `SheetTrigger`, ou simplesmente removendo o Tooltip do trigger (mantendo apenas o botão).
+Tornar a margem esquerda dinâmica, condicionada ao estado `showCharacterPanel`:
 
-### Opção Recomendada: Remover Tooltip do Trigger
-
-Seguir o mesmo padrão do `CharacterPanel` que não usa Tooltip no botão trigger:
+```text
+Quando showCharacterPanel = true  → lg:ml-[280px] (painel aberto)
+Quando showCharacterPanel = false → lg:ml-0 (painel fechado)
+```
 
 ---
 
 ## Arquivo a Modificar
 
-### `src/components/image/MoodboardPanel.tsx`
+### `src/pages/Image2.tsx`
 
-**Alterações nas linhas 334-361:**
+**Linha 949** - Adicionar margem condicional:
 
-De (problemático):
+De:
 ```tsx
-<Sheet open={isOpen} onOpenChange={setIsOpen}>
-  <SheetTrigger asChild>
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="outline" size="sm" className={...}>
-            <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Moodboard</span>
-            {selectedMoodboard && (...)}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Gerenciar moodboards de estilo</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  </SheetTrigger>
-  ...
-</Sheet>
+<div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-2xl z-20 lg:ml-[280px]">
 ```
 
-Para (corrigido):
+Para:
 ```tsx
-<Sheet open={isOpen} onOpenChange={setIsOpen}>
-  <SheetTrigger asChild>
-    <Button
-      variant="outline"
-      size="sm"
-      className={cn(
-        "gap-2",
-        selectedMoodboard && "border-primary bg-primary/5"
-      )}
-    >
-      <Palette className="h-4 w-4" />
-      <span className="hidden sm:inline">Moodboard</span>
-      {selectedMoodboard && (
-        <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
-          {selectedMoodboard.image_count}
-        </Badge>
-      )}
-    </Button>
-  </SheetTrigger>
-  ...
-</Sheet>
+<div className={cn(
+  "fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-2xl z-20 transition-all duration-300",
+  showCharacterPanel ? "lg:ml-[280px]" : "lg:ml-0"
+)}>
 ```
 
 ---
 
-## Resumo das Mudanças
+## Benefícios da Correção
 
-| Antes | Depois |
-|-------|--------|
-| `SheetTrigger` → `TooltipProvider` → `Tooltip` → `TooltipTrigger` → `Button` | `SheetTrigger` → `Button` |
-| Clique bloqueado pelos wrappers de Tooltip | Clique funciona diretamente |
+| Estado do Painel | Margem Esquerda | Resultado |
+|------------------|-----------------|-----------|
+| Aberto (280px) | `lg:ml-[280px]` | Prompt alinhado com o painel |
+| Fechado (0px) | `lg:ml-0` | Prompt ocupa largura total |
 
 ---
 
 ## Resultado Esperado
 
-- O botão "Moodboard" abrirá o Sheet lateral ao ser clicado
-- O tooltip é removido (trade-off aceitável, pois o botão já tem label "Moodboard" visível)
-- Funcionalidade fica consistente com o padrão do `CharacterPanel`
-
+- Quando você colapsar o painel de personagens, a barra de prompt se expandirá suavemente para ocupar toda a largura disponível
+- A transição será animada (`transition-all duration-300`) para ser consistente com a animação do painel
+- O input não ficará mais "espremido" quando o painel estiver fechado
