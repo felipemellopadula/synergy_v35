@@ -961,6 +961,37 @@ const Image2Page = () => {
               />
             )}
           </div>
+
+          {/* Botão de personagem para mobile - acima do input */}
+          <div className="lg:hidden mb-3">
+            <CharacterPanel
+              characters={characters}
+              selectedCharacter={selectedCharacter}
+              characterImages={characterImages}
+              isLoading={isLoadingCharacters}
+              isUploadingImages={isUploadingImages}
+              useMasterAvatar={useMasterAvatar}
+              onUseMasterAvatarChange={setUseMasterAvatar}
+              onSelectCharacter={selectCharacter}
+              onCreateCharacter={createCharacter}
+              onUpdateCharacter={updateCharacter}
+              onDeleteCharacter={deleteCharacter}
+              onAddImages={addCharacterImages}
+              onRemoveImage={removeCharacterImage}
+              onGenerateMasterAvatar={generateMasterAvatar}
+              moodboards={moodboards}
+              selectedMoodboard={selectedMoodboard}
+              moodboardImages={moodboardImages}
+              isLoadingMoodboards={isLoadingMoodboards}
+              isUploadingMoodboardImages={isUploadingMoodboardImages}
+              onSelectMoodboard={selectMoodboard}
+              onCreateMoodboard={createMoodboard}
+              onUpdateMoodboard={updateMoodboardData}
+              onDeleteMoodboard={deleteMoodboard}
+              onAddMoodboardImages={addMoodboardImages}
+              onRemoveMoodboardImage={removeMoodboardImage}
+            />
+          </div>
           
           {/* Preview de arquivos anexados */}
           {selectedFiles.length > 0 && (
