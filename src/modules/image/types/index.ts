@@ -12,6 +12,7 @@ export interface ImageModel {
   id: string;
   label: string;
   maxImages: number;
+  supportsMoodboard?: boolean;
 }
 
 export interface DatabaseImage {

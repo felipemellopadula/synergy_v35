@@ -34,9 +34,12 @@ const UserProfile = lazy(() => import("@/components/UserProfile"));
 import { useAuth } from "@/contexts/AuthContext";
 import { useCredits } from "@/hooks/useCredits";
 import { useCharacters } from "@/hooks/useCharacters";
+import { useMoodboards } from "@/hooks/useMoodboards";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { CharacterPanel } from "@/components/image/CharacterPanel";
 import { SelectedCharacterBadge } from "@/components/image/SelectedCharacterBadge";
+import { MoodboardPanel } from "@/components/image/MoodboardPanel";
+import { SelectedMoodboardBadge } from "@/components/image/SelectedMoodboardBadge";
 import { ShareModal } from "@/components/ShareModal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -97,6 +100,22 @@ const Image2Page = () => {
     getImageAsBase64,
     generateMasterAvatar,
   } = useCharacters();
+  
+  // Hook de moodboards
+  const {
+    moodboards,
+    selectedMoodboard,
+    moodboardImages,
+    isLoading: isLoadingMoodboards,
+    isUploadingImages: isUploadingMoodboardImages,
+    selectMoodboard,
+    createMoodboard,
+    updateMoodboard: updateMoodboardData,
+    deleteMoodboard,
+    addImages: addMoodboardImages,
+    removeImage: removeMoodboardImage,
+    getMoodboardImagesAsBase64,
+  } = useMoodboards();
   
   // Estado para controlar uso do Master Avatar
   const [useMasterAvatar, setUseMasterAvatar] = useState(true);
@@ -422,6 +441,22 @@ const Image2Page = () => {
           } else {
             console.log(`⚠️ Sem slots disponíveis para imagens do personagem (${inputImagesBase64.length}/${maxImages} usados)`);
           }
+        }
+      }
+
+      // Se há moodboard selecionado e modelo suporta, adicionar imagens como referência de estilo
+      const modelConfig = MODELS.find(m => m.id === model);
+      if (selectedMoodboard && modelConfig?.supportsMoodboard && moodboardImages.length > 0) {
+        // Calcular slots disponíveis após personagem e anexos
+        const availableSlots = Math.max(0, maxImages - inputImagesBase64.length);
+        
+        if (availableSlots > 0) {
+          console.log(`🎨 Moodboard "${selectedMoodboard.name}" selecionado. Adicionando até ${availableSlots} referências de estilo...`);
+          const moodboardBase64 = await getMoodboardImagesAsBase64(selectedMoodboard.id, availableSlots);
+          console.log(`✅ ${moodboardBase64.length} imagens do moodboard adicionadas como referência de estilo`);
+          inputImagesBase64.push(...moodboardBase64);
+        } else {
+          console.log(`⚠️ Sem slots disponíveis para imagens do moodboard (${inputImagesBase64.length}/${maxImages} usados)`);
         }
       }
 
@@ -913,16 +948,23 @@ const Image2Page = () => {
       {/* Chat Bar Fixo (bottom) - Estilo Higgsfield */}
       <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-white/10 shadow-2xl z-20 lg:ml-[280px]">
         <div className="container mx-auto max-w-7xl p-4">
-          {/* Badge do personagem selecionado */}
-          {selectedCharacter && (
-            <div className="mb-3">
+          {/* Badges de personagem e moodboard selecionados */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {selectedCharacter && (
               <SelectedCharacterBadge
                 character={selectedCharacter}
                 onClear={() => selectCharacter(null)}
                 maxRefsToShow={maxImages}
               />
-            </div>
-          )}
+            )}
+            {selectedMoodboard && currentModel?.supportsMoodboard && (
+              <SelectedMoodboardBadge
+                moodboard={selectedMoodboard}
+                onClear={() => selectMoodboard(null)}
+                maxRefsToShow={maxImages}
+              />
+            )}
+          </div>
           
           {/* Preview de arquivos anexados */}
           {selectedFiles.length > 0 && (
@@ -1055,6 +1097,23 @@ const Image2Page = () => {
                 onChange={handleFileChange} 
                 className="hidden" 
               />
+
+              {/* Moodboard - apenas para modelos suportados */}
+              {currentModel?.supportsMoodboard && (
+                <MoodboardPanel
+                  moodboards={moodboards}
+                  selectedMoodboard={selectedMoodboard}
+                  moodboardImages={moodboardImages}
+                  isLoading={isLoadingMoodboards}
+                  isUploadingImages={isUploadingMoodboardImages}
+                  onSelectMoodboard={selectMoodboard}
+                  onCreateMoodboard={createMoodboard}
+                  onUpdateMoodboard={updateMoodboardData}
+                  onDeleteMoodboard={deleteMoodboard}
+                  onAddImages={addMoodboardImages}
+                  onRemoveImage={removeMoodboardImage}
+                />
+              )}
 
               {/* Magic Prompt */}
               <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-white/5 border border-white/10">
