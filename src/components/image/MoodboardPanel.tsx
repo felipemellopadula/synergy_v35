@@ -333,31 +333,22 @@ export const MoodboardPanel = ({
     <>
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "gap-2",
-                    selectedMoodboard && "border-primary bg-primary/5"
-                  )}
-                >
-                  <Palette className="h-4 w-4" />
-                  <span className="hidden sm:inline">Moodboard</span>
-                  {selectedMoodboard && (
-                    <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
-                      {selectedMoodboard.image_count}
-                    </Badge>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Gerenciar moodboards de estilo</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "gap-2",
+              selectedMoodboard && "border-primary bg-primary/5"
+            )}
+          >
+            <Palette className="h-4 w-4" />
+            <span className="hidden sm:inline">Moodboard</span>
+            {selectedMoodboard && (
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
+                {selectedMoodboard.image_count}
+              </Badge>
+            )}
+          </Button>
         </SheetTrigger>
         <SheetContent side="right" className="w-[360px] sm:w-[400px]">
           <SheetHeader className="mb-4">
