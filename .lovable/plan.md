@@ -1,43 +1,54 @@
 
-# Plano: Remover Botão Duplicado de Personagem no Mobile
+# Plano: Adicionar Botão de Personagem Acima do Input no Mobile
 
-## Problema Identificado
+## Objetivo
 
-Na versão mobile existem dois botões "Personagem" porque:
+Colocar o botão de acesso ao painel de personagens no espaço acima do campo de prompt, visível apenas no mobile.
 
-1. **Linha 800-828**: Um `CharacterPanel` está dentro de um `div` com `lg:hidden` (aparece só no mobile)
-2. **Linha 840-870**: Outro `CharacterPanel` é renderizado como sidebar, mas sem restrição de visibilidade
-
-O segundo `CharacterPanel` detecta que está no mobile (via `useIsMobile()`) e renderiza seu próprio botão `SheetTrigger`, causando a duplicação.
-
----
-
-## Análise do Fluxo
+## Estrutura Atual (Mobile)
 
 ```text
-Mobile View:
-├─ Header
-│   └─ div.lg:hidden
-│       └─ CharacterPanel → detecta mobile → renderiza botão "Personagem"  ← BOTÃO 1
-│
-└─ Layout Principal
-    └─ CharacterPanel → detecta mobile → renderiza botão "Personagem"  ← BOTÃO 2 (DUPLICADO)
+┌─────────────────────────────────────────┐
+│ Chat Bar (bottom)                       │
+│ ┌─────────────────────────────────────┐ │
+│ │ [Badges de personagem/moodboard]    │ │
+│ └─────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────┐ │
+│ │ [Input: Descreva a cena...]         │ │
+│ └─────────────────────────────────────┘ │
+│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
+└─────────────────────────────────────────┘
+```
+
+## Estrutura Proposta (Mobile)
+
+```text
+┌─────────────────────────────────────────┐
+│ Chat Bar (bottom)                       │
+│ ┌─────────────────────────────────────┐ │
+│ │ [Badges de personagem/moodboard]    │ │
+│ └─────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────┐ │
+│ │ 👤 Personagem     (NOVO - mobile)   │ │  ← Botão adicionado
+│ └─────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────┐ │
+│ │ [Input: Descreva a cena...]         │ │
+│ └─────────────────────────────────────┘ │
+│ [Modelo] [Qualidade] [Qtd] [Gerar]      │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## Solução
+## Arquivo a Modificar
 
-Remover o `CharacterPanel` duplicado do header mobile. O `CharacterPanel` da sidebar (linha 840) já lida corretamente com ambos os casos (desktop=sidebar, mobile=botão sheet).
+### `src/pages/Image2.tsx`
 
-### Arquivo: `src/pages/Image2.tsx`
-
-**Remover linhas 799-829** (o bloco completo do CharacterPanel no header mobile):
+**Adicionar após o bloco de badges (linha ~963) e antes do preview de arquivos:**
 
 ```tsx
-// REMOVER este bloco inteiro:
-{/* Botão de personagem no mobile */}
-<div className="lg:hidden">
+{/* Botão de personagem para mobile - acima do input */}
+<div className="lg:hidden mb-3">
   <CharacterPanel
     characters={characters}
     selectedCharacter={selectedCharacter}
@@ -71,20 +82,25 @@ Remover o `CharacterPanel` duplicado do header mobile. O `CharacterPanel` da sid
 
 ---
 
-## Resultado
+## Posição Exata
 
-| Antes | Depois |
-|-------|--------|
-| 2 botões "Personagem" no mobile | 1 botão "Personagem" no mobile |
-| CharacterPanel duplicado no header | CharacterPanel apenas na sidebar |
-| Confuso para o usuário | Interface limpa e consistente |
+O botão será inserido:
+- **Após**: Badges de personagem/moodboard selecionados (linha 963)
+- **Antes**: Preview de arquivos anexados (linha 965)
 
-O `CharacterPanel` da sidebar continuará funcionando corretamente:
-- **Desktop**: Mostra como sidebar colapsável
-- **Mobile**: Mostra como botão que abre um Sheet
+Isso coloca o botão exatamente acima do input de prompt, como mostrado na imagem de referência.
 
 ---
 
-## Arquivo Modificado
+## Resultado Esperado
 
-- `src/pages/Image2.tsx` - Remover o CharacterPanel duplicado do header
+| Dispositivo | Comportamento |
+|-------------|---------------|
+| Desktop (lg+) | Botão oculto (`lg:hidden`), usa sidebar lateral |
+| Mobile/Tablet | Botão visível acima do input, abre Sheet lateral |
+
+---
+
+## Observação
+
+O `CharacterPanel` já detecta internamente se está no mobile e renderiza automaticamente como botão + Sheet. Apenas precisamos colocá-lo no lugar certo dentro da barra inferior.
