@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   Plus, 
   User, 
@@ -731,8 +731,20 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
   // Desktop: Sidebar colapsável com controle de visibilidade
   const isPanelOpen = props.isOpen ?? true;
 
+  // Debug: verificar alturas
+  useEffect(() => {
+    console.log('[CharacterPanel] Mounted/Updated - isPanelOpen:', isPanelOpen);
+    const sidebar = document.querySelector('.character-sidebar-debug');
+    if (sidebar) {
+      const rect = sidebar.getBoundingClientRect();
+      console.log('[CharacterPanel] Sidebar height:', rect.height);
+      console.log('[CharacterPanel] Parent height:', sidebar.parentElement?.getBoundingClientRect().height);
+      console.log('[CharacterPanel] Grandparent height:', sidebar.parentElement?.parentElement?.getBoundingClientRect().height);
+    }
+  }, [isPanelOpen]);
+
   return (
-    <>
+    <div className="h-full relative">
       {/* Botão para reabrir quando fechado */}
       {!isPanelOpen && props.onOpen && (
         <Button
@@ -747,13 +759,13 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
         </Button>
       )}
       
-      {/* Sidebar com animação */}
+      {/* Sidebar com animação - agora herda h-full do wrapper */}
       <div className={cn(
-        "hidden lg:flex flex-col h-full border-r bg-card/50 shrink-0 transition-all duration-300 overflow-hidden",
+        "character-sidebar-debug hidden lg:flex flex-col h-full border-r bg-card/50 shrink-0 transition-all duration-300 overflow-hidden",
         isPanelOpen ? "w-[280px]" : "w-0"
       )}>
         <CharacterPanelContent {...props} />
       </div>
-    </>
+    </div>
   );
 };
