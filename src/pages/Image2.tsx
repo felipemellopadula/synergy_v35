@@ -806,7 +806,7 @@ const Image2Page = () => {
       {/* Layout com Sidebar (Desktop) */}
       <div className="flex flex-1 overflow-hidden">
         {/* Character Panel - Desktop Sidebar */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block h-full">
           <CharacterPanel
             characters={characters}
             selectedCharacter={selectedCharacter}
