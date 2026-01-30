@@ -233,12 +233,22 @@ const TermsOfService: React.FC = () => {
                   </p>
                   <ul className="list-disc pl-5 space-y-1">
                     <li>
-                      <strong>Google Veo 3.1:</strong> Consumo diferenciado por
-                      vídeo
+                      <strong>Sora 2 Pro:</strong> 4 créditos por vídeo
                     </li>
                     <li>
-                      <strong>Kling Video 2.6:</strong> Consumo diferenciado por
-                      vídeo
+                      <strong>Google Veo 3.1:</strong> 3 créditos por vídeo
+                    </li>
+                    <li>
+                      <strong>LTX-2 Pro:</strong> 2 créditos por vídeo
+                    </li>
+                    <li>
+                      <strong>Sora 2:</strong> 1.5 créditos por vídeo
+                    </li>
+                    <li>
+                      <strong>Kling Video 2.6 Pro:</strong> 1.5 créditos por vídeo
+                    </li>
+                    <li>
+                      <strong>LTX-2 Fast:</strong> 1.5 créditos por vídeo
                     </li>
                     <li>
                       <strong>Upscale 4K:</strong> Consumo variável conforme

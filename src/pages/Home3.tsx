@@ -901,7 +901,7 @@ const Home3: React.FC = () => {
               Os créditos dos pacotes valem por 30 dias a partir da data da compra.
             </p>
             <p className="text-xs text-muted-foreground">
-              *Exceto para Veo3 e Kling
+              *Exceto modelos premium que custam mais
             </p>
           </div>
         </div>
