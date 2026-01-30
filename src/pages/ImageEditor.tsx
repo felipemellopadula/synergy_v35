@@ -21,20 +21,55 @@ interface ClickMarker {
 
 // Persistência de estado via sessionStorage
 const PROCESSING_STATE_KEY = 'imageeditor_processing_active';
+const IMAGE_STATE_KEY = 'imageeditor_uploaded_image';
+const EDITED_STATE_KEY = 'imageeditor_edited_image';
+const PROMPT_STATE_KEY = 'imageeditor_prompt';
+
 const setProcessingActive = (active: boolean) => {
   active ? sessionStorage.setItem(PROCESSING_STATE_KEY, 'true') : sessionStorage.removeItem(PROCESSING_STATE_KEY);
 };
 const isProcessingActive = () => sessionStorage.getItem(PROCESSING_STATE_KEY) === 'true';
 
+const saveImageState = (uploaded: string | null, edited: string | null, prompt: string) => {
+  if (uploaded) {
+    sessionStorage.setItem(IMAGE_STATE_KEY, uploaded);
+  } else {
+    sessionStorage.removeItem(IMAGE_STATE_KEY);
+  }
+  if (edited) {
+    sessionStorage.setItem(EDITED_STATE_KEY, edited);
+  } else {
+    sessionStorage.removeItem(EDITED_STATE_KEY);
+  }
+  if (prompt) {
+    sessionStorage.setItem(PROMPT_STATE_KEY, prompt);
+  } else {
+    sessionStorage.removeItem(PROMPT_STATE_KEY);
+  }
+};
+
+const loadImageState = () => ({
+  uploaded: sessionStorage.getItem(IMAGE_STATE_KEY),
+  edited: sessionStorage.getItem(EDITED_STATE_KEY),
+  prompt: sessionStorage.getItem(PROMPT_STATE_KEY) || '',
+});
+
+const clearImageState = () => {
+  sessionStorage.removeItem(IMAGE_STATE_KEY);
+  sessionStorage.removeItem(EDITED_STATE_KEY);
+  sessionStorage.removeItem(PROMPT_STATE_KEY);
+};
+
 const ImageEditor = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { debounce, isDebouncing } = useButtonDebounce(1500);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(() => loadImageState().uploaded);
   const [activeTab, setActiveTab] = useState<TabType>("prompt");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => loadImageState().prompt);
   const [isProcessing, setIsProcessing] = useState(() => isProcessingActive());
-  const [editedImage, setEditedImage] = useState<string | null>(null);
+  const [editedImage, setEditedImage] = useState<string | null>(() => loadImageState().edited);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +87,32 @@ const ImageEditor = () => {
   useEffect(() => {
     setProcessingActive(isProcessing);
   }, [isProcessing]);
+
+  // Persistir imagem e prompt no sessionStorage
+  useEffect(() => {
+    saveImageState(uploadedImage, editedImage, prompt);
+  }, [uploadedImage, editedImage, prompt]);
+
+  // Restaurar estado ao voltar para a aba
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const saved = loadImageState();
+        if (saved.uploaded && !uploadedImage) {
+          setUploadedImage(saved.uploaded);
+        }
+        if (saved.edited && !editedImage) {
+          setEditedImage(saved.edited);
+        }
+        if (saved.prompt && !prompt) {
+          setPrompt(saved.prompt);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [uploadedImage, editedImage, prompt]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,9 +140,42 @@ const ImageEditor = () => {
     setRotation(0);
     setVerticalTilt(0);
     setProximity(0);
+    clearImageState();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Por favor, arraste uma imagem válida");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setUploadedImage(event.target?.result as string);
+      setEditedImage(null);
+      setClickMarkers([]);
+    };
+    reader.readAsDataURL(file);
   }, []);
 
   const handleDownload = useCallback(() => {
@@ -362,12 +456,21 @@ const ImageEditor = () => {
             </div>
           ) : (
             <div
-              className="w-full max-w-md aspect-square border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-primary/50 transition-colors"
+              className={`w-full max-w-md aspect-square border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-colors ${
+                isDragging 
+                  ? "border-primary bg-primary/10" 
+                  : "border-border hover:border-primary/50"
+              }`}
               onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              <Upload className="h-12 w-12 text-muted-foreground" />
+              <Upload className={`h-12 w-12 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
               <div className="text-center">
-                <p className="text-foreground font-medium">Clique para fazer upload</p>
+                <p className="text-foreground font-medium">
+                  {isDragging ? "Solte a imagem aqui" : "Clique para fazer upload"}
+                </p>
                 <p className="text-sm text-muted-foreground">ou arraste uma imagem</p>
               </div>
             </div>
