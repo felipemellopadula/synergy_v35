@@ -749,7 +749,7 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
       
       {/* Sidebar com animação */}
       <div className={cn(
-        "hidden lg:flex flex-col border-r bg-card/50 shrink-0 transition-all duration-300 overflow-hidden",
+        "hidden lg:flex flex-col h-full border-r bg-card/50 shrink-0 transition-all duration-300 overflow-hidden",
         isPanelOpen ? "w-[280px]" : "w-0"
       )}>
         <CharacterPanelContent {...props} />
