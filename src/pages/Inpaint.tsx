@@ -36,10 +36,44 @@ interface ReferenceImage {
 
 // Persistência de estado via sessionStorage
 const GENERATING_STATE_KEY = 'inpaint_generating_active';
+const UPLOADED_IMAGE_KEY = 'inpaint_uploaded_image';
+const GENERATED_IMAGE_KEY = 'inpaint_generated_image';
+const PROMPT_KEY = 'inpaint_prompt';
+
 const setGeneratingActive = (active: boolean) => {
   active ? sessionStorage.setItem(GENERATING_STATE_KEY, 'true') : sessionStorage.removeItem(GENERATING_STATE_KEY);
 };
 const isGeneratingActive = () => sessionStorage.getItem(GENERATING_STATE_KEY) === 'true';
+
+const saveInpaintState = (uploaded: string | null, generated: string | null, promptText: string) => {
+  if (uploaded) {
+    sessionStorage.setItem(UPLOADED_IMAGE_KEY, uploaded);
+  } else {
+    sessionStorage.removeItem(UPLOADED_IMAGE_KEY);
+  }
+  if (generated) {
+    sessionStorage.setItem(GENERATED_IMAGE_KEY, generated);
+  } else {
+    sessionStorage.removeItem(GENERATED_IMAGE_KEY);
+  }
+  if (promptText) {
+    sessionStorage.setItem(PROMPT_KEY, promptText);
+  } else {
+    sessionStorage.removeItem(PROMPT_KEY);
+  }
+};
+
+const loadInpaintState = () => ({
+  uploaded: sessionStorage.getItem(UPLOADED_IMAGE_KEY),
+  generated: sessionStorage.getItem(GENERATED_IMAGE_KEY),
+  prompt: sessionStorage.getItem(PROMPT_KEY) || '',
+});
+
+const clearInpaintState = () => {
+  sessionStorage.removeItem(UPLOADED_IMAGE_KEY);
+  sessionStorage.removeItem(GENERATED_IMAGE_KEY);
+  sessionStorage.removeItem(PROMPT_KEY);
+};
 
 const Inpaint = () => {
   const navigate = useNavigate();
@@ -52,14 +86,21 @@ const Inpaint = () => {
   
   const [canvasReady, setCanvasReady] = useState(false);
   const [activeTool, setActiveTool] = useState<Tool>("brush");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(() => {
+    return sessionStorage.getItem(UPLOADED_IMAGE_KEY);
+  });
   const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => {
+    return sessionStorage.getItem(PROMPT_KEY) || '';
+  });
   const [isGenerating, setIsGenerating] = useState(() => isGeneratingActive());
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(() => {
+    return sessionStorage.getItem(GENERATED_IMAGE_KEY);
+  });
   const [brushSize, setBrushSize] = useState(20);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Sincronizar isGenerating com sessionStorage
   useEffect(() => {
@@ -78,6 +119,32 @@ const Inpaint = () => {
   useEffect(() => {
     console.log("📸 uploadedImage mudou para:", uploadedImage ? `tem imagem (${uploadedImage.length} chars)` : "null");
   }, [uploadedImage]);
+
+  // Persistir imagem e prompt no sessionStorage
+  useEffect(() => {
+    saveInpaintState(uploadedImage, generatedImage, prompt);
+  }, [uploadedImage, generatedImage, prompt]);
+
+  // Restaurar estado ao voltar para a aba
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const saved = loadInpaintState();
+        if (saved.uploaded && !uploadedImage) {
+          setUploadedImage(saved.uploaded);
+        }
+        if (saved.generated && !generatedImage) {
+          setGeneratedImage(saved.generated);
+        }
+        if (saved.prompt && !prompt) {
+          setPrompt(saved.prompt);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [uploadedImage, generatedImage, prompt]);
 
   // Initialize Fabric canvas - create canvas element dynamically
   useEffect(() => {
@@ -393,6 +460,39 @@ const Inpaint = () => {
     }
     setHistory([]);
     setHistoryIndex(-1);
+    setPrompt("");
+    clearInpaintState();
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Por favor, arraste uma imagem válida");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setUploadedImage(event.target?.result as string);
+      setGeneratedImage(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGenerate = async () => {
@@ -669,7 +769,16 @@ Generate the edited image now.`;
             
             {/* Upload prompt overlay - shown when no image is uploaded */}
             {!uploadedImage && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-[#0d0d0d]">
+              <div 
+                className={`absolute inset-0 flex flex-col items-center justify-center z-20 transition-colors ${
+                  isDragging 
+                    ? "bg-primary/10 border-2 border-dashed border-primary" 
+                    : "bg-[#0d0d0d]"
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -681,13 +790,17 @@ Generate the edited image now.`;
                   variant="outline"
                   size="lg"
                   onClick={() => fileInputRef.current?.click()}
-                  className="gap-2 border-dashed border-2 border-white/20 hover:border-primary/50 bg-transparent"
+                  className={`gap-2 border-dashed border-2 bg-transparent ${
+                    isDragging 
+                      ? "border-primary text-primary" 
+                      : "border-white/20 hover:border-primary/50"
+                  }`}
                 >
                   <Upload className="w-5 h-5" />
-                  Fazer upload de imagem
+                  {isDragging ? "Solte a imagem aqui" : "Fazer upload de imagem"}
                 </Button>
                 <p className="text-muted-foreground text-sm mt-3">
-                  Arraste uma imagem ou clique para selecionar
+                  {isDragging ? "Solte para carregar" : "Arraste uma imagem ou clique para selecionar"}
                 </p>
               </div>
             )}
