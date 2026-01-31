@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ImageCompareSlider } from "@/components/ImageCompareSlider";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
 import { cn } from "@/lib/utils";
+import { saveImageToStorage, loadImageFromStorage, clearImagesFromStorage } from "@/utils/imageStorage";
 
 const UserProfile = lazy(() => import("@/components/UserProfile"));
 
@@ -28,6 +29,10 @@ const setLoadingActive = (active: boolean) => {
 };
 const isLoadingActive = () => sessionStorage.getItem(LOADING_STATE_KEY) === 'true';
 
+// IndexedDB keys for image persistence
+const ORIGINAL_IMAGE_KEY = 'upscale_original_image';
+const UPSCALED_IMAGE_KEY = 'upscale_upscaled_image';
+
 export default function Upscale() {
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +43,7 @@ export default function Upscale() {
   const [upscaledImage, setUpscaledImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(() => isLoadingActive());
   const [isDragging, setIsDragging] = useState(false);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
   
   // Provider selection
   const [provider, setProvider] = useState<Provider>("magnific");
@@ -55,6 +61,71 @@ export default function Upscale() {
   }, [isLoading]);
   const [sharpen, setSharpen] = useState([7]);
   const [smartGrain, setSmartGrain] = useState([7]);
+
+  // Carregar imagens do IndexedDB ao montar
+  useEffect(() => {
+    const loadImages = async () => {
+      try {
+        const [savedOriginal, savedUpscaled] = await Promise.all([
+          loadImageFromStorage(ORIGINAL_IMAGE_KEY),
+          loadImageFromStorage(UPSCALED_IMAGE_KEY)
+        ]);
+        if (savedOriginal) {
+          setOriginalImage(savedOriginal);
+          // Restaurar dimensões
+          const img = new Image();
+          img.onload = () => {
+            setImageDimensions({ width: img.width, height: img.height });
+          };
+          img.src = savedOriginal;
+        }
+        if (savedUpscaled) setUpscaledImage(savedUpscaled);
+      } catch (error) {
+        console.warn('Failed to load images from storage:', error);
+      } finally {
+        setIsLoadingImages(false);
+      }
+    };
+    loadImages();
+  }, []);
+
+  // Persistir imagens no IndexedDB quando mudarem
+  useEffect(() => {
+    if (isLoadingImages) return;
+    saveImageToStorage(ORIGINAL_IMAGE_KEY, originalImage);
+  }, [originalImage, isLoadingImages]);
+
+  useEffect(() => {
+    if (isLoadingImages) return;
+    saveImageToStorage(UPSCALED_IMAGE_KEY, upscaledImage);
+  }, [upscaledImage, isLoadingImages]);
+
+  // Restaurar estado ao voltar para a aba
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        const [savedOriginal, savedUpscaled] = await Promise.all([
+          loadImageFromStorage(ORIGINAL_IMAGE_KEY),
+          loadImageFromStorage(UPSCALED_IMAGE_KEY)
+        ]);
+        
+        if (savedOriginal && !originalImage) {
+          setOriginalImage(savedOriginal);
+          const img = new Image();
+          img.onload = () => {
+            setImageDimensions({ width: img.width, height: img.height });
+          };
+          img.src = savedOriginal;
+        }
+        if (savedUpscaled && !upscaledImage) {
+          setUpscaledImage(savedUpscaled);
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [originalImage, upscaledImage]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -228,6 +299,8 @@ export default function Upscale() {
     setOriginalImage(null);
     setImageDimensions(null);
     setUpscaledImage(null);
+    // Limpar do IndexedDB
+    clearImagesFromStorage([ORIGINAL_IMAGE_KEY, UPSCALED_IMAGE_KEY]);
   };
 
   // Runware only supports 2x and 4x
