@@ -1,53 +1,66 @@
 
-# Plano: Persistir Pinturas do Canvas no Inpaint
+
+# Plano: Persistir Imagens na Página Upscale
 
 ## Problema Identificado
 
-A imagem de fundo persiste corretamente via IndexedDB, mas os **desenhos/máscaras** feitos sobre ela são perdidos ao trocar de aba. Isso acontece porque:
+Os estados `originalImage` e `upscaledImage` são inicializados como `null` (linha 36-38):
 
-1. O canvas Fabric.js armazena os desenhos no estado `history` (React state)
-2. Esse estado é **perdido** quando o componente remonta (troca de aba, eventos do Supabase)
-3. Ao remontar, a imagem é restaurada do IndexedDB, mas o canvas é recriado **limpo**
+```tsx
+const [originalImage, setOriginalImage] = useState<string | null>(null);
+const [upscaledImage, setUpscaledImage] = useState<string | null>(null);
+```
+
+Quando o usuário troca de aba, eventos do Supabase podem causar remontagem do componente, perdendo as imagens carregadas.
 
 ## Solução
 
-Persistir o estado do canvas (JSON serializado pelo Fabric.js) no IndexedDB, similar ao que já fazemos com as imagens.
+Aplicar a mesma solução do Inpaint: usar IndexedDB via `src/utils/imageStorage.ts` para persistir as imagens.
 
 ---
 
-## Alterações no Arquivo `src/pages/Inpaint.tsx`
+## Alterações no Arquivo `src/pages/Upscale.tsx`
 
-### 1. Adicionar nova key para o estado do canvas (linha 42)
+### 1. Adicionar imports do IndexedDB (linha 14)
 
 ```tsx
-const CANVAS_STATE_KEY = 'inpaint_canvas_state';
+import { saveImageToStorage, loadImageFromStorage, clearImagesFromStorage } from "@/utils/imageStorage";
 ```
 
-### 2. Criar referência para evitar loops de salvamento (após linha 71)
+### 2. Adicionar keys de persistência (após linha 29)
 
 ```tsx
-const isRestoringCanvas = useRef(false);
+const ORIGINAL_IMAGE_KEY = 'upscale_original_image';
+const UPSCALED_IMAGE_KEY = 'upscale_upscaled_image';
 ```
 
-### 3. Modificar o useEffect de carregamento inicial para incluir o canvas (linhas 73-90)
-
-Carregar também o estado do canvas junto com as imagens:
+### 3. Adicionar estado para controlar carregamento inicial (após linha 40)
 
 ```tsx
+const [isLoadingImages, setIsLoadingImages] = useState(true);
+```
+
+### 4. Adicionar useEffect para carregar imagens do IndexedDB (após linha 55)
+
+```tsx
+// Carregar imagens do IndexedDB ao montar
 useEffect(() => {
   const loadImages = async () => {
     try {
-      const [uploaded, generated, canvasState] = await Promise.all([
-        loadImageFromStorage(UPLOADED_IMAGE_KEY),
-        loadImageFromStorage(GENERATED_IMAGE_KEY),
-        loadImageFromStorage(CANVAS_STATE_KEY)
+      const [savedOriginal, savedUpscaled] = await Promise.all([
+        loadImageFromStorage(ORIGINAL_IMAGE_KEY),
+        loadImageFromStorage(UPSCALED_IMAGE_KEY)
       ]);
-      if (uploaded) setUploadedImage(uploaded);
-      if (generated) setGeneratedImage(generated);
-      // Canvas state will be restored after canvas is ready
-      if (canvasState) {
-        sessionStorage.setItem('temp_canvas_state', canvasState);
+      if (savedOriginal) {
+        setOriginalImage(savedOriginal);
+        // Restaurar dimensões
+        const img = new Image();
+        img.onload = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+        };
+        img.src = savedOriginal;
       }
+      if (savedUpscaled) setUpscaledImage(savedUpscaled);
     } catch (error) {
       console.warn('Failed to load images from storage:', error);
     } finally {
@@ -58,133 +71,62 @@ useEffect(() => {
 }, []);
 ```
 
-### 4. Adicionar useEffect para restaurar o canvas quando estiver pronto (após linha 253)
+### 5. Adicionar useEffect para persistir imagens quando mudarem (após o anterior)
 
 ```tsx
-// Restore canvas state from storage after canvas is ready
+// Persistir imagens no IndexedDB quando mudarem
 useEffect(() => {
-  const canvas = fabricCanvasRef.current;
-  if (!canvas || !canvasReady || !uploadedImage) return;
-  
-  const savedCanvasState = sessionStorage.getItem('temp_canvas_state');
-  if (!savedCanvasState) return;
-  
-  // Remove temp state to avoid re-applying
-  sessionStorage.removeItem('temp_canvas_state');
-  
-  // Wait a bit for the image to load first
-  const timer = setTimeout(() => {
-    isRestoringCanvas.current = true;
-    canvas.loadFromJSON(JSON.parse(savedCanvasState)).then(() => {
-      canvas.renderAll();
-      isRestoringCanvas.current = false;
-      console.log("🎨 Canvas state restored from storage");
-    }).catch(err => {
-      console.warn("Failed to restore canvas state:", err);
-      isRestoringCanvas.current = false;
-    });
-  }, 500);
-  
-  return () => clearTimeout(timer);
-}, [canvasReady, uploadedImage]);
+  if (isLoadingImages) return; // Não salvar durante carregamento inicial
+  saveImageToStorage(ORIGINAL_IMAGE_KEY, originalImage);
+}, [originalImage, isLoadingImages]);
+
+useEffect(() => {
+  if (isLoadingImages) return;
+  saveImageToStorage(UPSCALED_IMAGE_KEY, upscaledImage);
+}, [upscaledImage, isLoadingImages]);
 ```
 
-### 5. Adicionar listener para salvar o canvas após cada desenho (dentro do useEffect de inicialização, após linha 212)
-
-Adicionar event listener `path:created` no canvas:
+### 6. Adicionar useEffect para restaurar ao voltar para aba (após os anteriores)
 
 ```tsx
-// Save canvas state when user draws
-canvas.on('path:created', () => {
-  if (isRestoringCanvas.current) return;
-  const canvasJson = JSON.stringify(canvas.toJSON());
-  saveImageToStorage(CANVAS_STATE_KEY, canvasJson);
-  console.log("🎨 Canvas state saved");
-});
-```
-
-### 6. Modificar handleVisibilityChange para restaurar o canvas (linhas 134-157)
-
-```tsx
+// Restaurar estado ao voltar para a aba
 useEffect(() => {
   const handleVisibilityChange = async () => {
     if (document.visibilityState === 'visible') {
-      const [savedUploaded, savedGenerated, savedCanvasState] = await Promise.all([
-        loadImageFromStorage(UPLOADED_IMAGE_KEY),
-        loadImageFromStorage(GENERATED_IMAGE_KEY),
-        loadImageFromStorage(CANVAS_STATE_KEY)
+      const [savedOriginal, savedUpscaled] = await Promise.all([
+        loadImageFromStorage(ORIGINAL_IMAGE_KEY),
+        loadImageFromStorage(UPSCALED_IMAGE_KEY)
       ]);
-      const savedPrompt = sessionStorage.getItem(PROMPT_KEY) || '';
       
-      if (savedUploaded && !uploadedImage) {
-        setUploadedImage(savedUploaded);
+      if (savedOriginal && !originalImage) {
+        setOriginalImage(savedOriginal);
+        // Restaurar dimensões
+        const img = new Image();
+        img.onload = () => {
+          setImageDimensions({ width: img.width, height: img.height });
+        };
+        img.src = savedOriginal;
       }
-      if (savedGenerated && !generatedImage) {
-        setGeneratedImage(savedGenerated);
-      }
-      if (savedPrompt && !prompt) {
-        setPrompt(savedPrompt);
-      }
-      
-      // Restore canvas drawings if available
-      const canvas = fabricCanvasRef.current;
-      if (canvas && savedCanvasState && canvasReady) {
-        isRestoringCanvas.current = true;
-        canvas.loadFromJSON(JSON.parse(savedCanvasState)).then(() => {
-          canvas.renderAll();
-          isRestoringCanvas.current = false;
-          console.log("🎨 Canvas restored on visibility change");
-        }).catch(() => {
-          isRestoringCanvas.current = false;
-        });
+      if (savedUpscaled && !upscaledImage) {
+        setUpscaledImage(savedUpscaled);
       }
     }
   };
   
   document.addEventListener('visibilitychange', handleVisibilityChange);
   return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-}, [uploadedImage, generatedImage, prompt, canvasReady]);
+}, [originalImage, upscaledImage]);
 ```
 
-### 7. Limpar estado do canvas no handleDeleteImage (linhas 462-477)
+### 7. Modificar handleReset para limpar IndexedDB (linhas 227-231)
 
 ```tsx
-const handleDeleteImage = () => {
-  setUploadedImage(null);
-  setGeneratedImage(null);
-  const canvas = fabricCanvasRef.current;
-  if (canvas) {
-    canvas.clear();
-    canvas.backgroundColor = "#1a1a1a";
-    canvas.renderAll();
-  }
-  setHistory([]);
-  setHistoryIndex(-1);
-  setPrompt("");
-  // Clear from IndexedDB - including canvas state
-  clearImagesFromStorage([UPLOADED_IMAGE_KEY, GENERATED_IMAGE_KEY, CANVAS_STATE_KEY]);
-  sessionStorage.removeItem(PROMPT_KEY);
-  sessionStorage.removeItem('temp_canvas_state');
-};
-```
-
-### 8. Limpar estado do canvas ao carregar nova imagem (handleImageUpload, linhas 418-435)
-
-```tsx
-const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const result = event.target?.result as string;
-    setUploadedImage(result);
-    setGeneratedImage(null);
-    // Clear saved canvas state when uploading new image
-    saveImageToStorage(CANVAS_STATE_KEY, null);
-    sessionStorage.removeItem('temp_canvas_state');
-  };
-  reader.readAsDataURL(file);
+const handleReset = () => {
+  setOriginalImage(null);
+  setImageDimensions(null);
+  setUpscaledImage(null);
+  // Limpar do IndexedDB
+  clearImagesFromStorage([ORIGINAL_IMAGE_KEY, UPSCALED_IMAGE_KEY]);
 };
 ```
 
@@ -194,30 +136,26 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
 | Local | Alteração |
 |-------|-----------|
-| Linha 42 | Adicionar `CANVAS_STATE_KEY` |
-| Após linha 71 | Adicionar `isRestoringCanvas` ref |
-| Linhas 73-90 | Carregar estado do canvas do IndexedDB |
-| Após linha 212 | Adicionar listener `path:created` para salvar canvas |
-| Após linha 253 | Adicionar useEffect para restaurar canvas quando pronto |
-| Linhas 134-157 | Restaurar canvas no visibilitychange |
-| Linhas 418-435 | Limpar estado do canvas ao fazer novo upload |
-| Linhas 462-477 | Limpar estado do canvas no delete |
+| Linha 14 | Adicionar imports do imageStorage |
+| Após linha 29 | Adicionar keys de persistência |
+| Após linha 40 | Adicionar estado `isLoadingImages` |
+| Após linha 55 | useEffect para carregar imagens do IndexedDB |
+| Após anterior | useEffect para persistir imagens |
+| Após anterior | useEffect para restaurar ao voltar para aba |
+| Linhas 227-231 | Limpar IndexedDB no handleReset |
 
 ---
 
 ## Fluxo de Funcionamento
 
 ```text
-[Usuário desenha no canvas]
+[Usuário faz upload de imagem]
          │
          ▼
-[Evento path:created dispara]
+[setOriginalImage dispara]
          │
          ▼
-[canvas.toJSON() serializa tudo]
-         │
-         ▼
-[Salva no IndexedDB (CANVAS_STATE_KEY)]
+[useEffect salva no IndexedDB]
          │
          ▼
 [Usuário troca de aba]
@@ -226,16 +164,10 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 [Componente remonta (Supabase auth)]
          │
          ▼
-[useEffect carrega do IndexedDB]
+[useEffect inicial carrega do IndexedDB]
          │
          ▼
-[Espera canvas ficar pronto]
-         │
-         ▼
-[loadFromJSON restaura desenhos]
-         │
-         ▼
-[Usuário vê imagem + pinturas]
+[Usuário vê imagem original restaurada]
 ```
 
 ---
@@ -243,6 +175,7 @@ const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 ## Resultado Esperado
 
 1. Usuário faz upload de uma imagem
-2. Pinta a máscara sobre a imagem
+2. Opcionalmente faz upscale
 3. Troca de aba do navegador
-4. Ao voltar, tanto a imagem quanto as pinturas estarão preservadas
+4. Ao voltar, tanto a imagem original quanto o resultado do upscale estarão preservados
+
