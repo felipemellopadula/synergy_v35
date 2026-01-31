@@ -1,66 +1,59 @@
 
 
-# Plano: Persistir Imagens na Página Upscale
+# Plano: Persistir Imagens na Página Skin Enhancer
 
 ## Problema Identificado
 
-Os estados `originalImage` e `upscaledImage` são inicializados como `null` (linha 36-38):
+Os estados `originalImage` e `enhancedImage` são inicializados como `null` (linhas 31-32):
 
 ```tsx
 const [originalImage, setOriginalImage] = useState<string | null>(null);
-const [upscaledImage, setUpscaledImage] = useState<string | null>(null);
+const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
 ```
 
 Quando o usuário troca de aba, eventos do Supabase podem causar remontagem do componente, perdendo as imagens carregadas.
 
 ## Solução
 
-Aplicar a mesma solução do Inpaint: usar IndexedDB via `src/utils/imageStorage.ts` para persistir as imagens.
+Aplicar a mesma solução do Upscale/Inpaint: usar IndexedDB via `src/utils/imageStorage.ts` para persistir as imagens.
 
 ---
 
-## Alterações no Arquivo `src/pages/Upscale.tsx`
+## Alterações no Arquivo `src/pages/SkinEnhancer.tsx`
 
-### 1. Adicionar imports do IndexedDB (linha 14)
+### 1. Adicionar imports do IndexedDB (linha 15)
 
 ```tsx
 import { saveImageToStorage, loadImageFromStorage, clearImagesFromStorage } from "@/utils/imageStorage";
 ```
 
-### 2. Adicionar keys de persistência (após linha 29)
+### 2. Adicionar keys de persistência (após linha 24)
 
 ```tsx
-const ORIGINAL_IMAGE_KEY = 'upscale_original_image';
-const UPSCALED_IMAGE_KEY = 'upscale_upscaled_image';
+// IndexedDB keys for image persistence
+const ORIGINAL_IMAGE_KEY = 'skinenhancer_original_image';
+const ENHANCED_IMAGE_KEY = 'skinenhancer_enhanced_image';
 ```
 
-### 3. Adicionar estado para controlar carregamento inicial (após linha 40)
+### 3. Adicionar estado para controlar carregamento inicial (após linha 34)
 
 ```tsx
 const [isLoadingImages, setIsLoadingImages] = useState(true);
 ```
 
-### 4. Adicionar useEffect para carregar imagens do IndexedDB (após linha 55)
+### 4. Adicionar useEffect para carregar imagens do IndexedDB (após linha 43)
 
 ```tsx
 // Carregar imagens do IndexedDB ao montar
 useEffect(() => {
   const loadImages = async () => {
     try {
-      const [savedOriginal, savedUpscaled] = await Promise.all([
+      const [savedOriginal, savedEnhanced] = await Promise.all([
         loadImageFromStorage(ORIGINAL_IMAGE_KEY),
-        loadImageFromStorage(UPSCALED_IMAGE_KEY)
+        loadImageFromStorage(ENHANCED_IMAGE_KEY)
       ]);
-      if (savedOriginal) {
-        setOriginalImage(savedOriginal);
-        // Restaurar dimensões
-        const img = new Image();
-        img.onload = () => {
-          setImageDimensions({ width: img.width, height: img.height });
-        };
-        img.src = savedOriginal;
-      }
-      if (savedUpscaled) setUpscaledImage(savedUpscaled);
+      if (savedOriginal) setOriginalImage(savedOriginal);
+      if (savedEnhanced) setEnhancedImage(savedEnhanced);
     } catch (error) {
       console.warn('Failed to load images from storage:', error);
     } finally {
@@ -71,19 +64,19 @@ useEffect(() => {
 }, []);
 ```
 
-### 5. Adicionar useEffect para persistir imagens quando mudarem (após o anterior)
+### 5. Adicionar useEffects para persistir imagens quando mudarem (após o anterior)
 
 ```tsx
 // Persistir imagens no IndexedDB quando mudarem
 useEffect(() => {
-  if (isLoadingImages) return; // Não salvar durante carregamento inicial
+  if (isLoadingImages) return;
   saveImageToStorage(ORIGINAL_IMAGE_KEY, originalImage);
 }, [originalImage, isLoadingImages]);
 
 useEffect(() => {
   if (isLoadingImages) return;
-  saveImageToStorage(UPSCALED_IMAGE_KEY, upscaledImage);
-}, [upscaledImage, isLoadingImages]);
+  saveImageToStorage(ENHANCED_IMAGE_KEY, enhancedImage);
+}, [enhancedImage, isLoadingImages]);
 ```
 
 ### 6. Adicionar useEffect para restaurar ao voltar para aba (após os anteriores)
@@ -93,40 +86,33 @@ useEffect(() => {
 useEffect(() => {
   const handleVisibilityChange = async () => {
     if (document.visibilityState === 'visible') {
-      const [savedOriginal, savedUpscaled] = await Promise.all([
+      const [savedOriginal, savedEnhanced] = await Promise.all([
         loadImageFromStorage(ORIGINAL_IMAGE_KEY),
-        loadImageFromStorage(UPSCALED_IMAGE_KEY)
+        loadImageFromStorage(ENHANCED_IMAGE_KEY)
       ]);
       
       if (savedOriginal && !originalImage) {
         setOriginalImage(savedOriginal);
-        // Restaurar dimensões
-        const img = new Image();
-        img.onload = () => {
-          setImageDimensions({ width: img.width, height: img.height });
-        };
-        img.src = savedOriginal;
       }
-      if (savedUpscaled && !upscaledImage) {
-        setUpscaledImage(savedUpscaled);
+      if (savedEnhanced && !enhancedImage) {
+        setEnhancedImage(savedEnhanced);
       }
     }
   };
   
   document.addEventListener('visibilitychange', handleVisibilityChange);
   return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-}, [originalImage, upscaledImage]);
+}, [originalImage, enhancedImage]);
 ```
 
-### 7. Modificar handleReset para limpar IndexedDB (linhas 227-231)
+### 7. Modificar handleReset para limpar IndexedDB (linhas 157-160)
 
 ```tsx
 const handleReset = () => {
   setOriginalImage(null);
-  setImageDimensions(null);
-  setUpscaledImage(null);
+  setEnhancedImage(null);
   // Limpar do IndexedDB
-  clearImagesFromStorage([ORIGINAL_IMAGE_KEY, UPSCALED_IMAGE_KEY]);
+  clearImagesFromStorage([ORIGINAL_IMAGE_KEY, ENHANCED_IMAGE_KEY]);
 };
 ```
 
@@ -136,13 +122,13 @@ const handleReset = () => {
 
 | Local | Alteração |
 |-------|-----------|
-| Linha 14 | Adicionar imports do imageStorage |
-| Após linha 29 | Adicionar keys de persistência |
-| Após linha 40 | Adicionar estado `isLoadingImages` |
-| Após linha 55 | useEffect para carregar imagens do IndexedDB |
-| Após anterior | useEffect para persistir imagens |
+| Linha 15 | Adicionar imports do imageStorage |
+| Após linha 24 | Adicionar keys de persistência |
+| Após linha 34 | Adicionar estado `isLoadingImages` |
+| Após linha 43 | useEffect para carregar imagens do IndexedDB |
+| Após anterior | useEffects para persistir imagens |
 | Após anterior | useEffect para restaurar ao voltar para aba |
-| Linhas 227-231 | Limpar IndexedDB no handleReset |
+| Linhas 157-160 | Limpar IndexedDB no handleReset |
 
 ---
 
@@ -175,7 +161,7 @@ const handleReset = () => {
 ## Resultado Esperado
 
 1. Usuário faz upload de uma imagem
-2. Opcionalmente faz upscale
+2. Opcionalmente aplica o Skin Enhancer
 3. Troca de aba do navegador
-4. Ao voltar, tanto a imagem original quanto o resultado do upscale estarão preservados
+4. Ao voltar, tanto a imagem original quanto o resultado do Skin Enhancer estarão preservados
 
