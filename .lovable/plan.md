@@ -1,71 +1,85 @@
 
-# Plano: Corrigir Bug do Vídeo Não Aparecer no Preview (Problema Real Identificado)
+# Plano: Corrigir Duplicação de Vídeos no Histórico
 
-## Diagnóstico do Problema Real
+## Problema Identificado
 
-Analisando os console logs, o problema ficou claro:
+Existem **múltiplos pontos** que chamam `saveVideoToDatabase`:
 
+1. **Linha 1131**: No `beginPolling` quando o vídeo fica pronto (chamada explícita)
+2. **Linha 797-800**: No `useEffect` que observa mudanças em `videoUrl`
+3. **Restauração do IndexedDB**: Ao restaurar `videoUrl`, dispara o `useEffect` da linha 797
+
+### Causa Raiz da Duplicação
+
+Quando o componente **remonta** (por causa do `refreshProfile()`):
+
+```text
+[Componente remonta]
+         |
+         v
+[savedVideoUrls.current = new Set<string>() VAZIO]  ← Perdeu memória!
+         |
+         v
+[IndexedDB restaura videoUrl]
+         |
+         v
+[useEffect detecta videoUrl && !savedVideoUrls.has(url)]  ← Passa!
+         |
+         v
+[saveVideoToDatabase() → DUPLICA O VÍDEO!]
 ```
-[Video] Estados aplicados com sucesso. videoUrl: https://vm.runware.ai/video/...
-[Video Render] Estados atuais: { "videoUrl": null, "savedVideosCount": 0 }
-[Video] Componente montado. sessionStorage taskUUID: null
-```
 
-O vídeo é setado corretamente, mas em seguida o **componente remonta completamente** e todos os estados são perdidos.
-
-### Causa Raiz
-
-1. Quando o vídeo fica pronto, o código chama `refreshProfile()` (linha 1102)
-2. `refreshProfile()` atualiza o estado `profile` no AuthContext
-3. Isso causa re-renderização do ProtectedRoute
-4. O componente Video (que é lazy-loaded) **remonta completamente**
-5. Ao remontar, `useState<string | null>(null)` reinicializa o `videoUrl` para `null`
-
-### Por Que Upscale/Inpaint/SkinEnhancer Funcionam
-
-Essas páginas usam **IndexedDB** (via `imageStorage.ts`) para persistir as imagens. Quando o componente remonta, ele imediatamente carrega o resultado do IndexedDB.
-
-A página Video **não implementa essa persistência** para o `videoUrl`.
+Além disso, pode haver **triplicação** quando:
+- O `beginPolling` chama `saveVideoToDatabase` explicitamente (1º save)
+- O `useEffect` também detecta `videoUrl` (2º save)
+- Após remontagem, o IndexedDB restaura e o useEffect dispara novamente (3º save)
 
 ---
 
 ## Solução
 
-Implementar persistência do `videoUrl` usando a mesma estratégia das outras páginas.
+### Parte 1: Remover chamada duplicada no `beginPolling`
 
-### Alterações em `src/pages/Video.tsx`
+A linha 1131 chama `saveVideoToDatabase(videoURL)` explicitamente, MAS o `useEffect` na linha 797 já faz isso automaticamente quando `videoUrl` muda. Isso causa duplicação imediata.
 
-#### 1. Adicionar import do imageStorage (linha 37)
+**Ação**: Remover a chamada direta `saveVideoToDatabase(videoURL)` do `beginPolling` (linhas 1129-1134).
+
+### Parte 2: Adicionar flag para indicar que URL veio do IndexedDB
+
+Quando o `videoUrl` é restaurado do IndexedDB (após remontagem), ele JÁ FOI SALVO anteriormente. Precisamos distinguir entre:
+- URL **nova** (recém-gerada, precisa salvar)
+- URL **restaurada** (do IndexedDB, NÃO precisa salvar)
+
+**Ação**: Adicionar uma flag `isRestoredFromStorage` que é `true` durante a restauração do IndexedDB.
+
+### Parte 3: Modificar useEffect para não salvar URLs restauradas
+
+**Ação**: O `useEffect` que chama `saveVideoToDatabase` deve verificar se a URL não é restaurada.
+
+---
+
+## Alterações em `src/pages/Video.tsx`
+
+### 1. Adicionar estado `isRestoredFromStorage` (após linha 484)
 
 ```tsx
-import { saveImageToStorage, loadImageFromStorage, removeImageFromStorage } from "@/utils/imageStorage";
+const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(false);
 ```
 
-#### 2. Adicionar constante para a key de persistência (após linha 68)
+### 2. Marcar URL como restaurada no useEffect do IndexedDB (linhas 562-578)
 
 ```tsx
-// Chave para persistir videoUrl no IndexedDB (sobrevive remontagem)
-const VIDEO_URL_STORAGE_KEY = 'video_generated_url';
-```
-
-#### 3. Adicionar estado de controle de hidratação (após linha 480)
-
-```tsx
-const [isHydratingVideoUrl, setIsHydratingVideoUrl] = useState(true);
-```
-
-#### 4. Carregar videoUrl do IndexedDB ao montar (após linha 555)
-
-```tsx
-// Carregar videoUrl do IndexedDB ao montar (para sobreviver remontagem)
 useEffect(() => {
   const loadVideoUrl = async () => {
     try {
       const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
-      if (savedUrl) {
+      if (savedUrl && !taskUUIDRef.current) {
         console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
+        setIsRestoredFromStorage(true); // ✅ Marcar como restaurado
         setVideoUrl(savedUrl);
         videoUrlRef.current = savedUrl;
+        // ✅ Adicionar à lista de URLs já salvas para prevenir duplicação
+        savedVideoUrls.current.add(savedUrl);
       }
     } catch (error) {
       console.warn('[Video] Erro ao carregar videoUrl do IndexedDB:', error);
@@ -77,99 +91,102 @@ useEffect(() => {
 }, []);
 ```
 
-#### 5. Persistir videoUrl no IndexedDB quando mudar (após o efeito anterior)
+### 3. Modificar useEffect que salva para ignorar URLs restauradas (linhas 795-800)
 
 ```tsx
-// Persistir videoUrl no IndexedDB quando mudar
 useEffect(() => {
-  if (isHydratingVideoUrl) return; // Não salvar durante hidratação
-  if (videoUrl) {
-    console.log("[Video] Persistindo videoUrl no IndexedDB");
-    saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoUrl);
-  } else {
-    // Se videoUrl foi limpo intencionalmente, remover do storage
-    removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
-  }
-}, [videoUrl, isHydratingVideoUrl]);
-```
-
-#### 6. Restaurar ao voltar para a aba (modificar o visibilitychange handler)
-
-Adicionar dentro do `handleVisibilityChange` existente, no bloco quando `document.visibilityState === 'visible'`:
-
-```tsx
-// Verificar se videoUrl foi perdido e restaurar do IndexedDB
-if (!videoUrl && !currentTaskUUID) {
-  const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
-  if (savedUrl) {
-    console.log("[Video] Restaurando videoUrl do IndexedDB ao voltar para aba");
-    setVideoUrl(savedUrl);
-    videoUrlRef.current = savedUrl;
+  // ✅ Não salvar se URL foi restaurada do IndexedDB
+  if (isRestoredFromStorage) {
+    console.log("[Video] URL restaurada do IndexedDB, não salvar novamente");
     return;
   }
+  if (videoUrl && !isSaving && !savedVideoUrls.current.has(videoUrl)) {
+    console.log("[Video] Salvando videoUrl nova no banco:", videoUrl.substring(0, 50));
+    saveVideoToDatabase(videoUrl);
+  }
+}, [videoUrl, isSaving, saveVideoToDatabase, isRestoredFromStorage]);
+```
+
+### 4. Remover chamada duplicada no beginPolling (linhas 1129-1134)
+
+**Remover este bloco**:
+```tsx
+// ✅ Salvar o vídeo automaticamente no banco (em background, não bloqueia exibição)
+try {
+  saveVideoToDatabase(videoURL);
+} catch (saveError) {
+  console.error("[Video] Erro ao salvar vídeo (não afeta exibição):", saveError);
 }
 ```
 
-#### 7. Limpar ao gerar novo vídeo (no handleSubmit)
+O `useEffect` já cuida de chamar `saveVideoToDatabase` quando `videoUrl` muda.
 
-Quando iniciar uma nova geração, limpar o storage:
+### 5. Resetar flag ao iniciar nova geração (no handleSubmit, após linha 1279)
 
 ```tsx
-// No início do handleSubmit, limpar storage anterior
-removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
+setIsRestoredFromStorage(false); // ✅ Resetar flag para nova geração
+```
+
+### 6. Adicionar console.logs para diagnóstico
+
+Em `saveVideoToDatabase`:
+```tsx
+console.log("[Video] saveVideoToDatabase chamado para URL:", url.substring(0, 50));
+console.log("[Video] isSaving:", isSaving, "savedVideoUrls.has:", savedVideoUrls.current.has(url));
 ```
 
 ---
 
 ## Resumo das Alterações
 
-| Arquivo | Local | Alteração |
-|---------|-------|-----------|
-| Video.tsx | Linha 37 | Import do imageStorage |
-| Video.tsx | Após linha 68 | Constante VIDEO_URL_STORAGE_KEY |
-| Video.tsx | Após linha 480 | Estado isHydratingVideoUrl |
-| Video.tsx | Após linha 555 | useEffect para carregar do IndexedDB |
-| Video.tsx | Após anterior | useEffect para persistir no IndexedDB |
-| Video.tsx | visibilitychange handler | Restaurar do IndexedDB |
-| Video.tsx | handleSubmit | Limpar storage ao gerar novo |
+| Local | Alteração |
+|-------|-----------|
+| Após linha 484 | Adicionar estado `isRestoredFromStorage` |
+| Linhas 562-578 | Adicionar `savedVideoUrls.current.add(savedUrl)` e `setIsRestoredFromStorage(true)` |
+| Linhas 795-800 | Verificar `isRestoredFromStorage` antes de salvar |
+| Linhas 1129-1134 | **REMOVER** chamada direta a `saveVideoToDatabase` |
+| Após linha 1279 | Resetar `setIsRestoredFromStorage(false)` |
 
 ---
 
 ## Fluxo Corrigido
 
 ```text
-[Polling detecta videoURL pronto]
+[Vídeo fica pronto no polling]
          |
          v
-[setVideoUrl(videoURL)]
+[setVideoUrl(videoURL)] ← Apenas seta o state
          |
          v
-[useEffect detecta mudança → salva no IndexedDB]
+[useEffect detecta videoUrl && !isRestoredFromStorage && !savedVideoUrls.has]
          |
          v
-[refreshProfile() é chamado]
+[saveVideoToDatabase() → SALVA 1 VEZ APENAS]
          |
          v
-[AuthContext atualiza profile]
+[savedVideoUrls.current.add(url)] ← Marca como salvo
          |
          v
-[ProtectedRoute re-renderiza]
+[Componente remonta por refreshProfile()]
          |
          v
-[Video.tsx REMONTA (lazy load)]
+[savedVideoUrls.current = new Set() VAZIO]
          |
          v
-[useEffect de montagem carrega do IndexedDB]
+[IndexedDB restaura videoUrl + adiciona em savedVideoUrls + seta isRestoredFromStorage=true]
          |
          v
-[setVideoUrl(savedUrl) → VÍDEO APARECE!]
+[useEffect detecta videoUrl MAS isRestoredFromStorage=true]
+         |
+         v
+[IGNORA SALVAMENTO → SEM DUPLICAÇÃO!]
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. Quando o vídeo fica pronto, ele é salvo no IndexedDB
-2. Se o componente remonta (por qualquer motivo), o vídeo é restaurado imediatamente
-3. O vídeo aparece no quadrado maior sem precisar trocar de aba
-4. O padrão fica consistente com Upscale, Inpaint e SkinEnhancer
+1. Cada vídeo gerado será salvo **apenas uma vez** no banco
+2. Não haverá mais duplicação ou triplicação no histórico
+3. A restauração do IndexedDB funcionará sem disparar salvamento duplicado
+4. Console logs ajudarão a diagnosticar qualquer problema residual
