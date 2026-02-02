@@ -37,6 +37,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useButtonDebounce } from "@/hooks/useButtonDebounce";
 import { useCredits, getVideoCreditCost } from "@/hooks/useCredits";
 import { PurchaseCreditsModal } from "@/components/PurchaseCreditsModal";
+import { saveImageToStorage, loadImageFromStorage, removeImageFromStorage } from "@/utils/imageStorage";
 
 // Lazy (reduz bundle inicial)
 const ThemeToggleLazy = lazy(() => import("@/components/ThemeToggle").then(m => ({ default: m.ThemeToggle })));
@@ -66,6 +67,8 @@ const DialogContentLazy = lazy(async () => {
 
 // --- PERSISTÊNCIA DE ESTADO VIA SESSIONSTORAGE ---
 const VIDEO_GENERATION_STATE_KEY = 'video_generation_taskUUID';
+// Chave para persistir videoUrl no IndexedDB (sobrevive remontagem causada por refreshProfile)
+const VIDEO_URL_STORAGE_KEY = 'video_generated_url';
 
 const setGenerationTaskUUID = (uuid: string | null) => {
   if (uuid) {
@@ -478,6 +481,7 @@ const VideoPage: React.FC = () => {
   const [taskUUID, setTaskUUID] = useState<string | null>(() => getStoredTaskUUID());
   const [isSubmitting, setIsSubmitting] = useState(() => !!getStoredTaskUUID());
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isHydratingVideoUrl, setIsHydratingVideoUrl] = useState(true); // Controle de hidratação do IndexedDB
   const pollRef = useRef<number | null>(null);
   const [uploadingStart, setUploadingStart] = useState(false);
   const [uploadingEnd, setUploadingEnd] = useState(false);
@@ -553,6 +557,37 @@ const VideoPage: React.FC = () => {
       setTimeout(checkAndPoll, 150);
     }
   }, []); // Executar apenas na montagem
+
+  // ✅ NOVO: Carregar videoUrl do IndexedDB ao montar (para sobreviver remontagem causada por refreshProfile)
+  useEffect(() => {
+    const loadVideoUrl = async () => {
+      try {
+        const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+        if (savedUrl && !taskUUIDRef.current) {
+          console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
+          setVideoUrl(savedUrl);
+          videoUrlRef.current = savedUrl;
+        }
+      } catch (error) {
+        console.warn('[Video] Erro ao carregar videoUrl do IndexedDB:', error);
+      } finally {
+        setIsHydratingVideoUrl(false);
+      }
+    };
+    loadVideoUrl();
+  }, []);
+
+  // ✅ NOVO: Persistir videoUrl no IndexedDB quando mudar
+  useEffect(() => {
+    if (isHydratingVideoUrl) return; // Não salvar durante hidratação
+    if (videoUrl) {
+      console.log("[Video] Persistindo videoUrl no IndexedDB");
+      saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoUrl);
+    } else {
+      // Se videoUrl foi limpo intencionalmente, remover do storage
+      removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
+    }
+  }, [videoUrl, isHydratingVideoUrl]);
   
   // Restrições por modelo (com memo para evitar recalcular)
   const allowedResolutions = useMemo<Resolution[]>(() => RESOLUTIONS_BY_MODEL[modelId] || [], [modelId]);
@@ -1146,12 +1181,27 @@ const VideoPage: React.FC = () => {
   // ✅ Listener para visibilitychange: quando usuário volta para a aba, reinicia polling se necessário
   // Usa REFS em vez de state para evitar stale closures
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         // ✅ Usar REFS que sempre têm valor atualizado (não sofrem de stale closure)
         const currentTaskUUID = taskUUIDRef.current;
         
         console.log("[Video] Tab voltou visível. taskUUID:", currentTaskUUID, "videoUrlRef:", videoUrlRef.current);
+        
+        // ✅ NOVO: Se não tem task ativa e não tem videoUrl, tentar restaurar do IndexedDB
+        if (!currentTaskUUID && !videoUrlRef.current) {
+          try {
+            const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+            if (savedUrl) {
+              console.log("[Video] Restaurando videoUrl do IndexedDB ao voltar para aba:", savedUrl.substring(0, 50));
+              setVideoUrl(savedUrl);
+              videoUrlRef.current = savedUrl;
+              return;
+            }
+          } catch (error) {
+            console.warn('[Video] Erro ao restaurar videoUrl do IndexedDB:', error);
+          }
+        }
         
         // ✅ CORRIGIDO: Se tem taskUUID ativo, limpar videoUrlRef SINCRONAMENTE
         // (useEffect de sincronização pode não ter executado ainda)
@@ -1227,6 +1277,9 @@ const VideoPage: React.FC = () => {
     setTaskUUID(null);
     processingRef.current = true; // ✅ Marcar que há processamento em andamento
     savedVideoUrls.current.clear(); // ✅ Limpar controle de URLs ao iniciar nova geração
+    
+    // ✅ NOVO: Limpar videoUrl do IndexedDB ao iniciar nova geração
+    removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
 
     const normalizedFormat = outputFormat === "mov" ? "mp4" : outputFormat;
 
