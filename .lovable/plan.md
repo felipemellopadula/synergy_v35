@@ -1,274 +1,168 @@
 
 
-# Plano: Adicionar Persistência de Imagem e Drag and Drop na Página AI Avatar
+# Plano: Corrigir Bug do Vídeo Não Aparecer no Preview Quando Fica Pronto
 
-## Problema Identificado
+## Diagnóstico do Problema
 
-1. **Sem persistência**: Os estados `uploadedImage` e `generatedAvatar` são inicializados como `null` (linhas 47-48). Quando o usuário troca de aba, eventos do Supabase podem causar remontagem do componente, perdendo as imagens carregadas.
+Após análise detalhada do código em `src/pages/Video.tsx`, identifiquei o seguinte fluxo problemático:
 
-2. **Sem drag and drop**: A página atual só aceita upload via clique no botão. Não há suporte para arrastar e soltar imagens, diferente de outras páginas como Inpaint, Upscale e SkinEnhancer.
+### Fluxo Atual (Problemático)
 
-## Solução
+1. **Polling detecta vídeo pronto** (linha 1053-1054):
+   - `videoURL` é encontrado no resultado
 
-Aplicar o mesmo padrão das outras páginas:
-- Usar IndexedDB via `src/utils/imageStorage.ts` para persistir as imagens
-- Adicionar handlers de drag and drop com feedback visual
+2. **Estados são atualizados com flushSync** (linhas 1061-1066):
+```tsx
+flushSync(() => {
+  setVideoUrl(videoURL);     // Seta o novo vídeo
+  setIsSubmitting(false);    
+  setTaskUUID(null);
+  setElapsedTime(0);
+});
+```
+
+3. **Refs são sincronizadas via useEffect** (linhas 516-524):
+```tsx
+useEffect(() => {
+  taskUUIDRef.current = taskUUID;  // Atualiza DEPOIS do render
+  setGenerationTaskUUID(taskUUID);
+}, [taskUUID]);
+
+useEffect(() => {
+  videoUrlRef.current = videoUrl;  // Atualiza DEPOIS do render
+}, [videoUrl]);
+```
+
+4. **O problema**: Se o usuário trocar de aba durante processamento e voltar APÓS o vídeo ficar pronto, o `visibilitychange` handler pode ver `taskUUIDRef.current` ainda com valor antigo (antes do useEffect sincronizar) e executar:
+```tsx
+flushSync(() => {
+  setIsSubmitting(true);
+  setVideoUrl(null);  // ⚠️ APAGA O VÍDEO RECÉM-GERADO!
+});
+```
+
+### Hipótese Adicional
+
+Também pode haver uma **race condition** onde:
+- O `flushSync` atualiza o state
+- Mas antes do React re-renderizar, algo mais dispara outro batch de updates
+- O componente acaba mostrando estado antigo
 
 ---
 
-## Alterações no Arquivo `src/pages/AIAvatar.tsx`
+## Solução Proposta
 
-### 1. Adicionar imports do IndexedDB (linha 1)
+### Parte 1: Sincronização Imediata das Refs (Crítico)
 
-Adicionar import junto com os outros:
-
-```tsx
-import { saveImageToStorage, loadImageFromStorage, clearImagesFromStorage } from "@/utils/imageStorage";
-```
-
-### 2. Adicionar keys de persistência (após linha 40)
+No `beginPolling`, **atualizar as refs SINCRONAMENTE antes do flushSync**, não depois via useEffect:
 
 ```tsx
-// IndexedDB keys for image persistence
-const UPLOADED_IMAGE_KEY = 'aiavatar_uploaded_image';
-const GENERATED_AVATAR_KEY = 'aiavatar_generated_avatar';
-```
-
-### 3. Adicionar estado para controlar carregamento e arrastar (após linha 54)
-
-```tsx
-const [isLoadingImages, setIsLoadingImages] = useState(true);
-const [isDragging, setIsDragging] = useState(false);
-```
-
-### 4. Adicionar useEffect para carregar imagens do IndexedDB (após linha 70)
-
-```tsx
-// Carregar imagens do IndexedDB ao montar
-useEffect(() => {
-  const loadImages = async () => {
-    try {
-      const [savedUploaded, savedGenerated] = await Promise.all([
-        loadImageFromStorage(UPLOADED_IMAGE_KEY),
-        loadImageFromStorage(GENERATED_AVATAR_KEY)
-      ]);
-      if (savedUploaded) setUploadedImage(savedUploaded);
-      if (savedGenerated) setGeneratedAvatar(savedGenerated);
-    } catch (error) {
-      console.warn('Failed to load images from storage:', error);
-    } finally {
-      setIsLoadingImages(false);
-    }
-  };
-  loadImages();
-}, []);
-```
-
-### 5. Adicionar useEffects para persistir imagens quando mudarem (após o anterior)
-
-```tsx
-// Persistir imagens no IndexedDB quando mudarem
-useEffect(() => {
-  if (isLoadingImages) return;
-  saveImageToStorage(UPLOADED_IMAGE_KEY, uploadedImage);
-}, [uploadedImage, isLoadingImages]);
-
-useEffect(() => {
-  if (isLoadingImages) return;
-  saveImageToStorage(GENERATED_AVATAR_KEY, generatedAvatar);
-}, [generatedAvatar, isLoadingImages]);
-```
-
-### 6. Adicionar useEffect para restaurar ao voltar para aba (após os anteriores)
-
-```tsx
-// Restaurar estado ao voltar para a aba
-useEffect(() => {
-  const handleVisibilityChange = async () => {
-    if (document.visibilityState === 'visible') {
-      const [savedUploaded, savedGenerated] = await Promise.all([
-        loadImageFromStorage(UPLOADED_IMAGE_KEY),
-        loadImageFromStorage(GENERATED_AVATAR_KEY)
-      ]);
-      
-      if (savedUploaded && !uploadedImage) {
-        setUploadedImage(savedUploaded);
-      }
-      if (savedGenerated && !generatedAvatar) {
-        setGeneratedAvatar(savedGenerated);
-      }
-    }
-  };
+// Linha ~1053-1068 (dentro do beginPolling, quando videoURL é encontrado)
+if (videoURL) {
+  console.log("[Video] ✅ Vídeo pronto! URL:", videoURL);
+  if (elapsedRef.current) window.clearInterval(elapsedRef.current);
+  if (pollRef.current) window.clearTimeout(pollRef.current);
   
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-}, [uploadedImage, generatedAvatar]);
+  // ✅ NOVO: Atualizar refs SINCRONAMENTE ANTES do flushSync
+  // Isso evita race condition com visibilitychange
+  videoUrlRef.current = videoURL;
+  taskUUIDRef.current = null;
+  processingRef.current = false;
+  
+  console.log("[Video] Aplicando estados atomicamente com flushSync...");
+  flushSync(() => {
+    setVideoUrl(videoURL);
+    setIsSubmitting(false);
+    setTaskUUID(null);
+    setElapsedTime(0);
+  });
+  // ... resto do código
+}
 ```
 
-### 7. Adicionar handlers de drag and drop (após handleSelectSavedAvatar, ~linha 283)
+### Parte 2: Adicionar Console Logs para Diagnóstico
+
+Adicionar logs estratégicos para entender exatamente o que está acontecendo:
 
 ```tsx
-// Drag and drop handlers
-const handleDragOver = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(true);
-}, []);
+// Na renderização do player (antes da linha 1877)
+console.log("[Video Render] Estados atuais:", {
+  isSubmitting,
+  taskUUID,
+  videoUrl: videoUrl ? videoUrl.substring(0, 50) + "..." : null,
+  savedVideosCount: savedVideos.length,
+  savedVideos0: savedVideos[0]?.id
+});
+```
 
-const handleDragLeave = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
-}, []);
+### Parte 3: Proteção no visibilitychange
 
-const handleDrop = useCallback((e: React.DragEvent) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setIsDragging(false);
+Adicionar verificação extra para não limpar `videoUrl` se já existe um vídeo:
 
-  const file = e.dataTransfer.files[0];
-  if (!file || !file.type.startsWith("image/")) {
-    toast.error("Por favor, arraste uma imagem válida");
+```tsx
+// Linha ~1155 (dentro do handleVisibilityChange)
+if (currentTaskUUID) {
+  // ✅ NOVO: Não limpar se já temos um vídeo pronto
+  if (videoUrlRef.current) {
+    console.log("[Video] Tab voltou mas já temos vídeo pronto, ignorando");
     return;
   }
-
-  if (file.size > 10 * 1024 * 1024) {
-    toast.error("A imagem deve ter no máximo 10MB");
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    setUploadedImage(event.target?.result as string);
-    setGeneratedAvatar(null);
-  };
-  reader.readAsDataURL(file);
-}, []);
+  
+  // ... resto do código existente
+}
 ```
 
-### 8. Modificar handleRemoveImage para limpar IndexedDB (linhas 114-121)
+### Parte 4: Garantir Re-render Forçado
+
+Adicionar uma key dinâmica no Card de resultado para garantir re-render:
 
 ```tsx
-const handleRemoveImage = useCallback(() => {
-  setUploadedImage(null);
-  setGeneratedAvatar(null);
-  setCustomPrompt("");
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-  // Limpar do IndexedDB
-  clearImagesFromStorage([UPLOADED_IMAGE_KEY, GENERATED_AVATAR_KEY]);
-}, []);
-```
-
-### 9. Adicionar eventos de drag and drop na área de upload (linhas 365-377)
-
-Modificar a div de upload para incluir os eventos:
-
-```tsx
-<div
-  className={`w-full max-w-md aspect-square border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-4 cursor-pointer transition-colors bg-muted/30 ${
-    isDragging 
-      ? "border-primary bg-primary/10" 
-      : "border-border hover:border-primary/50"
-  }`}
-  onClick={() => fileInputRef.current?.click()}
-  onDragOver={handleDragOver}
-  onDragLeave={handleDragLeave}
-  onDrop={handleDrop}
->
-  <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
-    isDragging 
-      ? "bg-primary" 
-      : "bg-gradient-to-br from-purple-500 to-pink-500"
-  }`}>
-    <Upload className="h-8 w-8 text-white" />
-  </div>
-  <div className="text-center">
-    <p className="text-foreground font-medium">
-      {isDragging ? "Solte a imagem aqui" : "Faça upload de uma foto"}
-    </p>
-    <p className="text-sm text-muted-foreground mt-1">
-      {isDragging ? "" : "Arraste ou clique para selecionar"}
-    </p>
-    <p className="text-sm text-muted-foreground">PNG, JPG até 10MB</p>
-  </div>
-</div>
+// Linha ~1874
+<Card className="order-1 lg:col-span-2" key={`player-${videoUrl || 'empty'}`}>
 ```
 
 ---
 
-## Resumo das Mudanças
+## Resumo das Alterações em `src/pages/Video.tsx`
 
-| Local | Alteração |
+| Linha | Alteração |
 |-------|-----------|
-| Linha 1 | Adicionar imports do imageStorage |
-| Após linha 40 | Adicionar keys de persistência |
-| Após linha 54 | Adicionar estados `isLoadingImages` e `isDragging` |
-| Após linha 70 | useEffect para carregar imagens do IndexedDB |
-| Após anterior | useEffects para persistir imagens |
-| Após anterior | useEffect para restaurar ao voltar para aba |
-| Após linha 283 | Handlers de drag and drop |
-| Linhas 114-121 | Limpar IndexedDB no handleRemoveImage |
-| Linhas 365-377 | Eventos e feedback visual de drag and drop |
+| ~1053-1068 | Atualizar refs SINCRONAMENTE antes do flushSync |
+| ~1155 | Adicionar verificação `videoUrlRef.current` no visibilitychange |
+| ~1876 | Adicionar console.log de debug no render do player |
+| ~1874 | Adicionar key dinâmica no Card para forçar re-render |
 
 ---
 
-## Detalhes Técnicos
-
-### Fluxo de Persistência
+## Fluxo Corrigido
 
 ```text
-[Usuário faz upload/gera avatar]
+[Polling detecta videoURL]
          |
          v
-[setUploadedImage/setGeneratedAvatar dispara]
+[Atualiza REFS sincronamente]  ← NOVO (evita race condition)
+  - videoUrlRef.current = videoURL
+  - taskUUIDRef.current = null
+  - processingRef.current = false
          |
          v
-[useEffect salva no IndexedDB]
+[flushSync atualiza STATES]
+  - setVideoUrl(videoURL)
+  - setIsSubmitting(false)
+  - setTaskUUID(null)
          |
          v
-[Usuário troca de aba]
+[React re-renderiza IMEDIATAMENTE]
          |
          v
-[Componente remonta (Supabase auth)]
-         |
-         v
-[useEffect inicial carrega do IndexedDB]
-         |
-         v
-[Usuário ve imagens restauradas]
-```
-
-### Fluxo de Drag and Drop
-
-```text
-[Usuário arrasta imagem sobre a area]
-         |
-         v
-[handleDragOver: isDragging = true]
-         |
-         v
-[Feedback visual: borda e fundo mudam]
-         |
-         v
-[Usuário solta imagem]
-         |
-         v
-[handleDrop: valida e carrega imagem]
-         |
-         v
-[setUploadedImage com base64]
+[Player mostra o novo vídeo]
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. Usuário pode arrastar e soltar uma imagem na area de upload
-2. Feedback visual aparece quando arrasta sobre a area (borda e fundo mudam de cor)
-3. Ao fazer upload, a imagem persiste no IndexedDB
-4. Ao gerar avatar, o resultado também persiste
-5. Ao trocar de aba e voltar, tanto a imagem original quanto o avatar gerado permanecem
-6. Ao clicar em remover, ambas as imagens são limpas do IndexedDB
+1. Quando o vídeo fica pronto, ele aparece **imediatamente** no quadrado maior
+2. Não é mais necessário trocar de aba e voltar para ver o vídeo
+3. Os console.logs ajudarão a diagnosticar se houver problemas residuais
 
