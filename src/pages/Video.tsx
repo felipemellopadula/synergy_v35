@@ -1055,18 +1055,21 @@ const VideoPage: React.FC = () => {
           if (elapsedRef.current) window.clearInterval(elapsedRef.current);
           if (pollRef.current) window.clearTimeout(pollRef.current);
           
-          // ✅ CORRIGIDO: flushSync garante que TODAS as mudanças são aplicadas ATOMICAMENTE
-          // Seta videoUrl PRIMEIRO para evitar fallback para savedVideos[0]
-          console.log("[Video] Aplicando estados atomicamente com flushSync...");
+          // ✅ CRÍTICO: Atualizar refs SINCRONAMENTE ANTES do flushSync
+          // Isso evita race condition com visibilitychange que poderia limpar o vídeo
+          videoUrlRef.current = videoURL;
+          taskUUIDRef.current = null;
+          processingRef.current = false;
+          setGenerationTaskUUID(null); // Limpar sessionStorage antes do state update
+          
+          console.log("[Video] Refs atualizadas sincronamente. Aplicando estados com flushSync...");
           flushSync(() => {
             setVideoUrl(videoURL);     // ✅ PRIMEIRO: setar video novo
             setIsSubmitting(false);    // ✅ DEPOIS: limpar estados
             setTaskUUID(null);
             setElapsedTime(0);
           });
-          setGenerationTaskUUID(null); // ✅ Limpar sessionStorage no sucesso (redundante mas seguro)
-          processingRef.current = false;
-          console.log("[Video] Estados aplicados com sucesso");
+          console.log("[Video] Estados aplicados com sucesso. videoUrl:", videoURL.substring(0, 50));
           toast({ 
             title: "✅ Vídeo pronto!", 
             description: "Seu vídeo foi gerado e está no histórico abaixo.",
@@ -1153,8 +1156,12 @@ const VideoPage: React.FC = () => {
         // ✅ CORRIGIDO: Se tem taskUUID ativo, limpar videoUrlRef SINCRONAMENTE
         // (useEffect de sincronização pode não ter executado ainda)
         if (currentTaskUUID) {
-          // ✅ Limpar ref SINCRONAMENTE (não depender do useEffect)
-          videoUrlRef.current = null;
+          // ✅ CRÍTICO: Não limpar se já temos um vídeo pronto!
+          // Isso evita apagar o vídeo recém-gerado quando o usuário volta para a aba
+          if (videoUrlRef.current) {
+            console.log("[Video] Tab voltou mas já temos vídeo pronto, ignorando. URL:", videoUrlRef.current.substring(0, 50));
+            return;
+          }
           
           console.log("[Video] Processamento ativo, forçando UI com flushSync...");
           
@@ -1167,8 +1174,7 @@ const VideoPage: React.FC = () => {
           processingRef.current = true;
           setTaskUUID(currentTaskUUID);
           
-          // ✅ NOVO: Delay para garantir que o spinner seja renderizado ANTES do polling
-          // Se o video ja terminou, o usuario pelo menos vera o spinner brevemente
+          // ✅ Delay para garantir que o spinner seja renderizado ANTES do polling
           setTimeout(() => {
             beginPolling(currentTaskUUID);
           }, 150);
@@ -1871,8 +1877,19 @@ const VideoPage: React.FC = () => {
           </Card>
 
           {/* Player / Resultado */}
-          <Card className="order-1 lg:col-span-2">
+          {/* ✅ Key dinâmica força re-render quando videoUrl muda */}
+          <Card className="order-1 lg:col-span-2" key={`player-${videoUrl || 'empty'}-${isSubmitting}`}>
             <CardContent className="pt-6">
+              {/* ✅ DEBUG: Log de render para diagnóstico */}
+              {(() => {
+                console.log("[Video Render] Estados atuais:", {
+                  isSubmitting,
+                  taskUUID,
+                  videoUrl: videoUrl ? videoUrl.substring(0, 50) + "..." : null,
+                  savedVideosCount: savedVideos.length,
+                });
+                return null;
+              })()}
               {/* ✅ PRIORIDADE 1: Spinner de processamento (SEMPRE verificar primeiro) */}
               {(isSubmitting || taskUUID) ? (
                 <div className="aspect-video w-full grid place-items-center text-center text-muted-foreground bg-muted/30 rounded-md">
