@@ -1,168 +1,175 @@
 
+# Plano: Corrigir Bug do Vídeo Não Aparecer no Preview (Problema Real Identificado)
 
-# Plano: Corrigir Bug do Vídeo Não Aparecer no Preview Quando Fica Pronto
+## Diagnóstico do Problema Real
 
-## Diagnóstico do Problema
+Analisando os console logs, o problema ficou claro:
 
-Após análise detalhada do código em `src/pages/Video.tsx`, identifiquei o seguinte fluxo problemático:
-
-### Fluxo Atual (Problemático)
-
-1. **Polling detecta vídeo pronto** (linha 1053-1054):
-   - `videoURL` é encontrado no resultado
-
-2. **Estados são atualizados com flushSync** (linhas 1061-1066):
-```tsx
-flushSync(() => {
-  setVideoUrl(videoURL);     // Seta o novo vídeo
-  setIsSubmitting(false);    
-  setTaskUUID(null);
-  setElapsedTime(0);
-});
+```
+[Video] Estados aplicados com sucesso. videoUrl: https://vm.runware.ai/video/...
+[Video Render] Estados atuais: { "videoUrl": null, "savedVideosCount": 0 }
+[Video] Componente montado. sessionStorage taskUUID: null
 ```
 
-3. **Refs são sincronizadas via useEffect** (linhas 516-524):
-```tsx
-useEffect(() => {
-  taskUUIDRef.current = taskUUID;  // Atualiza DEPOIS do render
-  setGenerationTaskUUID(taskUUID);
-}, [taskUUID]);
+O vídeo é setado corretamente, mas em seguida o **componente remonta completamente** e todos os estados são perdidos.
 
-useEffect(() => {
-  videoUrlRef.current = videoUrl;  // Atualiza DEPOIS do render
-}, [videoUrl]);
-```
+### Causa Raiz
 
-4. **O problema**: Se o usuário trocar de aba durante processamento e voltar APÓS o vídeo ficar pronto, o `visibilitychange` handler pode ver `taskUUIDRef.current` ainda com valor antigo (antes do useEffect sincronizar) e executar:
-```tsx
-flushSync(() => {
-  setIsSubmitting(true);
-  setVideoUrl(null);  // ⚠️ APAGA O VÍDEO RECÉM-GERADO!
-});
-```
+1. Quando o vídeo fica pronto, o código chama `refreshProfile()` (linha 1102)
+2. `refreshProfile()` atualiza o estado `profile` no AuthContext
+3. Isso causa re-renderização do ProtectedRoute
+4. O componente Video (que é lazy-loaded) **remonta completamente**
+5. Ao remontar, `useState<string | null>(null)` reinicializa o `videoUrl` para `null`
 
-### Hipótese Adicional
+### Por Que Upscale/Inpaint/SkinEnhancer Funcionam
 
-Também pode haver uma **race condition** onde:
-- O `flushSync` atualiza o state
-- Mas antes do React re-renderizar, algo mais dispara outro batch de updates
-- O componente acaba mostrando estado antigo
+Essas páginas usam **IndexedDB** (via `imageStorage.ts`) para persistir as imagens. Quando o componente remonta, ele imediatamente carrega o resultado do IndexedDB.
+
+A página Video **não implementa essa persistência** para o `videoUrl`.
 
 ---
 
-## Solução Proposta
+## Solução
 
-### Parte 1: Sincronização Imediata das Refs (Crítico)
+Implementar persistência do `videoUrl` usando a mesma estratégia das outras páginas.
 
-No `beginPolling`, **atualizar as refs SINCRONAMENTE antes do flushSync**, não depois via useEffect:
+### Alterações em `src/pages/Video.tsx`
+
+#### 1. Adicionar import do imageStorage (linha 37)
 
 ```tsx
-// Linha ~1053-1068 (dentro do beginPolling, quando videoURL é encontrado)
-if (videoURL) {
-  console.log("[Video] ✅ Vídeo pronto! URL:", videoURL);
-  if (elapsedRef.current) window.clearInterval(elapsedRef.current);
-  if (pollRef.current) window.clearTimeout(pollRef.current);
-  
-  // ✅ NOVO: Atualizar refs SINCRONAMENTE ANTES do flushSync
-  // Isso evita race condition com visibilitychange
-  videoUrlRef.current = videoURL;
-  taskUUIDRef.current = null;
-  processingRef.current = false;
-  
-  console.log("[Video] Aplicando estados atomicamente com flushSync...");
-  flushSync(() => {
-    setVideoUrl(videoURL);
-    setIsSubmitting(false);
-    setTaskUUID(null);
-    setElapsedTime(0);
-  });
-  // ... resto do código
-}
+import { saveImageToStorage, loadImageFromStorage, removeImageFromStorage } from "@/utils/imageStorage";
 ```
 
-### Parte 2: Adicionar Console Logs para Diagnóstico
-
-Adicionar logs estratégicos para entender exatamente o que está acontecendo:
+#### 2. Adicionar constante para a key de persistência (após linha 68)
 
 ```tsx
-// Na renderização do player (antes da linha 1877)
-console.log("[Video Render] Estados atuais:", {
-  isSubmitting,
-  taskUUID,
-  videoUrl: videoUrl ? videoUrl.substring(0, 50) + "..." : null,
-  savedVideosCount: savedVideos.length,
-  savedVideos0: savedVideos[0]?.id
-});
+// Chave para persistir videoUrl no IndexedDB (sobrevive remontagem)
+const VIDEO_URL_STORAGE_KEY = 'video_generated_url';
 ```
 
-### Parte 3: Proteção no visibilitychange
-
-Adicionar verificação extra para não limpar `videoUrl` se já existe um vídeo:
+#### 3. Adicionar estado de controle de hidratação (após linha 480)
 
 ```tsx
-// Linha ~1155 (dentro do handleVisibilityChange)
-if (currentTaskUUID) {
-  // ✅ NOVO: Não limpar se já temos um vídeo pronto
-  if (videoUrlRef.current) {
-    console.log("[Video] Tab voltou mas já temos vídeo pronto, ignorando");
+const [isHydratingVideoUrl, setIsHydratingVideoUrl] = useState(true);
+```
+
+#### 4. Carregar videoUrl do IndexedDB ao montar (após linha 555)
+
+```tsx
+// Carregar videoUrl do IndexedDB ao montar (para sobreviver remontagem)
+useEffect(() => {
+  const loadVideoUrl = async () => {
+    try {
+      const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+      if (savedUrl) {
+        console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
+        setVideoUrl(savedUrl);
+        videoUrlRef.current = savedUrl;
+      }
+    } catch (error) {
+      console.warn('[Video] Erro ao carregar videoUrl do IndexedDB:', error);
+    } finally {
+      setIsHydratingVideoUrl(false);
+    }
+  };
+  loadVideoUrl();
+}, []);
+```
+
+#### 5. Persistir videoUrl no IndexedDB quando mudar (após o efeito anterior)
+
+```tsx
+// Persistir videoUrl no IndexedDB quando mudar
+useEffect(() => {
+  if (isHydratingVideoUrl) return; // Não salvar durante hidratação
+  if (videoUrl) {
+    console.log("[Video] Persistindo videoUrl no IndexedDB");
+    saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoUrl);
+  } else {
+    // Se videoUrl foi limpo intencionalmente, remover do storage
+    removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
+  }
+}, [videoUrl, isHydratingVideoUrl]);
+```
+
+#### 6. Restaurar ao voltar para a aba (modificar o visibilitychange handler)
+
+Adicionar dentro do `handleVisibilityChange` existente, no bloco quando `document.visibilityState === 'visible'`:
+
+```tsx
+// Verificar se videoUrl foi perdido e restaurar do IndexedDB
+if (!videoUrl && !currentTaskUUID) {
+  const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+  if (savedUrl) {
+    console.log("[Video] Restaurando videoUrl do IndexedDB ao voltar para aba");
+    setVideoUrl(savedUrl);
+    videoUrlRef.current = savedUrl;
     return;
   }
-  
-  // ... resto do código existente
 }
 ```
 
-### Parte 4: Garantir Re-render Forçado
+#### 7. Limpar ao gerar novo vídeo (no handleSubmit)
 
-Adicionar uma key dinâmica no Card de resultado para garantir re-render:
+Quando iniciar uma nova geração, limpar o storage:
 
 ```tsx
-// Linha ~1874
-<Card className="order-1 lg:col-span-2" key={`player-${videoUrl || 'empty'}`}>
+// No início do handleSubmit, limpar storage anterior
+removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
 ```
 
 ---
 
-## Resumo das Alterações em `src/pages/Video.tsx`
+## Resumo das Alterações
 
-| Linha | Alteração |
-|-------|-----------|
-| ~1053-1068 | Atualizar refs SINCRONAMENTE antes do flushSync |
-| ~1155 | Adicionar verificação `videoUrlRef.current` no visibilitychange |
-| ~1876 | Adicionar console.log de debug no render do player |
-| ~1874 | Adicionar key dinâmica no Card para forçar re-render |
+| Arquivo | Local | Alteração |
+|---------|-------|-----------|
+| Video.tsx | Linha 37 | Import do imageStorage |
+| Video.tsx | Após linha 68 | Constante VIDEO_URL_STORAGE_KEY |
+| Video.tsx | Após linha 480 | Estado isHydratingVideoUrl |
+| Video.tsx | Após linha 555 | useEffect para carregar do IndexedDB |
+| Video.tsx | Após anterior | useEffect para persistir no IndexedDB |
+| Video.tsx | visibilitychange handler | Restaurar do IndexedDB |
+| Video.tsx | handleSubmit | Limpar storage ao gerar novo |
 
 ---
 
 ## Fluxo Corrigido
 
 ```text
-[Polling detecta videoURL]
+[Polling detecta videoURL pronto]
          |
          v
-[Atualiza REFS sincronamente]  ← NOVO (evita race condition)
-  - videoUrlRef.current = videoURL
-  - taskUUIDRef.current = null
-  - processingRef.current = false
+[setVideoUrl(videoURL)]
          |
          v
-[flushSync atualiza STATES]
-  - setVideoUrl(videoURL)
-  - setIsSubmitting(false)
-  - setTaskUUID(null)
+[useEffect detecta mudança → salva no IndexedDB]
          |
          v
-[React re-renderiza IMEDIATAMENTE]
+[refreshProfile() é chamado]
          |
          v
-[Player mostra o novo vídeo]
+[AuthContext atualiza profile]
+         |
+         v
+[ProtectedRoute re-renderiza]
+         |
+         v
+[Video.tsx REMONTA (lazy load)]
+         |
+         v
+[useEffect de montagem carrega do IndexedDB]
+         |
+         v
+[setVideoUrl(savedUrl) → VÍDEO APARECE!]
 ```
 
 ---
 
 ## Resultado Esperado
 
-1. Quando o vídeo fica pronto, ele aparece **imediatamente** no quadrado maior
-2. Não é mais necessário trocar de aba e voltar para ver o vídeo
-3. Os console.logs ajudarão a diagnosticar se houver problemas residuais
-
+1. Quando o vídeo fica pronto, ele é salvo no IndexedDB
+2. Se o componente remonta (por qualquer motivo), o vídeo é restaurado imediatamente
+3. O vídeo aparece no quadrado maior sem precisar trocar de aba
+4. O padrão fica consistente com Upscale, Inpaint e SkinEnhancer
