@@ -482,6 +482,7 @@ const VideoPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(() => !!getStoredTaskUUID());
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isHydratingVideoUrl, setIsHydratingVideoUrl] = useState(true); // Controle de hidratação do IndexedDB
+  const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(false); // ✅ Flag para indicar que URL veio do IndexedDB
   const pollRef = useRef<number | null>(null);
   const [uploadingStart, setUploadingStart] = useState(false);
   const [uploadingEnd, setUploadingEnd] = useState(false);
@@ -565,8 +566,12 @@ const VideoPage: React.FC = () => {
         const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
         if (savedUrl && !taskUUIDRef.current) {
           console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
+          setIsRestoredFromStorage(true); // ✅ Marcar como restaurado para não salvar novamente
           setVideoUrl(savedUrl);
           videoUrlRef.current = savedUrl;
+          // ✅ Adicionar à lista de URLs já salvas para prevenir duplicação
+          savedVideoUrls.current.add(savedUrl);
+          console.log("[Video] URL adicionada ao savedVideoUrls.current durante restauração");
         }
       } catch (error) {
         console.warn('[Video] Erro ao carregar videoUrl do IndexedDB:', error);
@@ -629,7 +634,13 @@ const VideoPage: React.FC = () => {
   // Salvar vídeo (upload->url pública->metadados) - COM atualização otimista
   const saveVideoToDatabase = useCallback(
     async (url: string) => {
-      if (!user) return;
+      console.log("[Video] saveVideoToDatabase chamado para URL:", url.substring(0, 50));
+      console.log("[Video] saveVideoToDatabase - isSaving:", isSaving, "savedVideoUrls.has:", savedVideoUrls.current.has(url));
+      
+      if (!user) {
+        console.log("[Video] saveVideoToDatabase - sem usuário, abortando");
+        return;
+      }
       
       // ✅ Prevenir múltiplos salvamentos simultâneos
       if (isSaving) {
@@ -643,6 +654,7 @@ const VideoPage: React.FC = () => {
         return;
       }
       
+      console.log("[Video] saveVideoToDatabase - PROSSEGUINDO com salvamento");
       setIsSaving(true);
       savedVideoUrls.current.add(url);
       
@@ -792,12 +804,18 @@ const VideoPage: React.FC = () => {
     loadSavedVideos();
   }, [user, loadSavedVideos]);
 
-  // ✅ Efeito melhorado: só salva se URL for nova e não estiver salvando
+  // ✅ Efeito melhorado: só salva se URL for nova, não estiver salvando, e não for restaurada do IndexedDB
   useEffect(() => {
+    // ✅ Não salvar se URL foi restaurada do IndexedDB (já foi salva anteriormente)
+    if (isRestoredFromStorage) {
+      console.log("[Video] useEffect: URL restaurada do IndexedDB, não salvar novamente");
+      return;
+    }
     if (videoUrl && !isSaving && !savedVideoUrls.current.has(videoUrl)) {
+      console.log("[Video] useEffect: Salvando videoUrl nova no banco:", videoUrl.substring(0, 50));
       saveVideoToDatabase(videoUrl);
     }
-  }, [videoUrl, isSaving, saveVideoToDatabase]);
+  }, [videoUrl, isSaving, saveVideoToDatabase, isRestoredFromStorage]);
 
   useEffect(() => {
     document.title = "Gerar Vídeo com IA | Synergy AI";
@@ -1126,12 +1144,9 @@ const VideoPage: React.FC = () => {
             ),
           });
           
-          // ✅ Salvar o vídeo automaticamente no banco (em background, não bloqueia exibição)
-          try {
-            saveVideoToDatabase(videoURL);
-          } catch (saveError) {
-            console.error("[Video] Erro ao salvar vídeo (não afeta exibição):", saveError);
-          }
+          // ✅ REMOVIDO: Salvamento movido para o useEffect que observa videoUrl
+          // Isso evita duplicação pois o useEffect já cuida de salvar quando videoUrl muda
+          console.log("[Video] beginPolling: vídeo pronto, useEffect cuidará do salvamento");
           
           // ✅ Atualizar saldo de créditos no frontend
           refreshProfile();
@@ -1277,8 +1292,9 @@ const VideoPage: React.FC = () => {
     setTaskUUID(null);
     processingRef.current = true; // ✅ Marcar que há processamento em andamento
     savedVideoUrls.current.clear(); // ✅ Limpar controle de URLs ao iniciar nova geração
+    setIsRestoredFromStorage(false); // ✅ Resetar flag para nova geração
     
-    // ✅ NOVO: Limpar videoUrl do IndexedDB ao iniciar nova geração
+    // ✅ Limpar videoUrl do IndexedDB ao iniciar nova geração
     removeImageFromStorage(VIDEO_URL_STORAGE_KEY);
 
     const normalizedFormat = outputFormat === "mov" ? "mp4" : outputFormat;
