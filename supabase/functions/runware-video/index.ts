@@ -35,6 +35,16 @@ serve(async (req) => {
     const body = await req.json();
     const action = body.action as "start" | "status";
     console.log("[runware-video] Incoming action:", action, { hasPrompt: !!body?.positivePrompt, width: body?.width, height: body?.height, modelId: body?.modelId, taskUUID: body?.taskUUID });
+    
+    // ✅ DEBUG: Log completo do body recebido
+    console.log("[runware-video] Body completo recebido:", JSON.stringify({
+      action: body.action,
+      modelId: body.modelId,
+      hasFrameStartUrl: !!body.frameStartUrl,
+      frameStartUrl: body.frameStartUrl?.substring(0, 100),
+      hasFrameEndUrl: !!body.frameEndUrl,
+      promptPreview: body.positivePrompt?.substring(0, 50),
+    }, null, 2));
 
     const API_URL = "https://api.runware.ai/v1";
 
@@ -198,6 +208,8 @@ serve(async (req) => {
         if (frameEndUrl) frameImages.push({ inputImage: frameEndUrl, frame: "last" });
         if (frameImages.length > 0) {
           tasks[1].frameImages = frameImages;
+          // ✅ DEBUG: Log do frameImages montado
+          console.log("[runware-video] frameImages montado:", JSON.stringify(frameImages, null, 2));
         }
       }
 
@@ -238,7 +250,12 @@ serve(async (req) => {
         json = result.j;
         console.log("[runware-video] makeRequest succeeded, status:", res.status);
       } catch (makeRequestError) {
-        console.error("[runware-video] Error in makeRequest:", makeRequestError);
+        // ✅ DEBUG: Log detalhado do erro
+        console.error("[runware-video] makeRequest ERRO DETALHADO:", {
+          errorMessage: makeRequestError instanceof Error ? makeRequestError.message : String(makeRequestError),
+          errorName: makeRequestError instanceof Error ? makeRequestError.name : "Unknown",
+          errorStack: makeRequestError instanceof Error ? makeRequestError.stack : undefined,
+        });
         return new Response(
           JSON.stringify({ 
             error: "Falha ao conectar com API de vídeo",
@@ -248,7 +265,9 @@ serve(async (req) => {
         );
       }
 
-      console.log("[runware-video] start -> response:", res.status, json);
+      // ✅ DEBUG: Log completo da resposta da Runware
+      console.log("[runware-video] Resposta Runware STATUS:", res.status);
+      console.log("[runware-video] Resposta Runware JSON:", JSON.stringify(json, null, 2));
 
       // ❌ REMOVIDO: fallback automático silencioso
       // Se o modelo falhar, retornar erro claro para o usuário
