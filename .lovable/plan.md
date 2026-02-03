@@ -1,192 +1,112 @@
 
-# Plano: Corrigir Duplicação de Vídeos no Histórico
+# Plano: Corrigir Persistência do Vídeo no IndexedDB
 
-## Problema Identificado
-
-Existem **múltiplos pontos** que chamam `saveVideoToDatabase`:
-
-1. **Linha 1131**: No `beginPolling` quando o vídeo fica pronto (chamada explícita)
-2. **Linha 797-800**: No `useEffect` que observa mudanças em `videoUrl`
-3. **Restauração do IndexedDB**: Ao restaurar `videoUrl`, dispara o `useEffect` da linha 797
-
-### Causa Raiz da Duplicação
-
-Quando o componente **remonta** (por causa do `refreshProfile()`):
+## Problema Identificado nos Logs
 
 ```text
-[Componente remonta]
-         |
-         v
-[savedVideoUrls.current = new Set<string>() VAZIO]  ← Perdeu memória!
-         |
-         v
-[IndexedDB restaura videoUrl]
-         |
-         v
-[useEffect detecta videoUrl && !savedVideoUrls.has(url)]  ← Passa!
-         |
-         v
-[saveVideoToDatabase() → DUPLICA O VÍDEO!]
+[Video] Estados aplicados com sucesso. videoUrl: https://vm.runware.ai/video/...
+[Video Render] Estados atuais: {"videoUrl": null, "savedVideosCount": 0}  ← VÍDEO PERDIDO!
+[Video] Componente montado. sessionStorage taskUUID: null  ← REMONTOU!
 ```
 
-Além disso, pode haver **triplicação** quando:
-- O `beginPolling` chama `saveVideoToDatabase` explicitamente (1º save)
-- O `useEffect` também detecta `videoUrl` (2º save)
-- Após remontagem, o IndexedDB restaura e o useEffect dispara novamente (3º save)
+O vídeo foi setado corretamente, mas **o componente remontou antes do useEffect ter chance de executar**:
 
----
+1. `flushSync` seta `videoUrl` com a URL
+2. `refreshProfile()` é chamado imediatamente na linha 1152
+3. O AuthContext atualiza e o componente Video **desmonta**
+4. O `useEffect` que salvaria no IndexedDB **nunca roda** (componente já desmontou)
+5. Componente remonta, tenta carregar do IndexedDB, mas está **vazio**
 
 ## Solução
 
-### Parte 1: Remover chamada duplicada no `beginPolling`
+Salvar no IndexedDB **SINCRONAMENTE** dentro do `beginPolling`, **antes** de chamar `refreshProfile()`, não em um `useEffect`.
 
-A linha 1131 chama `saveVideoToDatabase(videoURL)` explicitamente, MAS o `useEffect` na linha 797 já faz isso automaticamente quando `videoUrl` muda. Isso causa duplicação imediata.
-
-**Ação**: Remover a chamada direta `saveVideoToDatabase(videoURL)` do `beginPolling` (linhas 1129-1134).
-
-### Parte 2: Adicionar flag para indicar que URL veio do IndexedDB
-
-Quando o `videoUrl` é restaurado do IndexedDB (após remontagem), ele JÁ FOI SALVO anteriormente. Precisamos distinguir entre:
-- URL **nova** (recém-gerada, precisa salvar)
-- URL **restaurada** (do IndexedDB, NÃO precisa salvar)
-
-**Ação**: Adicionar uma flag `isRestoredFromStorage` que é `true` durante a restauração do IndexedDB.
-
-### Parte 3: Modificar useEffect para não salvar URLs restauradas
-
-**Ação**: O `useEffect` que chama `saveVideoToDatabase` deve verificar se a URL não é restaurada.
-
----
-
-## Alterações em `src/pages/Video.tsx`
-
-### 1. Adicionar estado `isRestoredFromStorage` (após linha 484)
+### Alteração no `beginPolling` (linhas 1106-1153)
 
 ```tsx
-const [isRestoredFromStorage, setIsRestoredFromStorage] = useState(false);
-```
-
-### 2. Marcar URL como restaurada no useEffect do IndexedDB (linhas 562-578)
-
-```tsx
-useEffect(() => {
-  const loadVideoUrl = async () => {
-    try {
-      const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
-      if (savedUrl && !taskUUIDRef.current) {
-        console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
-        setIsRestoredFromStorage(true); // ✅ Marcar como restaurado
-        setVideoUrl(savedUrl);
-        videoUrlRef.current = savedUrl;
-        // ✅ Adicionar à lista de URLs já salvas para prevenir duplicação
-        savedVideoUrls.current.add(savedUrl);
-      }
-    } catch (error) {
-      console.warn('[Video] Erro ao carregar videoUrl do IndexedDB:', error);
-    } finally {
-      setIsHydratingVideoUrl(false);
-    }
-  };
-  loadVideoUrl();
-}, []);
-```
-
-### 3. Modificar useEffect que salva para ignorar URLs restauradas (linhas 795-800)
-
-```tsx
-useEffect(() => {
-  // ✅ Não salvar se URL foi restaurada do IndexedDB
-  if (isRestoredFromStorage) {
-    console.log("[Video] URL restaurada do IndexedDB, não salvar novamente");
-    return;
-  }
-  if (videoUrl && !isSaving && !savedVideoUrls.current.has(videoUrl)) {
-    console.log("[Video] Salvando videoUrl nova no banco:", videoUrl.substring(0, 50));
-    saveVideoToDatabase(videoUrl);
-  }
-}, [videoUrl, isSaving, saveVideoToDatabase, isRestoredFromStorage]);
-```
-
-### 4. Remover chamada duplicada no beginPolling (linhas 1129-1134)
-
-**Remover este bloco**:
-```tsx
-// ✅ Salvar o vídeo automaticamente no banco (em background, não bloqueia exibição)
-try {
-  saveVideoToDatabase(videoURL);
-} catch (saveError) {
-  console.error("[Video] Erro ao salvar vídeo (não afeta exibição):", saveError);
+if (videoURL) {
+  console.log("[Video] ✅ Vídeo pronto! URL:", videoURL);
+  if (elapsedRef.current) window.clearInterval(elapsedRef.current);
+  if (pollRef.current) window.clearTimeout(pollRef.current);
+  
+  // ✅ CRÍTICO: Atualizar refs SINCRONAMENTE
+  videoUrlRef.current = videoURL;
+  taskUUIDRef.current = null;
+  processingRef.current = false;
+  setGenerationTaskUUID(null);
+  
+  // ✅ NOVO: Salvar no IndexedDB SINCRONAMENTE antes do refreshProfile
+  // Isso garante que o vídeo sobrevive à remontagem causada pelo refreshProfile
+  console.log("[Video] Salvando videoUrl no IndexedDB ANTES do refreshProfile");
+  saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoURL);
+  
+  console.log("[Video] Refs atualizadas sincronamente. Aplicando estados com flushSync...");
+  flushSync(() => {
+    setVideoUrl(videoURL);
+    setIsSubmitting(false);
+    setTaskUUID(null);
+    setElapsedTime(0);
+  });
+  
+  // ... toast ...
+  
+  // ✅ Atualizar saldo de créditos (isso causa remontagem, mas o vídeo já está no IndexedDB)
+  refreshProfile();
+  return;
 }
 ```
 
-O `useEffect` já cuida de chamar `saveVideoToDatabase` quando `videoUrl` muda.
+### Manter o useEffect como Fallback
 
-### 5. Resetar flag ao iniciar nova geração (no handleSubmit, após linha 1279)
+O `useEffect` existente (linhas 585-595) continua funcionando como fallback para outros casos, mas a persistência principal agora é síncrona no `beginPolling`.
+
+### Adicionar Console Log na Restauração
+
+Para confirmar que está funcionando:
 
 ```tsx
-setIsRestoredFromStorage(false); // ✅ Resetar flag para nova geração
+// Linha 566
+const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+console.log("[Video] IndexedDB retornou:", savedUrl ? savedUrl.substring(0, 50) : "VAZIO");
 ```
 
-### 6. Adicionar console.logs para diagnóstico
-
-Em `saveVideoToDatabase`:
-```tsx
-console.log("[Video] saveVideoToDatabase chamado para URL:", url.substring(0, 50));
-console.log("[Video] isSaving:", isSaving, "savedVideoUrls.has:", savedVideoUrls.current.has(url));
-```
-
----
-
-## Resumo das Alterações
+## Resumo das Alterações em `src/pages/Video.tsx`
 
 | Local | Alteração |
 |-------|-----------|
-| Após linha 484 | Adicionar estado `isRestoredFromStorage` |
-| Linhas 562-578 | Adicionar `savedVideoUrls.current.add(savedUrl)` e `setIsRestoredFromStorage(true)` |
-| Linhas 795-800 | Verificar `isRestoredFromStorage` antes de salvar |
-| Linhas 1129-1134 | **REMOVER** chamada direta a `saveVideoToDatabase` |
-| Após linha 1279 | Resetar `setIsRestoredFromStorage(false)` |
-
----
+| Linha ~1116 (após atualizar refs) | Adicionar `saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoURL)` |
+| Linha ~566 | Adicionar console.log para ver o que o IndexedDB retorna |
 
 ## Fluxo Corrigido
 
 ```text
-[Vídeo fica pronto no polling]
+[Polling detecta videoURL pronto]
          |
          v
-[setVideoUrl(videoURL)] ← Apenas seta o state
+[Atualiza refs sincronamente]
          |
          v
-[useEffect detecta videoUrl && !isRestoredFromStorage && !savedVideoUrls.has]
+[saveImageToStorage(videoURL)]  ← NOVO: Salva ANTES do refreshProfile
          |
          v
-[saveVideoToDatabase() → SALVA 1 VEZ APENAS]
+[flushSync atualiza states]
          |
          v
-[savedVideoUrls.current.add(url)] ← Marca como salvo
+[refreshProfile() causa remontagem]
          |
          v
-[Componente remonta por refreshProfile()]
+[Componente remonta]
          |
          v
-[savedVideoUrls.current = new Set() VAZIO]
+[loadImageFromStorage retorna a URL]  ← IndexedDB tem o vídeo!
          |
          v
-[IndexedDB restaura videoUrl + adiciona em savedVideoUrls + seta isRestoredFromStorage=true]
-         |
-         v
-[useEffect detecta videoUrl MAS isRestoredFromStorage=true]
-         |
-         v
-[IGNORA SALVAMENTO → SEM DUPLICAÇÃO!]
+[setVideoUrl(savedUrl) → VÍDEO APARECE!]
 ```
-
----
 
 ## Resultado Esperado
 
-1. Cada vídeo gerado será salvo **apenas uma vez** no banco
-2. Não haverá mais duplicação ou triplicação no histórico
-3. A restauração do IndexedDB funcionará sem disparar salvamento duplicado
-4. Console logs ajudarão a diagnosticar qualquer problema residual
+1. O vídeo será salvo no IndexedDB **antes** do `refreshProfile()` causar a remontagem
+2. Quando o componente remontar, o IndexedDB terá a URL disponível
+3. O vídeo aparecerá imediatamente no quadrado grande
+4. Console logs confirmarão o fluxo
