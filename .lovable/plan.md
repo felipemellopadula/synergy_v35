@@ -1,112 +1,129 @@
 
-# Plano: Corrigir Persistência do Vídeo no IndexedDB
+# Plano: Adicionar Console Logs para Diagnosticar Erro de Edge Function ao Anexar Imagem
 
-## Problema Identificado nos Logs
+## Análise do Fluxo
+
+Quando o usuário anexa uma imagem (frame inicial) e solicita um vídeo, o fluxo é:
+
+1. **Frontend (Video.tsx)**: `uploadImage` comprime e faz upload para bucket `video-refs`
+2. **Frontend (Video.tsx)**: `startGeneration` envia payload com `frameStartUrl` para edge function
+3. **Edge Function (runware-video)**: Recebe payload e monta `frameImages` array
+4. **Edge Function (runware-video)**: Envia para API Runware
+
+## Possíveis Causas do Erro
+
+1. **URL da imagem inválida ou inacessível** - A URL do Supabase Storage pode não estar acessível pela Runware
+2. **Formato de frameImages incorreto** - A API Runware pode estar rejeitando o formato
+3. **Modelo não suporta frame de referência** - Alguns modelos podem não aceitar `frameImages`
+4. **Erro no upload da imagem** - A imagem pode não ter sido carregada corretamente
+
+## Console Logs a Adicionar
+
+### 1. Frontend - `src/pages/Video.tsx`
+
+#### No `uploadImage` (após linha 909):
+```tsx
+console.log("[Video] Upload da imagem concluído. URL:", publicData.publicUrl);
+console.log("[Video] isStart:", isStart, "tipo:", isStart ? "frameStartUrl" : "frameEndUrl");
+```
+
+#### No `startGeneration` (antes da linha 1345):
+```tsx
+console.log("[Video] startGeneration payload:", JSON.stringify({
+  action: "start",
+  modelId,
+  positivePrompt: prompt?.substring(0, 50),
+  width: res.w,
+  height: res.h,
+  duration,
+  frameStartUrl: frameStartUrl || "(vazio)",
+  frameEndUrl: frameEndUrl || "(vazio)",
+  hasMotionTransfer: supportsMotionTransfer && !!referenceVideoUrl,
+}, null, 2));
+```
+
+#### No catch do `startGeneration` (linha 1378):
+```tsx
+console.error("[Video] startGeneration ERRO COMPLETO:", {
+  message: e?.message,
+  name: e?.name,
+  stack: e?.stack,
+  fullError: e,
+});
+```
+
+### 2. Edge Function - `supabase/functions/runware-video/index.ts`
+
+#### Após receber o body (após linha 37):
+```tsx
+console.log("[runware-video] Body completo recebido:", JSON.stringify({
+  action: body.action,
+  modelId: body.modelId,
+  hasFrameStartUrl: !!body.frameStartUrl,
+  frameStartUrl: body.frameStartUrl?.substring(0, 100),
+  hasFrameEndUrl: !!body.frameEndUrl,
+  promptPreview: body.positivePrompt?.substring(0, 50),
+}, null, 2));
+```
+
+#### Após montar frameImages (após linha 201):
+```tsx
+console.log("[runware-video] frameImages montado:", JSON.stringify(frameImages, null, 2));
+```
+
+#### No catch do makeRequest (linha 240-248):
+```tsx
+console.error("[runware-video] makeRequest ERRO DETALHADO:", {
+  errorMessage: makeRequestError instanceof Error ? makeRequestError.message : String(makeRequestError),
+  errorName: makeRequestError instanceof Error ? makeRequestError.name : "Unknown",
+  errorStack: makeRequestError instanceof Error ? makeRequestError.stack : undefined,
+});
+```
+
+#### Após resposta da Runware (linha 251):
+```tsx
+console.log("[runware-video] Resposta Runware STATUS:", res.status);
+console.log("[runware-video] Resposta Runware JSON:", JSON.stringify(json, null, 2));
+```
+
+## Resumo das Alterações
+
+| Arquivo | Localização | Alteração |
+|---------|-------------|-----------|
+| Video.tsx | `uploadImage` (após linha 909) | Log da URL e tipo de upload |
+| Video.tsx | `startGeneration` (antes linha 1345) | Log do payload completo |
+| Video.tsx | catch `startGeneration` (linha 1378) | Log detalhado do erro |
+| runware-video/index.ts | Após linha 37 | Log do body recebido |
+| runware-video/index.ts | Após linha 201 | Log do frameImages |
+| runware-video/index.ts | Linhas 240-248 | Log detalhado do erro |
+| runware-video/index.ts | Após linha 251 | Log completo da resposta |
+
+## Fluxo de Diagnóstico Esperado
 
 ```text
-[Video] Estados aplicados com sucesso. videoUrl: https://vm.runware.ai/video/...
-[Video Render] Estados atuais: {"videoUrl": null, "savedVideosCount": 0}  ← VÍDEO PERDIDO!
-[Video] Componente montado. sessionStorage taskUUID: null  ← REMONTOU!
-```
-
-O vídeo foi setado corretamente, mas **o componente remontou antes do useEffect ter chance de executar**:
-
-1. `flushSync` seta `videoUrl` com a URL
-2. `refreshProfile()` é chamado imediatamente na linha 1152
-3. O AuthContext atualiza e o componente Video **desmonta**
-4. O `useEffect` que salvaria no IndexedDB **nunca roda** (componente já desmontou)
-5. Componente remonta, tenta carregar do IndexedDB, mas está **vazio**
-
-## Solução
-
-Salvar no IndexedDB **SINCRONAMENTE** dentro do `beginPolling`, **antes** de chamar `refreshProfile()`, não em um `useEffect`.
-
-### Alteração no `beginPolling` (linhas 1106-1153)
-
-```tsx
-if (videoURL) {
-  console.log("[Video] ✅ Vídeo pronto! URL:", videoURL);
-  if (elapsedRef.current) window.clearInterval(elapsedRef.current);
-  if (pollRef.current) window.clearTimeout(pollRef.current);
-  
-  // ✅ CRÍTICO: Atualizar refs SINCRONAMENTE
-  videoUrlRef.current = videoURL;
-  taskUUIDRef.current = null;
-  processingRef.current = false;
-  setGenerationTaskUUID(null);
-  
-  // ✅ NOVO: Salvar no IndexedDB SINCRONAMENTE antes do refreshProfile
-  // Isso garante que o vídeo sobrevive à remontagem causada pelo refreshProfile
-  console.log("[Video] Salvando videoUrl no IndexedDB ANTES do refreshProfile");
-  saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoURL);
-  
-  console.log("[Video] Refs atualizadas sincronamente. Aplicando estados com flushSync...");
-  flushSync(() => {
-    setVideoUrl(videoURL);
-    setIsSubmitting(false);
-    setTaskUUID(null);
-    setElapsedTime(0);
-  });
-  
-  // ... toast ...
-  
-  // ✅ Atualizar saldo de créditos (isso causa remontagem, mas o vídeo já está no IndexedDB)
-  refreshProfile();
-  return;
-}
-```
-
-### Manter o useEffect como Fallback
-
-O `useEffect` existente (linhas 585-595) continua funcionando como fallback para outros casos, mas a persistência principal agora é síncrona no `beginPolling`.
-
-### Adicionar Console Log na Restauração
-
-Para confirmar que está funcionando:
-
-```tsx
-// Linha 566
-const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
-console.log("[Video] IndexedDB retornou:", savedUrl ? savedUrl.substring(0, 50) : "VAZIO");
-```
-
-## Resumo das Alterações em `src/pages/Video.tsx`
-
-| Local | Alteração |
-|-------|-----------|
-| Linha ~1116 (após atualizar refs) | Adicionar `saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoURL)` |
-| Linha ~566 | Adicionar console.log para ver o que o IndexedDB retorna |
-
-## Fluxo Corrigido
-
-```text
-[Polling detecta videoURL pronto]
+[Frontend] Upload da imagem → Log URL
          |
          v
-[Atualiza refs sincronamente]
+[Frontend] startGeneration → Log payload com frameStartUrl
          |
          v
-[saveImageToStorage(videoURL)]  ← NOVO: Salva ANTES do refreshProfile
+[Edge Function] Recebe body → Log body completo
          |
          v
-[flushSync atualiza states]
+[Edge Function] Monta frameImages → Log frameImages array
          |
          v
-[refreshProfile() causa remontagem]
+[Edge Function] Chama Runware → Log resposta/erro
          |
          v
-[Componente remonta]
-         |
-         v
-[loadImageFromStorage retorna a URL]  ← IndexedDB tem o vídeo!
-         |
-         v
-[setVideoUrl(savedUrl) → VÍDEO APARECE!]
+[Frontend] Recebe resposta/erro → Log detalhado
 ```
 
 ## Resultado Esperado
 
-1. O vídeo será salvo no IndexedDB **antes** do `refreshProfile()` causar a remontagem
-2. Quando o componente remontar, o IndexedDB terá a URL disponível
-3. O vídeo aparecerá imediatamente no quadrado grande
-4. Console logs confirmarão o fluxo
+Com esses logs, será possível identificar exatamente onde o erro ocorre:
+1. Se a URL da imagem está correta
+2. Se o payload está sendo enviado corretamente
+3. Se a edge function está recebendo os dados
+4. Se a API Runware está retornando erro e qual erro específico
+5. Se o frontend está tratando o erro corretamente
