@@ -906,6 +906,9 @@ const VideoPage: React.FC = () => {
         const { data: publicData } = supabase.storage.from("video-refs").getPublicUrl(data.path);
         if (!publicData.publicUrl) throw new Error("Falha ao gerar URL pública");
 
+        console.log("[Video] Upload da imagem concluído. URL:", publicData.publicUrl);
+        console.log("[Video] isStart:", isStart, "tipo:", isStart ? "frameStartUrl" : "frameEndUrl");
+        
         urlSetter(publicData.publicUrl);
       } catch (e: any) {
         console.error("Upload error:", e);
@@ -1338,6 +1341,19 @@ const VideoPage: React.FC = () => {
         } : {}),
       };
 
+      // ✅ DEBUG: Log do payload antes de enviar
+      console.log("[Video] startGeneration payload:", JSON.stringify({
+        action: "start",
+        modelId,
+        positivePrompt: prompt?.substring(0, 50),
+        width: res.w,
+        height: res.h,
+        duration,
+        frameStartUrl: frameStartUrl || "(vazio)",
+        frameEndUrl: frameEndUrl || "(vazio)",
+        hasMotionTransfer: supportsMotionTransfer && !!referenceVideoUrl,
+      }, null, 2));
+
       if (outputFormat === "mov") {
         toast({ title: "Formato ajustado", description: "MOV não é suportado pelo provedor. Usando MP4 automaticamente." });
       }
@@ -1376,6 +1392,12 @@ const VideoPage: React.FC = () => {
       toast({ title: "Geração iniciada", description: "Estamos processando seu vídeo. Isso pode levar alguns minutos." });
       beginPolling(data.taskUUID);
     } catch (e: any) {
+      console.error("[Video] startGeneration ERRO COMPLETO:", {
+        message: e?.message,
+        name: e?.name,
+        stack: e?.stack,
+        fullError: e,
+      });
       toast({ title: "Erro", description: e?.message || "Não foi possível iniciar a geração", variant: "destructive" });
       setIsSubmitting(false);
     }
