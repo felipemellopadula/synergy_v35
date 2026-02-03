@@ -564,6 +564,7 @@ const VideoPage: React.FC = () => {
     const loadVideoUrl = async () => {
       try {
         const savedUrl = await loadImageFromStorage(VIDEO_URL_STORAGE_KEY);
+        console.log("[Video] IndexedDB retornou:", savedUrl ? savedUrl.substring(0, 50) + "..." : "VAZIO");
         if (savedUrl && !taskUUIDRef.current) {
           console.log("[Video] Restaurando videoUrl do IndexedDB:", savedUrl.substring(0, 50));
           setIsRestoredFromStorage(true); // ✅ Marcar como restaurado para não salvar novamente
@@ -1115,6 +1116,11 @@ const VideoPage: React.FC = () => {
           processingRef.current = false;
           setGenerationTaskUUID(null); // Limpar sessionStorage antes do state update
           
+          // ✅ CRÍTICO: Salvar no IndexedDB ANTES do refreshProfile causar remontagem
+          // O useEffect que normalmente salvaria pode não executar a tempo se o componente remontar
+          console.log("[Video] Salvando videoUrl no IndexedDB ANTES do refreshProfile");
+          saveImageToStorage(VIDEO_URL_STORAGE_KEY, videoURL);
+          
           console.log("[Video] Refs atualizadas sincronamente. Aplicando estados com flushSync...");
           flushSync(() => {
             setVideoUrl(videoURL);     // ✅ PRIMEIRO: setar video novo
@@ -1144,11 +1150,9 @@ const VideoPage: React.FC = () => {
             ),
           });
           
-          // ✅ REMOVIDO: Salvamento movido para o useEffect que observa videoUrl
-          // Isso evita duplicação pois o useEffect já cuida de salvar quando videoUrl muda
-          console.log("[Video] beginPolling: vídeo pronto, useEffect cuidará do salvamento");
+          console.log("[Video] beginPolling: vídeo pronto, IndexedDB já salvou, useEffect cuidará do DB");
           
-          // ✅ Atualizar saldo de créditos no frontend
+          // ✅ Atualizar saldo de créditos no frontend (pode causar remontagem, mas IndexedDB já tem o vídeo)
           refreshProfile();
           return;
         }
