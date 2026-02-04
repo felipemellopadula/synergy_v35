@@ -493,8 +493,19 @@ const Image2Page = () => {
         if (editError) {
           console.error("Erro detalhado ao editar imagem:", editError);
           
+          // Extrair corpo do erro HTTP (FunctionsHttpError contém context com o body)
+          let errorMessage = editError.message || '';
+          try {
+            if (editError.context) {
+              const errorBody = await editError.context.json();
+              errorMessage = JSON.stringify(errorBody);
+              console.log("Corpo do erro extraído:", errorMessage);
+            }
+          } catch (e) {
+            console.log("Não foi possível parsear erro:", e);
+          }
+          
           // Verificar se é erro de moderação de conteúdo
-          const errorMessage = editError.message || JSON.stringify(editError);
           if (errorMessage.includes('Invalid content detected') ||
               errorMessage.includes('invalidProviderContent') || 
               errorMessage.includes('content moderation') || 
@@ -579,9 +590,20 @@ const Image2Page = () => {
         if (apiError) {
           console.error("Erro ao gerar imagem:", apiError);
           
+          // Extrair corpo do erro HTTP (FunctionsHttpError contém context com o body)
+          let errorDetails = apiError.message || '';
+          try {
+            if (apiError.context) {
+              const errorBody = await apiError.context.json();
+              errorDetails = JSON.stringify(errorBody);
+              console.log("Corpo do erro extraído:", errorDetails);
+            }
+          } catch (e) {
+            console.log("Não foi possível parsear erro:", e);
+          }
+          
           // Verificar se é erro de moderação de conteúdo
-          const errorMessage = apiError.message || JSON.stringify(apiError);
-          if (isContentModerationError(errorMessage)) {
+          if (isContentModerationError(errorDetails)) {
             toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
             return; // Encerrar graciosamente sem propagar erro
           }
