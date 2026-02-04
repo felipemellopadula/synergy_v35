@@ -1,129 +1,191 @@
 
-# Plano: Adicionar Console Logs para Diagnosticar Erro de Edge Function ao Anexar Imagem
+# Plano: Diagnosticar e Corrigir Tela Preta no Mobile (Image2)
 
-## Análise do Fluxo
+## Análise do Problema
 
-Quando o usuário anexa uma imagem (frame inicial) e solicita um vídeo, o fluxo é:
+A página `/image2` mostra uma **tela preta** no mobile, mas funciona corretamente no desktop. O dashboard (`/dashboard-novo`) funciona em ambos.
 
-1. **Frontend (Video.tsx)**: `uploadImage` comprime e faz upload para bucket `video-refs`
-2. **Frontend (Video.tsx)**: `startGeneration` envia payload com `frameStartUrl` para edge function
-3. **Edge Function (runware-video)**: Recebe payload e monta `frameImages` array
-4. **Edge Function (runware-video)**: Envia para API Runware
+### Estrutura Identificada
 
-## Possíveis Causas do Erro
-
-1. **URL da imagem inválida ou inacessível** - A URL do Supabase Storage pode não estar acessível pela Runware
-2. **Formato de frameImages incorreto** - A API Runware pode estar rejeitando o formato
-3. **Modelo não suporta frame de referência** - Alguns modelos podem não aceitar `frameImages`
-4. **Erro no upload da imagem** - A imagem pode não ter sido carregada corretamente
-
-## Console Logs a Adicionar
-
-### 1. Frontend - `src/pages/Video.tsx`
-
-#### No `uploadImage` (após linha 909):
-```tsx
-console.log("[Video] Upload da imagem concluído. URL:", publicData.publicUrl);
-console.log("[Video] isStart:", isStart, "tipo:", isStart ? "frameStartUrl" : "frameEndUrl");
-```
-
-#### No `startGeneration` (antes da linha 1345):
-```tsx
-console.log("[Video] startGeneration payload:", JSON.stringify({
-  action: "start",
-  modelId,
-  positivePrompt: prompt?.substring(0, 50),
-  width: res.w,
-  height: res.h,
-  duration,
-  frameStartUrl: frameStartUrl || "(vazio)",
-  frameEndUrl: frameEndUrl || "(vazio)",
-  hasMotionTransfer: supportsMotionTransfer && !!referenceVideoUrl,
-}, null, 2));
-```
-
-#### No catch do `startGeneration` (linha 1378):
-```tsx
-console.error("[Video] startGeneration ERRO COMPLETO:", {
-  message: e?.message,
-  name: e?.name,
-  stack: e?.stack,
-  fullError: e,
-});
-```
-
-### 2. Edge Function - `supabase/functions/runware-video/index.ts`
-
-#### Após receber o body (após linha 37):
-```tsx
-console.log("[runware-video] Body completo recebido:", JSON.stringify({
-  action: body.action,
-  modelId: body.modelId,
-  hasFrameStartUrl: !!body.frameStartUrl,
-  frameStartUrl: body.frameStartUrl?.substring(0, 100),
-  hasFrameEndUrl: !!body.frameEndUrl,
-  promptPreview: body.positivePrompt?.substring(0, 50),
-}, null, 2));
-```
-
-#### Após montar frameImages (após linha 201):
-```tsx
-console.log("[runware-video] frameImages montado:", JSON.stringify(frameImages, null, 2));
-```
-
-#### No catch do makeRequest (linha 240-248):
-```tsx
-console.error("[runware-video] makeRequest ERRO DETALHADO:", {
-  errorMessage: makeRequestError instanceof Error ? makeRequestError.message : String(makeRequestError),
-  errorName: makeRequestError instanceof Error ? makeRequestError.name : "Unknown",
-  errorStack: makeRequestError instanceof Error ? makeRequestError.stack : undefined,
-});
-```
-
-#### Após resposta da Runware (linha 251):
-```tsx
-console.log("[runware-video] Resposta Runware STATUS:", res.status);
-console.log("[runware-video] Resposta Runware JSON:", JSON.stringify(json, null, 2));
-```
-
-## Resumo das Alterações
-
-| Arquivo | Localização | Alteração |
-|---------|-------------|-----------|
-| Video.tsx | `uploadImage` (após linha 909) | Log da URL e tipo de upload |
-| Video.tsx | `startGeneration` (antes linha 1345) | Log do payload completo |
-| Video.tsx | catch `startGeneration` (linha 1378) | Log detalhado do erro |
-| runware-video/index.ts | Após linha 37 | Log do body recebido |
-| runware-video/index.ts | Após linha 201 | Log do frameImages |
-| runware-video/index.ts | Linhas 240-248 | Log detalhado do erro |
-| runware-video/index.ts | Após linha 251 | Log completo da resposta |
-
-## Fluxo de Diagnóstico Esperado
+O layout do Image2 é:
 
 ```text
-[Frontend] Upload da imagem → Log URL
-         |
-         v
-[Frontend] startGeneration → Log payload com frameStartUrl
-         |
-         v
-[Edge Function] Recebe body → Log body completo
-         |
-         v
-[Edge Function] Monta frameImages → Log frameImages array
-         |
-         v
-[Edge Function] Chama Runware → Log resposta/erro
-         |
-         v
-[Frontend] Recebe resposta/erro → Log detalhado
+┌─────────────────────────────────────────┐
+│ Header (border-b, bg-background/95)     │
+├─────────────────────────────────────────┤
+│ Flex container (flex-1, overflow-hidden)│
+│  ├─ CharacterPanel (hidden lg:block)    │ ← Oculto no mobile via CSS
+│  └─ Main (flex-1, overflow-auto, pb-48) │ ← Conteúdo principal
+├─────────────────────────────────────────┤
+│ Fixed Bottom Bar (bg-black/95, z-20)    │ ← POSSÍVEL CAUSA
+└─────────────────────────────────────────┘
 ```
+
+### Possíveis Causas da Tela Preta
+
+1. **Barra inferior `bg-black/95` cobrindo todo o conteúdo**: No mobile, a barra inferior fixa pode estar com altura 100% ou posicionamento incorreto
+
+2. **Erro de JavaScript durante carregamento de hooks**: Os hooks `useCharacters` e `useMoodboards` podem lançar erros silenciosos que impedem a renderização
+
+3. **`pb-48` insuficiente**: O padding-bottom pode não ser suficiente para compensar a barra fixa no mobile
+
+4. **Componente `CharacterPanel` no mobile (linha 974)**: Mesmo renderizando apenas um botão, pode estar com CSS que expande para 100% da tela
+
+5. **Problema com `overflow-hidden` no container principal**: Pode estar cortando o conteúdo visível
+
+---
+
+## Solução: Adicionar Console Logs de Diagnóstico
+
+### Logs a adicionar em `src/pages/Image2.tsx`
+
+**1. No início do componente (após hooks):**
+```tsx
+console.log("[Image2] Componente renderizando...");
+console.log("[Image2] user:", !!user);
+console.log("[Image2] isLoadingCharacters:", isLoadingCharacters);
+console.log("[Image2] isLoadingMoodboards:", isLoadingMoodboards);
+console.log("[Image2] isLoadingHistory:", isLoadingHistory);
+console.log("[Image2] images.length:", images.length);
+console.log("[Image2] window.innerWidth:", typeof window !== 'undefined' ? window.innerWidth : 'SSR');
+```
+
+**2. Antes do return (para confirmar que chega até lá):**
+```tsx
+console.log("[Image2] Chegou ao return - vai renderizar UI");
+```
+
+**3. Verificar erros dos hooks no catch do loadSavedImages:**
+```tsx
+console.error("[Image2] Erro ao carregar imagens:", error);
+console.error("[Image2] Erro completo:", JSON.stringify(error, null, 2));
+```
+
+### Logs a adicionar em `src/components/image/CharacterPanel.tsx`
+
+**No início do componente principal:**
+```tsx
+console.log("[CharacterPanel] Renderizando...");
+console.log("[CharacterPanel] isMobile:", isMobile);
+console.log("[CharacterPanel] window.innerWidth:", typeof window !== 'undefined' ? window.innerWidth : 'SSR');
+```
+
+**Se for mobile (dentro do bloco if isMobile):**
+```tsx
+console.log("[CharacterPanel] Modo mobile - renderizando botão trigger");
+```
+
+### Correção Preventiva: Garantir Visibilidade no Mobile
+
+Adicionar classes de segurança para garantir que o container principal não fique invisível:
+
+**No main container:**
+```tsx
+<main className="flex-1 overflow-auto p-4 pb-48 min-h-[200px]">
+```
+
+**No container flexível:**
+```tsx
+<div className="flex flex-1 overflow-hidden min-h-0">
+```
+
+---
+
+## Alterações em `src/pages/Image2.tsx`
+
+| Linha | Alteração |
+|-------|-----------|
+| Após linha 118 (após hooks) | Adicionar console.logs de diagnóstico |
+| Linha 274 (catch loadSavedImages) | Expandir log de erro |
+| Antes da linha 775 (antes do return) | Adicionar log "chegou ao return" |
+| Linha 776 | Adicionar fallback de emergência para erro |
+| Linha 807 | Adicionar `min-h-0` ao flex container |
+| Linha 844 | Adicionar `min-h-[200px]` ao main |
+
+---
+
+## Alterações em `src/components/image/CharacterPanel.tsx`
+
+| Linha | Alteração |
+|-------|-----------|
+| Após linha 699 (após isMobile) | Adicionar console.log de diagnóstico |
+| Linha 702 (if isMobile) | Adicionar log "modo mobile" |
+
+---
+
+## Código Final das Alterações
+
+### Image2.tsx - Após hooks (linha ~118)
+
+```tsx
+// ✅ DEBUG: Logs de diagnóstico para mobile
+console.log("[Image2] Componente renderizando...");
+console.log("[Image2] Estados:", {
+  user: !!user,
+  isLoadingCharacters,
+  isLoadingMoodboards,
+  isLoadingHistory,
+  imagesCount: images.length,
+  windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'SSR',
+  isMobileViewport: typeof window !== 'undefined' ? window.innerWidth < 768 : 'SSR',
+});
+```
+
+### Image2.tsx - Antes do return (linha ~775)
+
+```tsx
+console.log("[Image2] Chegou ao return - renderizando UI");
+```
+
+### Image2.tsx - Container principal (linha ~807)
+
+```tsx
+<div className="flex flex-1 overflow-hidden min-h-0">
+```
+
+### Image2.tsx - Main container (linha ~844)
+
+```tsx
+<main className="flex-1 overflow-auto p-4 pb-48 min-h-[200px]">
+```
+
+### CharacterPanel.tsx - Após isMobile (linha ~700)
+
+```tsx
+console.log("[CharacterPanel] Renderizando - isMobile:", isMobile);
+console.log("[CharacterPanel] windowWidth:", typeof window !== 'undefined' ? window.innerWidth : 'SSR');
+```
+
+---
+
+## Fluxo de Diagnóstico
+
+```text
+[Navega para /image2 no mobile]
+         |
+         v
+[Console: "[Image2] Componente renderizando..."]
+         |
+         v
+[Console: "[Image2] Estados: {...}"]
+         |
+         v
+[Console: "[CharacterPanel] Renderizando - isMobile: true"]
+         |
+         v
+[Console: "[Image2] Chegou ao return"]
+         |
+         v
+[Se tela preta → verificar se logs apareceram]
+   - Se NÃO apareceram → Erro antes do render
+   - Se apareceram → Problema é CSS, não JavaScript
+```
+
+---
 
 ## Resultado Esperado
 
-Com esses logs, será possível identificar exatamente onde o erro ocorre:
-1. Se a URL da imagem está correta
-2. Se o payload está sendo enviado corretamente
-3. Se a edge function está recebendo os dados
-4. Se a API Runware está retornando erro e qual erro específico
-5. Se o frontend está tratando o erro corretamente
+1. Console logs revelarão exatamente onde o fluxo para ou qual valor está incorreto
+2. Identificar se é problema de **JavaScript** (erro) ou **CSS** (elemento invisível)
+3. Correções de `min-h-0` e `min-h-[200px]` previnem alguns problemas de layout flex
+4. Se os logs indicarem que tudo está correto, o problema é puramente visual (CSS)
