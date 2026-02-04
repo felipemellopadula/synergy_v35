@@ -1,44 +1,35 @@
 
-# Plano: Corrigir Resoluções do MiniMax Hailuo 2.3
+# Correção: Dimensões do MiniMax Hailuo 2.3
 
-## Problema
+## Problema Identificado
 
-A alteração anterior estava incorreta. De acordo com a documentação da API (screenshot fornecido):
-- **4:3 (Standard / Landscape) - 768p**
-- **16:9 (Standard / Landscape) - 1080p**
+O código está usando dimensões incorretas para a opção "4:3 - 768p":
 
-## Correção Necessária
+| Opção | Código Atual (ERRADO) | API Runware (CORRETO) |
+|-------|----------------------|----------------------|
+| 4:3 - 768p | 1024×768 | **1366×768** |
+| 16:9 - 1080p | 1920×1080 | 1920×1080 ✓ |
 
-### Arquivo: `src/pages/Video.tsx` (linhas 152-156)
+## Alteração Necessária
 
-Reverter para as resoluções originais corretas:
+### Arquivo: `src/pages/Video.tsx` (linhas 152-155)
 
-```tsx
-// De (ERRADO - alteração anterior):
-"minimax:4@1": [
-  { id: "16:9-768p", label: "16:9 (Landscape) - 768p", w: 1366, h: 768 },
-  { id: "16:9-1080p", label: "16:9 (Landscape) - 1080p", w: 1920, h: 1080 },
-],
-
-// Para (CORRETO - conforme documentação):
+```typescript
+// De (ERRADO):
 "minimax:4@1": [
   { id: "4:3-768p", label: "4:3 (Standard / Landscape) - 768p", w: 1024, h: 768 },
   { id: "16:9-1080p", label: "16:9 (Standard / Landscape) - 1080p", w: 1920, h: 1080 },
 ],
+
+// Para (CORRETO - conforme imagens da API):
+"minimax:4@1": [
+  { id: "4:3-768p", label: "4:3 (Standard / Landscape) - 768p", w: 1366, h: 768 },
+  { id: "16:9-1080p", label: "16:9 (Standard / Landscape) - 1080p", w: 1920, h: 1080 },
+],
 ```
-
-## Diagnóstico Adicional
-
-Se o MiniMax continuar não funcionando após esta correção, será necessário:
-1. Testar a geração de vídeo para capturar logs da edge function
-2. Verificar qual erro específico a API Runware está retornando
-3. Verificar se há parâmetros adicionais que o MiniMax requer
 
 ## Resumo
 
-| Resolução | Dimensões | Status |
-|-----------|-----------|--------|
-| 4:3 - 768p | 1024×768 | Corrigir (voltar ao original) |
-| 16:9 - 1080p | 1920×1080 | OK (já estava correto) |
+A única mudança é: `w: 1024` → `w: 1366` na primeira opção de resolução.
 
-A correção reverte a alteração incorreta que fiz anteriormente.
+O label continua "4:3 (Standard / Landscape) - 768p" conforme a interface da Runware, mas as dimensões reais são 1366×768.
