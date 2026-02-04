@@ -875,7 +875,51 @@ const VideoPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelId]);
 
-  // Upload de imagem com compressão
+  // Função para redimensionar imagem para a resolução do modelo (crop center)
+  const resizeImageToResolution = useCallback(
+    async (file: File, targetWidth: number, targetHeight: number): Promise<Blob> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Canvas context failed"));
+            return;
+          }
+
+          // Calcula escala para cobrir todo o canvas (crop center)
+          const scale = Math.max(targetWidth / img.width, targetHeight / img.height);
+          const scaledW = img.width * scale;
+          const scaledH = img.height * scale;
+          const x = (targetWidth - scaledW) / 2;
+          const y = (targetHeight - scaledH) / 2;
+
+          ctx.drawImage(img, x, y, scaledW, scaledH);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                console.log(`[Video] Imagem redimensionada: ${img.width}x${img.height} → ${targetWidth}x${targetHeight}`);
+                resolve(blob);
+              } else {
+                reject(new Error("Blob creation failed"));
+              }
+            },
+            "image/webp",
+            0.92
+          );
+        };
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.src = URL.createObjectURL(file);
+      });
+    },
+    []
+  );
+
+  // Upload de imagem com compressão e redimensionamento para a resolução do modelo
   const uploadImage = useCallback(
     async (file: File, isStart: boolean) => {
       const setter = isStart ? setUploadingStart : setUploadingEnd;
@@ -887,17 +931,29 @@ const VideoPage: React.FC = () => {
         if (!validTypes.includes(file.type)) throw new Error("Tipo de arquivo não suportado. Use JPEG, PNG ou WebP.");
         if (file.size > 50 * 1024 * 1024) throw new Error("Arquivo muito grande. Máximo 50MB.");
 
-        const compressionOptions = {
-          maxSizeMB: 2,
-          maxWidthOrHeight: 1920,
-          useWebWorker: true,
-          fileType: "image/webp" as any,
-        };
+        // Pega a resolução atual do modelo
+        const currentRes = RESOLUTIONS_BY_MODEL[modelId]?.find((r) => r.id === resolution);
+        
+        let finalBlob: Blob;
+        
+        if (currentRes) {
+          // Redimensiona para a resolução exata do modelo (ex: 1280x720 para Sora 2)
+          console.log(`[Video] Redimensionando imagem para ${currentRes.w}x${currentRes.h} (modelo: ${modelId})`);
+          finalBlob = await resizeImageToResolution(file, currentRes.w, currentRes.h);
+        } else {
+          // Fallback: apenas comprime sem redimensionar
+          const compressionOptions = {
+            maxSizeMB: 2,
+            maxWidthOrHeight: 1920,
+            useWebWorker: true,
+            fileType: "image/webp" as any,
+          };
+          finalBlob = await imageCompression(file, compressionOptions);
+        }
 
-        const compressedFile = await imageCompression(file, compressionOptions);
         const safeFileName = `${user?.id || "temp"}_${Date.now()}.webp`;
 
-        const { data, error } = await supabase.storage.from("video-refs").upload(safeFileName, compressedFile, {
+        const { data, error } = await supabase.storage.from("video-refs").upload(safeFileName, finalBlob, {
           cacheControl: "3600",
           upsert: true,
         });
@@ -921,7 +977,7 @@ const VideoPage: React.FC = () => {
         setter(false);
       }
     },
-    [toast, user?.id]
+    [toast, user?.id, modelId, resolution, resizeImageToResolution]
   );
 
   // ✅ Upload de vídeo de referência para Motion Transfer
