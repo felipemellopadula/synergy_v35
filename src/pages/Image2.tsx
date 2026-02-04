@@ -131,6 +131,18 @@ const Image2Page = () => {
   const [magicPromptEnabled, setMagicPromptEnabled] = useState(false);
   const [images, setImages] = useState<DatabaseImage[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  
+  // ✅ DEBUG: Logs de diagnóstico para mobile
+  console.log("[Image2] Componente renderizando...");
+  console.log("[Image2] Estados:", {
+    user: !!user,
+    isLoadingCharacters,
+    isLoadingMoodboards,
+    isLoadingHistory,
+    imagesCount: images.length,
+    windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'SSR',
+    isMobileViewport: typeof window !== 'undefined' ? window.innerWidth < 768 : 'SSR',
+  });
   const [selectedImageForModal, setSelectedImageForModal] = useState<DatabaseImage | null>(null);
   const [imageToDelete, setImageToDelete] = useState<DatabaseImage | null>(null);
   const [shareModalImage, setShareModalImage] = useState<DatabaseImage | null>(null);
@@ -772,6 +784,8 @@ const Image2Page = () => {
     toast.success("Prompt copiado e pronto para usar!");
   }, []);
 
+  console.log("[Image2] Chegou ao return - renderizando UI");
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Header Minimalista */}
@@ -804,7 +818,8 @@ const Image2Page = () => {
       </header>
 
       {/* Layout com Sidebar (Desktop) */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Layout com Sidebar (Desktop) */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Character Panel - Desktop Sidebar */}
         <div className="hidden lg:block h-full">
           <CharacterPanel
@@ -841,7 +856,7 @@ const Image2Page = () => {
         </div>
 
         {/* Grid de Imagens */}
-        <main className="flex-1 overflow-auto p-4 pb-48">
+        <main className="flex-1 overflow-auto p-4 pb-48 min-h-[200px]">
           <div className="container mx-auto max-w-7xl">
           {isLoadingHistory ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
