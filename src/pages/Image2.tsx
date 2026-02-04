@@ -567,21 +567,42 @@ const Image2Page = () => {
         };
 
         const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
+        
+        // Helper para verificar se é erro de moderação de conteúdo
+        const isContentModerationError = (message: string): boolean => {
+          return message.includes('Invalid content detected') || 
+                 message.includes('invalidProviderContent') || 
+                 message.includes('content moderation') || 
+                 message.includes('Explicit content blocked');
+        };
+        
         if (apiError) {
           console.error("Erro ao gerar imagem:", apiError);
           
           // Verificar se é erro de moderação de conteúdo
           const errorMessage = apiError.message || JSON.stringify(apiError);
-          if (errorMessage.includes('Invalid content detected') || 
-              errorMessage.includes('invalidProviderContent') || 
-              errorMessage.includes('content moderation') || 
-              errorMessage.includes('Explicit content blocked')) {
+          if (isContentModerationError(errorMessage)) {
             toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
             throw apiError;
           }
           
           toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw apiError;
+        }
+
+        // Verificar também se apiData contém erro (quando edge function retorna 500)
+        if (apiData?.error) {
+          console.error("Erro retornado pela API:", apiData.error, apiData.details);
+          
+          // Verificar se é erro de moderação de conteúdo no body da resposta
+          const errorMessage = (apiData.error || '') + (apiData.details || '');
+          if (isContentModerationError(errorMessage)) {
+            toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
+            throw new Error(apiData.error);
+          }
+          
+          toast.error("IA sobrecarregada. Tente novamente mais tarde.");
+          throw new Error(apiData.error);
         }
 
         if (!apiData?.images || apiData.images.length === 0) {
