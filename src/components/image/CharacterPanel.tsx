@@ -699,7 +699,12 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
 
+  // ✅ DEBUG: Logs de diagnóstico para mobile
+  console.log("[CharacterPanel] Renderizando - isMobile:", isMobile);
+  console.log("[CharacterPanel] windowWidth:", typeof window !== 'undefined' ? window.innerWidth : 'SSR');
+
   if (isMobile) {
+    console.log("[CharacterPanel] Modo mobile - renderizando botão trigger");
     return (
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>
