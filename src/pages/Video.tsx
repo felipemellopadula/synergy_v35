@@ -149,9 +149,9 @@ const RESOLUTIONS_BY_MODEL: Record<string, Resolution[]> = {
     { id: "7:4", label: "7:4 (Landscape)", w: 1792, h: 1024 },
     { id: "4:7", label: "4:7 (Portrait)", w: 1024, h: 1792 },
   ],
-  // MiniMax Hailuo 2.3 - 2 formatos
+  // MiniMax Hailuo 2.3 - apenas 16:9 suportado (1366x768 ou 1920x1080)
   "minimax:4@1": [
-    { id: "4:3-768p", label: "4:3 (Standard / Landscape) - 768p", w: 1024, h: 768 },
+    { id: "16:9-768p", label: "16:9 (Landscape) - 768p", w: 1366, h: 768 },
     { id: "16:9-1080p", label: "16:9 (Landscape) - 1080p", w: 1920, h: 1080 },
   ],
   // LTX-2 Fast - apenas 3 resoluções 16:9
