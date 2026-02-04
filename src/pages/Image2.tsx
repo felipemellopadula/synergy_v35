@@ -495,12 +495,11 @@ const Image2Page = () => {
           
           // Verificar se é erro de moderação de conteúdo
           const errorMessage = editError.message || JSON.stringify(editError);
-          if (errorMessage.includes('invalidProviderContent') || 
+          if (errorMessage.includes('Invalid content detected') ||
+              errorMessage.includes('invalidProviderContent') || 
               errorMessage.includes('content moderation') || 
               errorMessage.includes('Explicit content blocked')) {
-            toast.error("Conteúdo bloqueado", {
-              description: "Seu prompt foi bloqueado pelo sistema de moderação. Por favor, reformule sua descrição.",
-            });
+            toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
             throw editError;
           }
           
@@ -570,6 +569,17 @@ const Image2Page = () => {
         const { data: apiData, error: apiError } = await supabase.functions.invoke("generate-image", { body });
         if (apiError) {
           console.error("Erro ao gerar imagem:", apiError);
+          
+          // Verificar se é erro de moderação de conteúdo
+          const errorMessage = apiError.message || JSON.stringify(apiError);
+          if (errorMessage.includes('Invalid content detected') || 
+              errorMessage.includes('invalidProviderContent') || 
+              errorMessage.includes('content moderation') || 
+              errorMessage.includes('Explicit content blocked')) {
+            toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
+            throw apiError;
+          }
+          
           toast.error("IA sobrecarregada. Tente novamente mais tarde.");
           throw apiError;
         }

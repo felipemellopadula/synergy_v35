@@ -1375,11 +1375,43 @@ const VideoPage: React.FC = () => {
       
       if (error) {
         console.error("Edge function error:", error);
+        
+        // Verificar se é erro de moderação de conteúdo
+        const errorMessage = error.message || JSON.stringify(error);
+        if (errorMessage.includes('Invalid content detected') || 
+            errorMessage.includes('invalidProviderContent') || 
+            errorMessage.includes('content moderation') || 
+            errorMessage.includes('Explicit content blocked')) {
+          toast({ 
+            title: "Conteúdo viola políticas de uso da IA", 
+            description: "Mude o prompt e tente novamente.",
+            variant: "destructive" 
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        
         throw new Error(error.message || "Erro ao chamar função de vídeo");
       }
       
       if (data?.error) {
         console.error("API error:", data.error, data.details);
+        
+        // Verificar se é erro de moderação de conteúdo no data.error
+        const errorMessage = data.error + (data.details ? JSON.stringify(data.details) : '');
+        if (errorMessage.includes('Invalid content detected') || 
+            errorMessage.includes('invalidProviderContent') || 
+            errorMessage.includes('content moderation') || 
+            errorMessage.includes('Explicit content blocked')) {
+          toast({ 
+            title: "Conteúdo viola políticas de uso da IA", 
+            description: "Mude o prompt e tente novamente.",
+            variant: "destructive" 
+          });
+          setIsSubmitting(false);
+          return;
+        }
+        
         throw new Error(data.error + (data.details ? `: ${data.details}` : ""));
       }
       
