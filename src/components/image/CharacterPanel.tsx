@@ -698,11 +698,29 @@ const CharacterPanelContent = ({
 export const CharacterPanel = (props: CharacterPanelProps) => {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Desktop: Sidebar colapsável com controle de visibilidade
+  // ⚠️ IMPORTANTE: Declarar isPanelOpen ANTES de qualquer early return para evitar violação de hooks
+  const isPanelOpen = props.isOpen ?? true;
 
   // ✅ DEBUG: Logs de diagnóstico para mobile
   console.log("[CharacterPanel] Renderizando - isMobile:", isMobile);
   console.log("[CharacterPanel] windowWidth:", typeof window !== 'undefined' ? window.innerWidth : 'SSR');
 
+  // Debug: verificar alturas (deve ser chamado ANTES de qualquer early return)
+  useEffect(() => {
+    if (isMobile) return; // Skip no mobile, mas o hook ainda é chamado
+    console.log('[CharacterPanel] Mounted/Updated - isPanelOpen:', isPanelOpen);
+    const sidebar = document.querySelector('.character-sidebar-debug');
+    if (sidebar) {
+      const rect = sidebar.getBoundingClientRect();
+      console.log('[CharacterPanel] Sidebar height:', rect.height);
+      console.log('[CharacterPanel] Parent height:', sidebar.parentElement?.getBoundingClientRect().height);
+      console.log('[CharacterPanel] Grandparent height:', sidebar.parentElement?.parentElement?.getBoundingClientRect().height);
+    }
+  }, [isPanelOpen, isMobile]);
+
+  // Mobile: Sheet com botão trigger
   if (isMobile) {
     console.log("[CharacterPanel] Modo mobile - renderizando botão trigger");
     return (
@@ -733,21 +751,7 @@ export const CharacterPanel = (props: CharacterPanelProps) => {
     );
   }
 
-  // Desktop: Sidebar colapsável com controle de visibilidade
-  const isPanelOpen = props.isOpen ?? true;
-
-  // Debug: verificar alturas
-  useEffect(() => {
-    console.log('[CharacterPanel] Mounted/Updated - isPanelOpen:', isPanelOpen);
-    const sidebar = document.querySelector('.character-sidebar-debug');
-    if (sidebar) {
-      const rect = sidebar.getBoundingClientRect();
-      console.log('[CharacterPanel] Sidebar height:', rect.height);
-      console.log('[CharacterPanel] Parent height:', sidebar.parentElement?.getBoundingClientRect().height);
-      console.log('[CharacterPanel] Grandparent height:', sidebar.parentElement?.parentElement?.getBoundingClientRect().height);
-    }
-  }, [isPanelOpen]);
-
+  // Desktop: Sidebar colapsável
   return (
     <div className="h-full relative">
       {/* Botão para reabrir quando fechado */}
