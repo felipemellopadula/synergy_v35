@@ -1,129 +1,107 @@
 
-# Plano: Corrigir Detecção de Erro de Moderação
+# Plano: Corrigir FPS para MiniMax Hailuo 2.3
 
-## Diagnóstico
+## Problema
 
-Identifiquei a causa raiz do problema analisando a resposta de rede:
+O modelo MiniMax Hailuo 2.3 (`minimax:4@1`) não está gerando vídeos porque está recebendo FPS incorreto.
 
-```json
-{
-  "error": "Falha ao gerar imagem (Runware)",
-  "details": "{\n    \"errors\": [\n        {\n            \"code\": \"invalidProviderContent\",\n            \"message\": \"Invalid content detected...\"
-}
-```
+**Documentação Runware - MiniMax Hailuo 2.3:**
+- Frame rate obrigatório: **25 FPS**
+- Dimensões: 1366×768 ou 1920×1080
+- Durações: 6s ou 10s (768p), apenas 6s (1080p)
 
-### O que está acontecendo:
+**Código atual:**
+- `Video.tsx`: envia `fps: isLtxModel ? fps : 24` → MiniMax recebe 24 FPS (incorreto)
+- `runware-video`: `getFpsForModel()` retorna 24 como padrão → MiniMax recebe 24 FPS (incorreto)
 
-1. Quando a edge function retorna status 500, o Supabase client cria um objeto `FunctionsHttpError`
-2. O `apiError.message` **NÃO contém** os detalhes do erro - apenas a mensagem genérica do Supabase
-3. O corpo da resposta (com `invalidProviderContent`) fica em `apiError.context` e precisa ser parseado
-4. Atualmente o código verifica `apiError.message` que não tem a string `invalidProviderContent`
-5. A verificação falha → mostra "IA sobrecarregada" → depois faz `throw` → crash
+## Solução
 
-### Solução:
+Atualizar a lógica de FPS em ambos os arquivos para retornar 25 FPS para modelos MiniMax.
 
-Extrair o corpo do erro usando `await apiError.context.json()` antes de verificar os padrões de moderação.
+## Alterações
 
-## Alterações em `src/pages/Image2.tsx`
+### 1. Edge Function `supabase/functions/runware-video/index.ts`
 
-### 1. Fluxo generate-image (linha ~579-591)
+**Linha 114-123** - Atualizar `getFpsForModel`:
 
-```tsx
-// De:
-if (apiError) {
-  console.error("Erro ao gerar imagem:", apiError);
-  
-  const errorMessage = apiError.message || JSON.stringify(apiError);
-  if (isContentModerationError(errorMessage)) {
-    toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
-    return;
-  }
-  
-  toast.error("IA sobrecarregada. Tente novamente mais tarde.");
-  throw apiError;
-}
-
-// Para:
-if (apiError) {
-  console.error("Erro ao gerar imagem:", apiError);
-  
-  // Extrair corpo do erro HTTP (FunctionsHttpError contém context com o body)
-  let errorDetails = apiError.message || '';
-  try {
-    if (apiError.context) {
-      const errorBody = await apiError.context.json();
-      errorDetails = JSON.stringify(errorBody);
-    }
-  } catch (e) {
-    console.log("Não foi possível parsear erro:", e);
-  }
-  
-  if (isContentModerationError(errorDetails)) {
-    toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
-    return;
-  }
-  
-  toast.error("IA sobrecarregada. Tente novamente mais tarde.");
-  throw apiError;
-}
-```
-
-### 2. Fluxo edit-image (linha ~493-516)
-
-```tsx
-// De:
-if (editError) {
-  console.error("Erro detalhado ao editar imagem:", editError);
-  
-  const errorMessage = editError.message || JSON.stringify(editError);
-  if (errorMessage.includes('Invalid content detected') ||
-      // ...
-  
-// Para:
-if (editError) {
-  console.error("Erro detalhado ao editar imagem:", editError);
-  
-  // Extrair corpo do erro HTTP (FunctionsHttpError contém context com o body)
-  let errorMessage = editError.message || '';
-  try {
-    if (editError.context) {
-      const errorBody = await editError.context.json();
-      errorMessage = JSON.stringify(errorBody);
-    }
-  } catch (e) {
-    console.log("Não foi possível parsear erro:", e);
-  }
-  
-  if (errorMessage.includes('Invalid content detected') ||
-      // ...
-```
-
-## Resumo Técnico
-
-| Problema | Solução |
-|----------|---------|
-| `apiError.message` não contém `invalidProviderContent` | Usar `apiError.context.json()` para obter o body |
-| Body é string JSON aninhada | `JSON.stringify()` achata para busca com `includes()` |
-| Verificação falha → throw → crash | Com extração correta, `return` é executado antes do throw |
-
-## Por que isso funciona?
-
-Quando a edge function retorna:
 ```typescript
-return new Response(JSON.stringify({ 
-  error: "Falha ao gerar imagem (Runware)", 
-  details: "{...invalidProviderContent...}" 
-}), { status: 500 });
+// De:
+const getFpsForModel = (model: string, customFpsValue?: number): number => {
+  if (model.startsWith('lightricks:') && customFpsValue) {
+    return customFpsValue;
+  }
+  if (model.startsWith('openai:')) {
+    return 30;
+  }
+  return 24;  // ← MiniMax recebe 24 (ERRADO)
+};
+
+// Para:
+const getFpsForModel = (model: string, customFpsValue?: number): number => {
+  // LTX models: usar FPS customizado se fornecido
+  if (model.startsWith('lightricks:') && customFpsValue) {
+    return customFpsValue;
+  }
+  // OpenAI Sora: 30 FPS
+  if (model.startsWith('openai:')) {
+    return 30;
+  }
+  // MiniMax: 25 FPS obrigatório
+  if (model.startsWith('minimax:')) {
+    return 25;
+  }
+  // ByteDance e outros: 24 FPS
+  return 24;
+};
 ```
 
-O Supabase client:
-1. Cria `FunctionsHttpError` 
-2. Armazena a `Response` em `error.context`
-3. O body fica disponível via `error.context.json()`
+### 2. Frontend `src/pages/Video.tsx`
 
-Com a correção:
-1. Parseamos o body com `await apiError.context.json()`
-2. Convertemos para string com `JSON.stringify()` 
-3. `includes('invalidProviderContent')` agora encontra o padrão
-4. Toast correto é exibido
-5. `return` encerra sem crash
+**Linha 1323** - Atualizar cálculo de FPS no payload:
+
+```typescript
+// De:
+fps: isLtxModel ? fps : 24,
+
+// Para:
+fps: isLtxModel ? fps : modelId.startsWith('minimax:') ? 25 : 24,
+```
+
+## Dimensões do MiniMax
+
+Verificando as resoluções configuradas (linha 153-156):
+
+```typescript
+"minimax:4@1": [
+  { id: "4:3-768p", label: "4:3 (Standard / Landscape) - 768p", w: 1024, h: 768 },  // ⚠️ INCORRETO
+  { id: "16:9-1080p", label: "16:9 (Landscape) - 1080p", w: 1920, h: 1080 },        // ✅ OK
+],
+```
+
+A resolução 4:3 (1024×768) não é suportada pelo MiniMax! O correto seria:
+- 1366×768 (16:9) 
+- 1920×1080 (16:9)
+
+**Adicionar correção de resoluções também:**
+
+```typescript
+"minimax:4@1": [
+  { id: "16:9-768p", label: "16:9 (Landscape) - 768p", w: 1366, h: 768 },
+  { id: "16:9-1080p", label: "16:9 (Landscape) - 1080p", w: 1920, h: 1080 },
+],
+```
+
+## Resumo das Correções
+
+| Arquivo | Problema | Correção |
+|---------|----------|----------|
+| runware-video/index.ts | FPS padrão 24 | Adicionar `if (model.startsWith('minimax:')) return 25` |
+| Video.tsx linha 1323 | FPS hardcoded 24 | Usar `modelId.startsWith('minimax:') ? 25 : 24` |
+| Video.tsx linha 153-155 | Resolução 4:3 inválida | Mudar para 16:9 (1366×768) |
+
+## Resultado Esperado
+
+Após as correções, o MiniMax Hailuo 2.3 receberá:
+- FPS: 25 (obrigatório)
+- Resoluções: 1366×768 ou 1920×1080 (válidas)
+- Duração: 6s ou 10s (dependendo da resolução)
