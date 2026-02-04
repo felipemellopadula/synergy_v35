@@ -500,7 +500,7 @@ const Image2Page = () => {
               errorMessage.includes('content moderation') || 
               errorMessage.includes('Explicit content blocked')) {
             toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
-            throw editError;
+            return; // Encerrar graciosamente sem propagar erro
           }
           
           // Verificar se é erro de créditos
@@ -583,7 +583,7 @@ const Image2Page = () => {
           const errorMessage = apiError.message || JSON.stringify(apiError);
           if (isContentModerationError(errorMessage)) {
             toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
-            throw apiError;
+            return; // Encerrar graciosamente sem propagar erro
           }
           
           toast.error("IA sobrecarregada. Tente novamente mais tarde.");
@@ -598,7 +598,7 @@ const Image2Page = () => {
           const errorMessage = (apiData.error || '') + (apiData.details || '');
           if (isContentModerationError(errorMessage)) {
             toast.error("Conteúdo viola políticas de uso da IA. Mude o prompt e tente novamente.");
-            throw new Error(apiData.error);
+            return; // Encerrar graciosamente sem propagar erro
           }
           
           toast.error("IA sobrecarregada. Tente novamente mais tarde.");
